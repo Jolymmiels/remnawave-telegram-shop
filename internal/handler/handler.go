@@ -53,8 +53,8 @@ const (
 	CallbackCard          = "card"
 	CallbackConnect       = "connect"
 	CallbackTelegramStars = "telegram_stars"
+	CallbackTrial         = "trial"
 )
-
 func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	ctxWithTime, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
@@ -71,6 +71,11 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		})
 		if err != nil {
 			slog.Error("error creating customer", err)
+			return
+		}
+		existingCustomer, err = h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
+		if err != nil {
+			slog.Error("error fetching newly created customer", err)
 			return
 		}
 		slog.Info("user created", "telegramId", update.Message.Chat.ID)
@@ -112,6 +117,11 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	if config.ChannelURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
 			{Text: h.translation.GetText(langCode, "channel_button"), URL: config.ChannelURL()},
+		})
+	}
+	if config.TrialTrafficLimitGB() > 0  && existingCustomer.SubscriptionLink == nil {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "trial_button"), CallbackData: "trial"},
 		})
 	}
 
@@ -165,6 +175,16 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: "buy"}},
 		{{Text: h.translation.GetText(langCode, "connect_button"), CallbackData: "connect"}},
 	}
+	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
+	if err != nil {
+		slog.Error("Error finding customer by telegram id", err)
+	}
+	if config.TrialTrafficLimitGB() > 0 &&  existingCustomer.SubscriptionLink == nil {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "trial_button"), CallbackData: "trial"},
+		})
+	}
+
 
 	if config.ServerStatusURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
@@ -190,7 +210,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		})
 	}
 
-	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: callback.Chat.ID,
+	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{ChatID: callback.Chat.ID,
 		MessageID: callback.ID,
 		ParseMode: models.ParseModeMarkdown,
 		ReplyMarkup: models.InlineKeyboardMarkup{
@@ -356,6 +376,60 @@ func (h Handler) CryptoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 		slog.Error("Error updating sell message", err)
 	}
 
+}
+
+
+func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	callback := update.CallbackQuery.Message.Message
+	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
+	if err != nil {
+		slog.Error("Error finding customer by telegram id", err)
+	}
+	
+	err = h.paymentService.ActivateTrialSubscription(existingCustomer.TelegramID)
+	if err != nil {
+		slog.Error("Error activating trial", err)
+		_, err = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: existingCustomer.TelegramID,
+			Text:   h.translation.GetText(existingCustomer.Language, "trial_subscription_error"),
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					{{Text: h.translation.GetText(existingCustomer.Language, "back_button"), CallbackData: CallbackStart}},
+				},
+			},
+		})
+		if err != nil {
+			slog.Error("Error sending trial subscription error message", err)
+		}
+		return
+
+	}
+	
+	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
+	if err != nil {
+		slog.Error("Error creating or updating user", err)
+		return
+	}
+	
+	subscriptionLink := ""
+	if customer.SubscriptionLink != nil {
+		subscriptionLink = *customer.SubscriptionLink
+	}
+	
+	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID: existingCustomer.TelegramID,
+		Text:   h.translation.GetText(existingCustomer.Language, "trial_subscription_activated"),
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{
+					{Text: h.translation.GetText(existingCustomer.Language, "connect_button"), URL: subscriptionLink},
+				},
+			},
+		},
+	})
+	if err != nil {
+		slog.Error("Error sending trial subscription activated message", err)
+	}
 }
 
 func (h Handler) YookasaCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {

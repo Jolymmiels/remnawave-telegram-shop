@@ -105,7 +105,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 }
 
 func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramId}).
 		PlaceholderFormat(sq.Dollar)
@@ -123,6 +123,7 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 		&customer.ExpireAt,
 		&customer.CreatedAt,
 		&customer.SubscriptionLink,
+		&customer.Language,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

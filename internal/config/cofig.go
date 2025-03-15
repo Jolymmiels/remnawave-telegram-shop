@@ -10,6 +10,7 @@ import (
 type config struct {
 	telegramToken          string
 	price                  int
+	trialTrafficLimitGB    int64
 	remnawaveUrl           string
 	remnawaveToken         string
 	databaseURL            string
@@ -54,6 +55,9 @@ func YookasaEmail() string {
 }
 func Price() int {
 	return conf.price
+}
+func TrialTrafficLimitGB() int64 {
+	return conf.trialTrafficLimitGB * bytesInGigabyte
 }
 func TelegramToken() string {
 	return conf.telegramToken
@@ -188,6 +192,16 @@ func InitConfig() {
 		panic(err)
 	}
 	conf.trafficLimit = int64(limit)
+
+	strTrialTrafficLimitGB := os.Getenv("TRIAL_TRAFFIC_LIMIT_GB")
+	if strTrialTrafficLimitGB == "" {
+		panic("TRIAL_TRAFFIC_LIMIT_GB .env variable not set")
+	}
+	trialTrafficLimitGB, err := strconv.Atoi(strTrialTrafficLimitGB)
+	if err != nil {
+		panic(err)
+	}
+	conf.trialTrafficLimitGB = int64(trialTrafficLimitGB)
 
 	conf.serverStatusURL = os.Getenv("SERVER_STATUS_URL")
 	conf.supportURL = os.Getenv("SUPPORT_URL")

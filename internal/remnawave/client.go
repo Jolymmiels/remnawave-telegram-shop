@@ -29,20 +29,20 @@ func NewClient(baseURL string, token string) *Client {
 	}
 }
 
-func (r *Client) CreateOrUpdateUser(ctx context.Context, username string, month int) (*User, error) {
+func (r *Client) CreateOrUpdateUser(ctx context.Context, username string, month int, trafficLimitBytes int64) (*User, error) {
 	existingUser, err := r.GetUser(ctx, username)
 	if err != nil {
 		return nil, err
 	}
 
 	if existingUser == nil {
-		newUser, err := r.createUser(ctx, username, month)
+		newUser, err := r.createUser(ctx, username, month, trafficLimitBytes)
 		if err != nil {
 			return nil, err
 		}
 		return newUser, nil
 	} else {
-		updatedUser, err := r.updateUser(ctx, existingUser, month*30)
+		updatedUser, err := r.updateUser(ctx, existingUser, month*30, trafficLimitBytes)
 		if err != nil {
 			return nil, err
 		}
@@ -50,14 +50,14 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, username string, month 
 	}
 }
 
-func (r *Client) updateUser(ctx context.Context, existingUser *User, days int) (*User, error) {
+func (r *Client) updateUser(ctx context.Context, existingUser *User, days int, trafficLimitBytes int64) (*User, error) {
 	newExpire := getNewExpire(days, existingUser)
 
 	userUpdate := &UserUpdate{
 		UUID:              existingUser.UUID,
 		ExpireAt:          newExpire,
 		Status:            ACTIVE,
-		TrafficLimitBytes: config.TrafficLimit(),
+		TrafficLimitBytes: trafficLimitBytes,
 	}
 
 	jsonData, err := json.Marshal(userUpdate)
@@ -104,7 +104,7 @@ func (r *Client) updateUser(ctx context.Context, existingUser *User, days int) (
 	return &wrapper.Response, nil
 }
 
-func (r *Client) createUser(ctx context.Context, username string, month int) (*User, error) {
+func (r *Client) createUser(ctx context.Context, username string, month int, trafficLimit int64) (*User, error) {
 	expireAt := time.Now().UTC().AddDate(0, 0, month*30)
 
 	inbounds := *r.getInbounds(ctx)
@@ -120,7 +120,7 @@ func (r *Client) createUser(ctx context.Context, username string, month int) (*U
 		TrafficLimitStrategy: MONTH,
 		SubscriptionUuid:     nil,
 		ExpireAt:             expireAt,
-		TrafficLimitBytes:    config.TrafficLimit(),
+		TrafficLimitBytes:    trafficLimit,
 	}
 
 	jsonData, err := json.Marshal(userCreate)

@@ -8,6 +8,7 @@ import (
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/translation"
+	"remnawave-tg-shop-bot/internal/config"
 	"time"
 )
 
@@ -55,7 +56,7 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 
 	username := fmt.Sprintf("%d_%d", customer.ID, customer.TelegramID)
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, username, purchase.Month)
+	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, username, purchase.Month, config.TrafficLimit())
 	if err != nil {
 		return err
 	}
@@ -89,6 +90,44 @@ func (s PaymentService) ProcessPurchaseById(purchaseId int64) error {
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+
+
+func (s PaymentService) ActivateTrialSubscription(customerID int64) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 1000*time.Second)
+	defer cancel()
+
+	customer, err := s.customerRepository.FindByTelegramId(ctx, customerID)
+	if err != nil {
+		return err
+	}
+	if customer == nil {
+		return fmt.Errorf("customer with id %d not found", customerID)
+	}
+
+	if customer.SubscriptionLink != nil && *customer.SubscriptionLink != ""{
+		return fmt.Errorf("пробная подписка уже активирована или исчерпана")
+	}
+
+	username := fmt.Sprintf("%d_%d", customer.ID, customer.TelegramID)
+	month  := 1
+	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, username, month, config.TrialTrafficLimitGB())
+	if err != nil {
+		return err
+	}
+
+	updates := map[string]interface{}{
+		"subscription_link":  user.SubscriptionURL,
+		"expire_at":          user.ExpireAt,
+	}
+
+	err = s.customerRepository.UpdateFields(ctx, customer.ID, updates)
+	if err != nil {
+		return err
+	}
+
 
 	return nil
 }

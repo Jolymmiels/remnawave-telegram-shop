@@ -20,7 +20,10 @@
   "channel_button": "📢 Channel",
   "subscription_expiring": "⚠️ <b>Subscription Alert</b> ⚠️\n\nYour subscription expires on %s\nTo continue using the service, please renew your subscription",
   "renew_subscription_button": "🔄 Renew Subscription",
-  "invoice_description" : "Subscription",
-  "invoice_label" : "Subscription",
-  "invoice_title" : "Subscription"
+  "invoice_description": "Subscription",
+  "invoice_label": "Subscription",
+  "invoice_title": "Subscription",
+  "trial_button": "🆓 Activate trial period",
+  "trial_subscription_activated": "Your trial period has been activated!",
+  "trial_subscription_error": "Failed to activate the trial period. Perhaps you have already used the trial period or have an active subscription"
 }

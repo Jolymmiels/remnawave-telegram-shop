@@ -116,6 +116,7 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackCard, bot.MatchTypePrefix, h.YookasaCallbackHandler)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTelegramStars, bot.MatchTypePrefix, h.TelegramStarsCallbackHandler)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler)
 
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.PreCheckoutQuery != nil
