@@ -1,0 +1,5 @@
+environment:
+  - PRICE_1=300
+  - PRICE_3=700
+  - PRICE_6=1000
+  - PRICE_12=1200 
