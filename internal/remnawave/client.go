@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type Client struct {
@@ -110,6 +111,8 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 
 func (r *Client) updateUser(ctx context.Context, existingUser *User, trafficLimit int64, days int) (*User, error) {
 	newExpire := getNewExpire(days, existingUser)
+
+	fmt.Println("Было добавлено - ", trafficLimit)
 
 	userUpdate := &UserUpdate{
 		UUID:              existingUser.UUID,

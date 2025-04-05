@@ -3,11 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/biter777/countries"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
-	"github.com/jackc/pgx/v4/pgxpool"
-	"github.com/robfig/cron/v3"
 	"log"
 	"log/slog"
 	"os"
@@ -24,6 +19,12 @@ import (
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"strconv"
 	"strings"
+
+	"github.com/biter777/countries"
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
+	"github.com/jackc/pgx/v4/pgxpool"
+	"github.com/robfig/cron/v3"
 )
 
 func main() {
@@ -122,6 +123,8 @@ func main() {
 
 	slog.Info("Bot is starting...")
 	b.Start(ctx)
+	fmt.Println("Начали")
+
 }
 
 func isAdminMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
