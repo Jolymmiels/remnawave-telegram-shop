@@ -1,5 +1,5 @@
 {
-  "greeting": "👋🏻 *Hello*\nThis is a bot for connecting to *VPN*🛡️\n\nAvailable locations:\n%s\n\n*How to connect:*\n• press the *\"Connect\"* button\n• follow the short instruction \n*О сервисе:*\n \\- ⚡ Быстрый\n \\- 🛡 Безопасный\n \\- ✅ Надежный\n \\- 🔒 Приватный \n \\- 📱💻 Удобный",
+  "greeting": "👋🏻 *Hello*\nThis is a bot for connecting to *VPN*🛡️\n\nAvailable locations:\n%s\n\n*How to connect:*\n• press the *\"Connect\"* button\n• follow the short instruction \n*О сервисе:*\n \\- Быстрый \n \\- Безопасный \n \\- Надежный \n \\- Приватный \n \\- Удобный",
   "buy_button": "💰 Buy",
   "connect_button": "🔌 Connect",
   "back_button": "🔙 Back",
