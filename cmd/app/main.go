@@ -122,8 +122,8 @@ func main() {
 	}, h.SuccessPaymentHandler)
 
 	slog.Info("Bot is starting...")
+	slog.Info("Начали")
 	b.Start(ctx)
-	fmt.Println("Начали")
 
 }
 
