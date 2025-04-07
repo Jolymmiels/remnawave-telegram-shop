@@ -18,7 +18,7 @@
   "server_status_button": "🟢 Server Status",
   "support_button": "🆘 Support",
   "channel_button": "📢 Channel",
-  "subscription_expiring": "⚠️ <b>Subscription Alert</b> ⚠️\n\nYour subscription expires on %s\nTo continue using the service, please renew your subscription",
+  "subscription_expiring": "⚠️ *Subscription Alert* ⚠️\n\nYour subscription expires on %s\nTo continue using the service, please renew your subscription",
   "renew_subscription_button": "🔄 Renew Subscription",
   "invoice_description" : "Subscription",
   "invoice_label" : "Subscription",
