@@ -43,7 +43,7 @@ type ExcludedInbound struct {
 type UserUpdate struct {
 	UUID                 string               `json:"uuid"`
 	Status               Status               `json:"status,omitempty"`
-	TrafficLimitBytes    int64                `json:"trafficLimitBytes,omitempty"`
+	TrafficLimitBytes    int64                `json:"trafficLimitBytes"`
 	TrafficLimitStrategy TrafficLimitStrategy `json:"trafficLimitStrategy,omitempty"`
 	ActiveUserInbounds   []string             `json:"activeUserInbounds,omitempty"`
 	ExpireAt             time.Time            `json:"expireAt,omitempty"`
