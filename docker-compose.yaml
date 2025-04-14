@@ -4,6 +4,9 @@ services:
     image: ghcr.io/jolymmiles/remnawave-telegram-shop-bot:latest
     env_file:
       - .env
+    networks:
+#      - remnawave-network
+      - vpn-bot
     depends_on:
       db:
         condition: service_healthy
@@ -17,13 +20,13 @@ services:
     restart: always
     env_file:
       - .env
+    networks:
+      - vpn-bot
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - TZ=UTC
-    ports:
-      - '127.0.0.1:5432:5432'
     volumes:
       - remnawave-telegram-shop-db-data:/var/lib/postgresql/data
     healthcheck:
@@ -37,3 +40,11 @@ volumes:
     driver: local
     external: false
     name: remnawave-telegram-shop-db-data
+
+networks:
+#    remnawave-network:
+#        external: true
+    vpn-bot:
+        name: vpn-bot
+        driver: bridge
+        external: false
