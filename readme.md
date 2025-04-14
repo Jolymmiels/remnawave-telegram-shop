@@ -29,6 +29,7 @@ The application requires the following environment variables to be set:
 | `PRICE_1`                | Price for 1 month                                                                                                    |
 | `PRICE_3`                | Price for 3 month                                                                                                    |
 | `PRICE_6`                | Price for 6 month                                                                                                    |
+| `PRICE_12`               | Price for 12 month                                                                                                   |
 | `TELEGRAM_TOKEN`         | Telegram Bot API token for bot functionality                                                                         |
 | `DATABASE_URL`           | PostgreSQL connection string                                                                                         |
 | `POSTGRES_USER`          | PostgreSQL username                                                                                                  |
@@ -51,6 +52,7 @@ The application requires the following environment variables to be set:
 | `SUPPORT_URL`            | URL to support chat or page (optional) - if not set, button will not be displayed                                    |
 | `FEEDBACK_URL`           | URL to feedback/reviews page (optional) - if not set, button will not be displayed                                   |
 | `CHANNEL_URL`            | URL to Telegram channel (optional) - if not set, button will not be displayed                                        |
+| `TOS_URL`                | URL to Terms Of Service (optional) - if not set, button will not be displayed                                        |
 | `ADMIN_TELEGRAM_ID`      | Admin telegram id                                                                                                    |
 | `TRIAL_TRAFFIC_LIMIT`    | Maximum allowed traffic in gb for trial subscriptions                                                                |     
 | `TRIAL_DAYS`             | Number of days for trial subscriptions                                                                               |
