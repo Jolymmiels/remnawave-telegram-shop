@@ -466,6 +466,39 @@ func (r *Client) getInbounds(ctx context.Context) *[]Inbound {
 		return nil
 	}
 
-	return &wrapper.Response
+	// Получаем список UUID для фильтрации
+	configUUIDs := config.InboundUUIDs()
+	
+	// Если UUID не указаны в конфигурации, возвращаем все инбаунды
+	if len(configUUIDs) == 0 {
+		slog.Info("No inbound UUID filter set, using all inbounds")
+		return &wrapper.Response
+	}
 
+	// Создаем мапу UUID для быстрого поиска
+	uuidsMap := make(map[string]bool)
+	for _, uuid := range configUUIDs {
+		uuidsMap[uuid] = true
+	}
+
+	// Фильтруем инбаунды по UUID
+	filteredInbounds := []Inbound{}
+	for _, inbound := range wrapper.Response {
+		if uuidsMap[inbound.UUID.String()] {
+			filteredInbounds = append(filteredInbounds, inbound)
+		}
+	}
+
+	if len(filteredInbounds) == 0 {
+		slog.Warn("No inbounds match the configured UUIDs, falling back to all inbounds", 
+			"configuredUUIDs", configUUIDs)
+		return &wrapper.Response
+	}
+
+	slog.Info("Filtered inbounds by UUIDs", 
+		"totalInbounds", len(wrapper.Response), 
+		"filteredInbounds", len(filteredInbounds),
+		"usedUUIDs", configUUIDs)
+	
+	return &filteredInbounds
 }

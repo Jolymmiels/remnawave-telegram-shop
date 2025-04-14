@@ -5,6 +5,7 @@ import (
 	"log/slog"
 	"os"
 	"strconv"
+	"strings"
 )
 
 type config struct {
@@ -12,6 +13,7 @@ type config struct {
 	price1                 int
 	price3                 int
 	price6                 int
+	price12                int
 	remnawaveUrl           string
 	remnawaveToken         string
 	remnawaveMode          string
@@ -29,15 +31,44 @@ type config struct {
 	channelURL             string
 	serverStatusURL        string
 	supportURL             string
+	tosURL				   string
 	isYookasaEnabled       bool
 	isCryptoEnabled        bool
 	isTelegramStarsEnabled bool
 	adminTelegramId        int64
 	trialDays              int
 	trialTrafficLimit      int64
+	inboundUUIDs           []string // Изменено: UUID вместо тегов для фильтрации inbounds
+	allowedCountries       []string // Добавлено: массив кодов стран для фильтрации
 }
 
 var conf config
+
+// Добавлена функция получения списка разрешенных стран
+func AllowedCountries() []string {
+	return conf.allowedCountries
+}
+
+// Добавлена функция проверки, разрешена ли страна
+func IsCountryAllowed(countryCode string) bool {
+	// Если список разрешенных стран пуст, разрешены все страны
+	if len(conf.allowedCountries) == 0 {
+		return true
+	}
+	
+	// Проверяем наличие кода страны в списке разрешенных
+	for _, code := range conf.allowedCountries {
+		if code == countryCode {
+			return true
+		}
+	}
+	return false
+}
+
+// Изменено: Функция для получения UUID инбаундов вместо тегов
+func InboundUUIDs() []string {
+	return conf.inboundUUIDs
+}
 
 func TrialTrafficLimit() int64 {
 	return conf.trialTrafficLimit * bytesInGigabyte
@@ -62,6 +93,10 @@ func SupportURL() string {
 	return conf.supportURL
 }
 
+func TosURL() string {
+	return conf.tosURL
+}
+
 func YookasaEmail() string {
 	return conf.yookasaEmail
 }
@@ -73,6 +108,9 @@ func Price3() int {
 }
 func Price6() int {
 	return conf.price6
+}
+func Price12() int {
+	return conf.price12
 }
 func TelegramToken() string {
 	return conf.telegramToken
@@ -194,6 +232,16 @@ func InitConfig() {
 	}
 	conf.price6 = price6
 
+	strPrice12 := os.Getenv("PRICE_12")
+	if strPrice12 == "" {
+		panic("PRICE_12 .env variable not set")
+	}
+	price12, err := strconv.Atoi(strPrice12)
+	if err != nil {
+		panic(err)
+	}
+	conf.price12 = price12
+
 	conf.remnawaveUrl = os.Getenv("REMNAWAVE_URL")
 	if conf.remnawaveUrl == "" {
 		panic("REMNAWAVE_URL .env variable not set")
@@ -260,5 +308,35 @@ func InitConfig() {
 	conf.supportURL = os.Getenv("SUPPORT_URL")
 	conf.feedbackURL = os.Getenv("FEEDBACK_URL")
 	conf.channelURL = os.Getenv("CHANNEL_URL")
+	conf.tosURL = os.Getenv("TOS_URL")
 
+	// Изменена обработка переменной INBOUND_UUIDS вместо INBOUND_TAGS
+	inboundUUIDsStr := os.Getenv("INBOUND_UUIDS")
+	if inboundUUIDsStr != "" {
+		// Разбиваем строку с UUID по запятой и удаляем лишние пробелы
+		uuids := strings.Split(inboundUUIDsStr, ",")
+		for i := range uuids {
+			uuids[i] = strings.TrimSpace(uuids[i])
+		}
+		conf.inboundUUIDs = uuids
+		slog.Info("Loaded inbound UUIDs", "uuids", conf.inboundUUIDs)
+	} else {
+		conf.inboundUUIDs = []string{} // Пустой массив, если UUID не указаны
+		slog.Info("No inbound UUIDs specified, all will be used")
+	}
+
+	// Добавлена обработка переменной ALLOWED_COUNTRIES
+	allowedCountriesStr := os.Getenv("ALLOWED_COUNTRIES")
+	if allowedCountriesStr != "" {
+		// Разбиваем строку с кодами стран по запятой и удаляем лишние пробелы
+		countries := strings.Split(allowedCountriesStr, ",")
+		for i := range countries {
+			countries[i] = strings.TrimSpace(countries[i])
+		}
+		conf.allowedCountries = countries
+		slog.Info("Loaded allowed countries", "countries", conf.allowedCountries)
+	} else {
+		conf.allowedCountries = []string{} // Пустой массив, если страны не указаны
+		slog.Info("No country restrictions, all countries will be shown")
+	}
 }
