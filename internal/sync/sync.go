@@ -24,6 +24,9 @@ func (s SyncService) Sync() {
 	pageSize := 100
 	start := 0
 
+	var allTelegramIDs []int64
+	telegramIDsSet := make(map[int64]int64)
+
 	for {
 		usersResponse, err := s.client.GetUsers(ctx, pageSize, start)
 		if err != nil {
@@ -34,15 +37,38 @@ func (s SyncService) Sync() {
 			break
 		}
 
-		var telegramIDs []int64
-		telegramIDsSet := make(map[int64]int64)
-
-		var mappedUsers []database.Customer
 		for _, user := range usersResponse.Users {
 			if user.TelegramId == nil {
 				continue
 			}
 			if _, exists := telegramIDsSet[*user.TelegramId]; exists {
+				continue
+			}
+
+			telegramIDsSet[*user.TelegramId] = *user.TelegramId
+			allTelegramIDs = append(allTelegramIDs, *user.TelegramId)
+		}
+
+		start += len(usersResponse.Users)
+		if start >= usersResponse.Total {
+			break
+		}
+	}
+
+	start = 0
+	for {
+		usersResponse, err := s.client.GetUsers(ctx, pageSize, start)
+		if err != nil {
+			slog.Error("Error while getting users from remnawave")
+			return
+		}
+		if usersResponse == nil || len(usersResponse.Users) == 0 {
+			break
+		}
+
+		var mappedUsers []database.Customer
+		for _, user := range usersResponse.Users {
+			if user.TelegramId == nil {
 				continue
 			}
 
@@ -52,14 +78,10 @@ func (s SyncService) Sync() {
 				continue
 			}
 
-			telegramIDsSet[*user.TelegramId] = *user.TelegramId
-
-			telegramIDs = append(telegramIDs, customer.TelegramID)
-
 			mappedUsers = append(mappedUsers, customer)
 		}
 
-		existingCustomers, err := s.customerRepository.FindByTelegramIds(ctx, telegramIDs)
+		existingCustomers, err := s.customerRepository.FindByTelegramIds(ctx, allTelegramIDs)
 		if err != nil {
 			slog.Error("Error while searching users by telegram ids")
 			return
@@ -81,12 +103,6 @@ func (s SyncService) Sync() {
 			}
 		}
 
-		err = s.customerRepository.DeleteByNotInTelegramIds(ctx, telegramIDs)
-		if err != nil {
-			slog.Error("Error while deleting users")
-		}
-		slog.Info("Deleted clients which not exist in panel")
-
 		if len(toCreate) > 0 {
 			if err := s.customerRepository.CreateBatch(ctx, toCreate); err != nil {
 				slog.Error("Error while creating users")
@@ -107,6 +123,13 @@ func (s SyncService) Sync() {
 		if start >= usersResponse.Total {
 			break
 		}
+	}
+
+	err := s.customerRepository.DeleteByNotInTelegramIds(ctx, allTelegramIDs)
+	if err != nil {
+		slog.Error("Error while deleting users")
+	} else {
+		slog.Info("Deleted clients which not exist in panel")
 	}
 
 	slog.Info("Synchronization completed")
