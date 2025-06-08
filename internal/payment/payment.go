@@ -270,44 +270,45 @@ func (s PaymentService) createYookasaInvoice(ctx context.Context, amount int, mo
 }
 
 func (s PaymentService) createTelegramInvoice(ctx context.Context, amount int, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
-	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
-		InvoiceType: database.InvoiceTypeTelegram,
-		Status:      database.PurchaseStatusNew,
-		Amount:      float64(amount),
-		Currency:    "STARS",
-		CustomerID:  customer.ID,
-		Month:       months,
-	})
-	if err != nil {
-		slog.Error("Error creating purchase", err)
-		return "", 0, nil
-	}
+        purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
+                InvoiceType: database.InvoiceTypeTelegram,
+                Status:      database.PurchaseStatusNew,
+                Amount:      float64(amount),
+                Currency:    "STARS",
+                CustomerID:  customer.ID,
+                Month:       months,
+        })
+        if err != nil {
+                slog.Error("Error creating purchase", err)
+                return "", 0, nil
+        }
 
-	invoiceUrl, err := s.telegramBot.CreateInvoiceLink(ctx, &bot.CreateInvoiceLinkParams{
-		Title:    s.translation.GetText(customer.Language, "invoice_title"),
-		Currency: "XTR",
-		Prices: []models.LabeledPrice{
-			{
-				Label:  s.translation.GetText(customer.Language, "invoice_label"),
-				Amount: amount,
-			},
-		},
-		Description: s.translation.GetText(customer.Language, "invoice_description"),
-		Payload:     fmt.Sprintf("%d&%s", purchaseId, ctx.Value("username")),
-	})
+        invoiceUrl, err := s.telegramBot.CreateInvoiceLink(ctx, &bot.CreateInvoiceLinkParams{
+                Title:    s.translation.GetText(customer.Language, "invoice_title"),
+                Currency: "XTR",
+                Prices: []models.LabeledPrice{
+                        {
+                                Label:  s.translation.GetText(customer.Language, "invoice_label"),
+                                Amount: amount,
+                        },
+                },
+                Description: s.translation.GetText(customer.Language, "invoice_description"),
+                Payload:     fmt.Sprintf("%d&%s", purchaseId, ctx.Value("username")),
+        })
 
-	updates := map[string]interface{}{
-		"status": database.PurchaseStatusPending,
-	}
+        updates := map[string]interface{}{
+                "status": database.PurchaseStatusPending,
+        }
 
-	err = s.purchaseRepository.UpdateFields(ctx, purchaseId, updates)
-	if err != nil {
-		slog.Error("Error updating purchase", err)
-		return "", 0, err
-	}
+        err = s.purchaseRepository.UpdateFields(ctx, purchaseId, updates)
+        if err != nil {
+                slog.Error("Error updating purchase", err)
+                return "", 0, err
+        }
 
-	return invoiceUrl, purchaseId, nil
+        return invoiceUrl, purchaseId, nil
 }
+
 
 func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (string, error) {
 	if config.TrialDays() == 0 {
