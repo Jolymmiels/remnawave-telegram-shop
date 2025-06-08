@@ -123,9 +123,6 @@ func Price6XTR() int {
 func Price12XTR() int {
     return getEnvAsInt("PRICE_12_XTR", 0)
 }
-func IsTelegramStarsEnabled() bool {
-        return conf.isTelegramStarsEnabled
-}
 func TelegramToken() string {
 	return conf.telegramToken
 }
