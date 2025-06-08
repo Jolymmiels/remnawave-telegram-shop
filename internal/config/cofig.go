@@ -45,6 +45,18 @@ type config struct {
 
 var conf config
 
+func getEnvAsInt(name string, defaultValue int) int {
+    valueStr := os.Getenv(name)
+    if valueStr == "" {
+        return defaultValue
+    }
+    value, err := strconv.Atoi(valueStr)
+    if err != nil {
+        slog.Warn("Invalid integer value for env var", "name", name, "value", valueStr)
+        return defaultValue
+    }
+    return value
+}
 func GetReferralDays() int {
 	return conf.referralDays
 }
@@ -98,6 +110,21 @@ func Price6() int {
 }
 func Price12() int {
 	return conf.price12
+}
+func Price1XTR() int {
+    return getEnvAsInt("PRICE_1_XTR", 0)
+}
+func Price3XTR() int {
+    return getEnvAsInt("PRICE_3_XTR", 0)
+}
+func Price6XTR() int {
+    return getEnvAsInt("PRICE_6_XTR", 0)
+}
+func Price12XTR() int {
+    return getEnvAsInt("PRICE_12_XTR", 0)
+}
+func IsTelegramStarsEnabled() bool {
+    return os.Getenv("TELEGRAM_STARS_ENABLED") == "true"
 }
 func TelegramToken() string {
 	return conf.telegramToken
