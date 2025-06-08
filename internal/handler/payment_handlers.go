@@ -99,9 +99,9 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 
 	if config.IsTelegramStarsEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "stars_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeTelegram, amount)},
-		})
+	    keyboard = append(keyboard, []models.InlineKeyboardButton{
+	        {Text: h.translation.GetText(langCode, "stars_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeTelegram, amount)},
+	    })
 	}
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
@@ -150,6 +150,38 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 
+	var finalPrice int
+	
+	switch price {
+	case config.Price1():
+	    if invoiceType == database.InvoiceTypeTelegram {
+	        finalPrice = config.Price1XTR()
+	    } else {
+	        finalPrice = config.Price1()
+	    }
+	case config.Price3():
+	    if invoiceType == database.InvoiceTypeTelegram {
+	        finalPrice = config.Price3XTR()
+	    } else {
+	        finalPrice = config.Price3()
+	    }
+	case config.Price6():
+	    if invoiceType == database.InvoiceTypeTelegram {
+	        finalPrice = config.Price6XTR()
+	    } else {
+	        finalPrice = config.Price6()
+	    }
+	case config.Price12():
+	    if invoiceType == database.InvoiceTypeTelegram {
+	        finalPrice = config.Price12XTR()
+	    } else {
+	        finalPrice = config.Price12()
+	    }
+	default:
+	    slog.Error("Unknown price value", "price", price)
+	    return
+	}
+	
 	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
 	paymentURL, purchaseId, err := h.paymentService.CreatePurchase(ctxWithUsername, price, month, customer, invoiceType)
 	if err != nil {
