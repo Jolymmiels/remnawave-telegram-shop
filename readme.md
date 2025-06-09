@@ -35,6 +35,10 @@ The application requires the following environment variables to be set:
 | `PRICE_6`                | Price for 6 month                                                                                                                            |
 | `MINI_APP_URL`           | tg WEB APP URL. if empty not be used.                                                                                                        |
 | `PRICE_12`               | Price for 12 month                                                                                                                           |
+| `PRICE_1_XTR             | Starts price for 1 month                                                                                                                     |
+| `PRICE_3_XTR`            | Starts price for 3 month                                                                                                                     |
+| `PRICE_6_XTR`            | Starts price for 6 month                                                                                                                     |
+| `PRICE_12_XTR`           | Starts price for 6 month                                                                                                                     |
 | `REFERRAL_DAYS`          | Refferal days. if 0, then disabled.                                                                                                          |
 | `TELEGRAM_TOKEN`         | Telegram Bot API token for bot functionality                                                                                                 |
 | `DATABASE_URL`           | PostgreSQL connection string                                                                                                                 |
