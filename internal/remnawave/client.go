@@ -199,6 +199,44 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 	return &userCreate.Response, nil
 }
 
+func (r *Client) GetUserByTelegramID(ctx context.Context, telegramId int64) (*remapi.UserDto, error) {
+	resp, err := r.client.UsersControllerGetUserByTelegramId(ctx, remapi.UsersControllerGetUserByTelegramIdParams{TelegramId: strconv.FormatInt(telegramId, 10)})
+	if err != nil {
+		return nil, err
+	}
+	switch v := resp.(type) {
+	case *remapi.UsersDto:
+		if len(v.GetResponse()) == 0 {
+			return nil, nil
+		}
+		for _, u := range v.GetResponse() {
+			if strings.Contains(u.Username, fmt.Sprintf("_%d", telegramId)) {
+				return &u, nil
+			}
+		}
+		return &v.GetResponse()[0], nil
+	default:
+		return nil, nil
+	}
+}
+
+func (r *Client) GetUserDailyUsage(ctx context.Context, uuid string, start, end time.Time) (float64, error) {
+	resp, err := r.client.UsersStatsControllerGetUserUsageByRange(ctx, remapi.UsersStatsControllerGetUserUsageByRangeParams{UUID: uuid, Start: start, End: end})
+	if err != nil {
+		return 0, err
+	}
+	switch v := resp.(type) {
+	case *remapi.GetUserUsageByRangeResponseDto:
+		var total float64
+		for _, item := range v.GetResponse() {
+			total += item.Total
+		}
+		return total, nil
+	default:
+		return 0, nil
+	}
+}
+
 func generateUsername(customerId int64, telegramId int64) string {
 	return fmt.Sprintf("%d_%d", customerId, telegramId)
 }

@@ -31,6 +31,7 @@ func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.Ha
 			existingCustomer, err = h.customerRepository.Create(ctx, &database.Customer{
 				TelegramID: telegramId,
 				Language:   langCode,
+				Balance:    0,
 			})
 			if err != nil {
 				slog.Error("error creating customer", err)

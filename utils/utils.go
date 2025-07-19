@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
@@ -24,4 +25,8 @@ func MaskHalf(input string) string {
 	visibleLength := length / 2
 	maskedLength := length - visibleLength
 	return input[:visibleLength] + strings.Repeat("*", maskedLength)
+}
+
+func FormatGB(bytes float64) string {
+	return fmt.Sprintf("%.2f GB", bytes/(1024*1024*1024))
 }

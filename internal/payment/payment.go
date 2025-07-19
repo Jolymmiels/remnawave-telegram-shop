@@ -3,6 +3,7 @@ package payment
 import (
 	"context"
 	"fmt"
+	remapi "github.com/Jolymmiles/remnawave-api-go/api"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 	"log/slog"
@@ -80,19 +81,14 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		}
 	}
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*30)
-	if err != nil {
-		return err
-	}
-
 	err = s.purchaseRepository.MarkAsPaid(ctx, purchase.ID)
 	if err != nil {
 		return err
 	}
 
+	newBalance := customer.Balance + purchase.Amount
 	customerFilesToUpdate := map[string]interface{}{
-		"subscription_link": user.SubscriptionUrl,
-		"expire_at":         user.ExpireAt,
+		"balance": newBalance,
 	}
 
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
@@ -102,58 +98,53 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 
 	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: customer.TelegramID,
-		Text:   s.translation.GetText(customer.Language, "subscription_activated"),
+		Text:   fmt.Sprintf(s.translation.GetText(customer.Language, "balance_topped_up"), int(purchase.Amount)),
+	})
+	if err != nil {
+		return err
+	}
+
+	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
+
+	return nil
+}
+
+func (s PaymentService) PurchaseFromBalance(ctx context.Context, customer *database.Customer, months int) error {
+	price := config.Price(months)
+	if customer.Balance < float64(price) {
+		_, _ = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{ChatID: customer.TelegramID, Text: s.translation.GetText(customer.Language, "insufficient_balance")})
+		return nil
+	}
+
+	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), months*30)
+	if err != nil {
+		return err
+	}
+
+	newBalance := customer.Balance - float64(price)
+	updates := map[string]interface{}{
+		"subscription_link": user.SubscriptionUrl,
+		"expire_at":         user.ExpireAt,
+		"balance":           newBalance,
+	}
+
+	customer.SubscriptionLink = &user.SubscriptionUrl
+	customer.ExpireAt = &user.ExpireAt
+	customer.Balance = newBalance
+
+	if err := s.customerRepository.UpdateFields(ctx, customer.ID, updates); err != nil {
+		return err
+	}
+
+	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    customer.TelegramID,
+		ParseMode: models.ParseModeHTML,
+		Text:      s.translation.GetText(customer.Language, "subscription_activated"),
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: s.createConnectKeyboard(customer),
 		},
 	})
-	if err != nil {
-		return err
-	}
-
-	ctxReferee := context.Background()
-	referee, err := s.referralRepository.FindByReferee(ctxReferee, customer.TelegramID)
-	if referee == nil {
-		return nil
-	}
-	if referee.BonusGranted {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	refereeCustomer, err := s.customerRepository.FindByTelegramId(ctxReferee, referee.ReferrerID)
-	if err != nil {
-		return err
-	}
-	refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctxReferee, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays())
-	if err != nil {
-		return err
-	}
-	refereeUserFilesToUpdate := map[string]interface{}{
-		"subscription_link": refereeUser.GetSubscriptionUrl(),
-		"expire_at":         refereeUser.GetExpireAt(),
-	}
-	err = s.customerRepository.UpdateFields(ctxReferee, refereeCustomer.ID, refereeUserFilesToUpdate)
-	if err != nil {
-		return err
-	}
-	err = s.referralRepository.MarkBonusGranted(ctxReferee, referee.ID)
-	if err != nil {
-		return err
-	}
-	slog.Info("Granted referral bonus", "customer_id", utils.MaskHalfInt64(refereeCustomer.ID))
-	_, err = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
-		ChatID:    refereeCustomer.TelegramID,
-		ParseMode: models.ParseModeHTML,
-		Text:      s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
-		},
-	})
-	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
-
-	return nil
+	return err
 }
 
 func (s PaymentService) createConnectKeyboard(customer *database.Customer) [][]models.InlineKeyboardButton {
@@ -381,4 +372,12 @@ func (s PaymentService) createTributeInvoice(ctx context.Context, amount int, mo
 	}
 
 	return "", purchaseId, nil
+}
+
+func (s PaymentService) GetUser(ctx context.Context, telegramId int64) (*remapi.UserDto, error) {
+	return s.remnawaveClient.GetUserByTelegramID(ctx, telegramId)
+}
+
+func (s PaymentService) GetUserDailyUsage(ctx context.Context, uuid string, start, end time.Time) (float64, error) {
+	return s.remnawaveClient.GetUserDailyUsage(ctx, uuid, start, end)
 }

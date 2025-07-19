@@ -27,10 +27,11 @@ type Customer struct {
 	CreatedAt        time.Time  `db:"created_at"`
 	SubscriptionLink *string    `db:"subscription_link"`
 	Language         string     `db:"language"`
+	Balance          float64    `db:"balance"`
 }
 
 func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDate, endDate time.Time) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "balance").
 		From("customer").
 		Where(
 			sq.And{
@@ -62,6 +63,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
 			&customer.Language,
+			&customer.Balance,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -77,7 +79,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 }
 
 func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "balance").
 		From("customer").
 		Where(sq.Eq{"id": id}).
 		PlaceholderFormat(sq.Dollar)
@@ -96,6 +98,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 		&customer.CreatedAt,
 		&customer.SubscriptionLink,
 		&customer.Language,
+		&customer.Balance,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -107,7 +110,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 }
 
 func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "balance").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramId}).
 		PlaceholderFormat(sq.Dollar)
@@ -126,6 +129,7 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 		&customer.CreatedAt,
 		&customer.SubscriptionLink,
 		&customer.Language,
+		&customer.Balance,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -138,9 +142,9 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 
 func (cr *CustomerRepository) Create(ctx context.Context, customer *Customer) (*Customer, error) {
 	buildInsert := sq.Insert("customer").
-		Columns("telegram_id", "expire_at", "language").
+		Columns("telegram_id", "expire_at", "language", "balance").
 		PlaceholderFormat(sq.Dollar).
-		Values(customer.TelegramID, customer.ExpireAt, customer.Language).
+		Values(customer.TelegramID, customer.ExpireAt, customer.Language, customer.Balance).
 		Suffix("RETURNING id, created_at")
 	sqlStr, args, err := buildInsert.ToSql()
 	if err != nil {
@@ -203,7 +207,7 @@ func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, update
 }
 
 func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs []int64) ([]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "balance").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramIDs}).
 		PlaceholderFormat(sq.Dollar)
@@ -229,6 +233,7 @@ func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
 			&customer.Language,
+			&customer.Balance,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -247,10 +252,10 @@ func (cr *CustomerRepository) CreateBatch(ctx context.Context, customers []Custo
 		return nil
 	}
 	builder := sq.Insert("customer").
-		Columns("telegram_id", "expire_at", "language", "subscription_link").
+		Columns("telegram_id", "expire_at", "language", "subscription_link", "balance").
 		PlaceholderFormat(sq.Dollar)
 	for _, cust := range customers {
-		builder = builder.Values(cust.TelegramID, cust.ExpireAt, cust.Language, cust.SubscriptionLink)
+		builder = builder.Values(cust.TelegramID, cust.ExpireAt, cust.Language, cust.SubscriptionLink, cust.Balance)
 	}
 	sqlStr, args, err := builder.ToSql()
 	if err != nil {
@@ -280,16 +285,16 @@ func (cr *CustomerRepository) UpdateBatch(ctx context.Context, customers []Custo
 	if len(customers) == 0 {
 		return nil
 	}
-	query := "UPDATE customer SET expire_at = c.expire_at, language = c.language, subscription_link = c.subscription_link FROM (VALUES "
+	query := "UPDATE customer SET expire_at = c.expire_at, language = c.language, subscription_link = c.subscription_link, balance = c.balance FROM (VALUES "
 	var args []interface{}
 	for i, cust := range customers {
 		if i > 0 {
 			query += ", "
 		}
-		query += fmt.Sprintf("($%d::bigint, $%d::timestamp, $%d::text, $%d::text)", i*4+1, i*4+2, i*4+3, i*4+4)
-		args = append(args, cust.TelegramID, cust.ExpireAt, cust.Language, cust.SubscriptionLink)
+		query += fmt.Sprintf("($%d::bigint, $%d::timestamp, $%d::text, $%d::text, $%d::numeric)", i*5+1, i*5+2, i*5+3, i*5+4, i*5+5)
+		args = append(args, cust.TelegramID, cust.ExpireAt, cust.Language, cust.SubscriptionLink, cust.Balance)
 	}
-	query += ") AS c(telegram_id, expire_at, language, subscription_link) WHERE customer.telegram_id = c.telegram_id"
+	query += ") AS c(telegram_id, expire_at, language, subscription_link, balance) WHERE customer.telegram_id = c.telegram_id"
 
 	tx, err := cr.pool.Begin(ctx)
 	if err != nil {

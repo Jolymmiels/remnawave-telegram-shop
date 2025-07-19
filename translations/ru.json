@@ -35,5 +35,11 @@
   "stars_button": " ⭐Telegram Stars",
   "share_referral_button": "Поделиться!",
   "web_app_button_text": "🔌 Подключиться",
-  "tribute_button" : "Tribute"
+  "tribute_button": "Tribute",
+  "balance_topped_up": "Баланс пополнен на %d",
+  "balance_menu_button": "💳 Баланс и оплата",
+  "topup_button": "Пополнить баланс",
+  "buy_sub_balance_button": "Купить подписку",
+  "insufficient_balance": "Недостаточно средств",
+  "balance_info": "Ваш баланс: %d ₽"
 }

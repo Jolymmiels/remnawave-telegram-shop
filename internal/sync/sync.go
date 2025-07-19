@@ -51,6 +51,7 @@ func (s SyncService) Sync() {
 			TelegramID:       int64(user.TelegramId.Value),
 			ExpireAt:         &user.ExpireAt,
 			SubscriptionLink: &user.SubscriptionUrl,
+			Balance:          0,
 		})
 	}
 

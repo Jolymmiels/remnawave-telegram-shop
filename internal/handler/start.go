@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		existingCustomer, err = h.customerRepository.Create(ctxWithTime, &database.Customer{
 			TelegramID: update.Message.Chat.ID,
 			Language:   langCode,
+			Balance:    0,
 		})
 		if err != nil {
 			slog.Error("error creating customer", err)
@@ -92,13 +94,14 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		return
 	}
 
+	text := h.translation.GetText(langCode, "greeting") + "\n\n" + h.buildAccountInfo(ctxWithTime, existingCustomer, langCode)
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		ParseMode: models.ParseModeHTML,
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: inlineKeyboard,
 		},
-		Text: h.translation.GetText(langCode, "greeting"),
+		Text: text,
 	})
 	if err != nil {
 		slog.Error("Error sending /start message", err)
@@ -120,6 +123,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 
 	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
 
+	text := h.translation.GetText(langCode, "greeting") + "\n\n" + h.buildAccountInfo(ctxWithTime, existingCustomer, langCode)
 	_, err = b.EditMessageText(ctxWithTime, &bot.EditMessageTextParams{
 		ChatID:    callback.Message.Message.Chat.ID,
 		MessageID: callback.Message.Message.ID,
@@ -127,7 +131,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: inlineKeyboard,
 		},
-		Text: h.translation.GetText(langCode, "greeting"),
+		Text: text,
 	})
 	if err != nil {
 		slog.Error("Error sending /start message", err)
@@ -158,7 +162,7 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "trial_button"), CallbackData: CallbackTrial}})
 	}
 
-	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: CallbackBuy}}}...)
+	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "balance_menu_button"), CallbackData: CallbackBalance}})
 
 	if existingCustomer.SubscriptionLink != nil && existingCustomer.ExpireAt.After(time.Now()) {
 		inlineKeyboard = append(inlineKeyboard, h.resolveConnectButton(langCode))
@@ -188,4 +192,39 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()}})
 	}
 	return inlineKeyboard
+}
+
+func (h Handler) buildAccountInfo(ctx context.Context, customer *database.Customer, lang string) string {
+	user, _ := h.paymentService.GetUser(ctx, customer.TelegramID)
+	var info strings.Builder
+	if user != nil {
+		expire := user.ExpireAt.Format("02.01.2006 15:04")
+		status := "ACTIVE"
+		if user.Status.Set {
+			status = string(user.Status.Value)
+		}
+		lastClient := "-"
+		if !user.LastConnectedNode.Null {
+			lastClient = user.LastConnectedNode.Value.GetNodeName()
+		}
+		start := time.Now().Truncate(24 * time.Hour)
+		usage, _ := h.paymentService.GetUserDailyUsage(ctx, user.UUID.String(), start, time.Now())
+		limit := 0.0
+		if v, ok := user.TrafficLimitBytes.Get(); ok {
+			limit = float64(v)
+		}
+		info.WriteString("📰 Информация об аккаунте:\n\n")
+		info.WriteString(fmt.Sprintf("├ Баланс: <%.0f ₽>\n", customer.Balance))
+		info.WriteString(fmt.Sprintf("├ Подписка до: <%s>\n", expire))
+		info.WriteString(fmt.Sprintf("├ Статус: <%s>\n", status))
+		info.WriteString(fmt.Sprintf("├ Последний клиент: <%s>\n\n", lastClient))
+		info.WriteString("🌐 Информация о трафике:\n\n")
+		info.WriteString(fmt.Sprintf("├ Лимит в сутки: <%s / %s>\n", utils.FormatGB(usage), utils.FormatGB(limit)))
+		info.WriteString(fmt.Sprintf("├ Всего использовано: <%s>\n", utils.FormatGB(user.LifetimeUsedTrafficBytes)))
+		untilReset := start.Add(24 * time.Hour).Sub(time.Now())
+		info.WriteString(fmt.Sprintf("├ До сброса трафика: <%s>", untilReset.Truncate(time.Second)))
+	} else {
+		info.WriteString(fmt.Sprintf(h.translation.GetText(lang, "balance_info"), int(customer.Balance)))
+	}
+	return info.String()
 }

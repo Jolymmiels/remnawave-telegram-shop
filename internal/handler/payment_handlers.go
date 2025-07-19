@@ -13,6 +13,7 @@ import (
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/utils"
 )
 
 func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -109,6 +110,10 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
 		})
 	}
+
+	keyboard = append(keyboard, []models.InlineKeyboardButton{
+		{Text: h.translation.GetText(langCode, "buy_sub_balance_button"), CallbackData: fmt.Sprintf("%s?month=%s", CallbackPayFromBal, month)},
+	})
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
 		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackBuy},
@@ -208,6 +213,128 @@ func (h Handler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *
 	err = h.paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseId))
 	if err != nil {
 		slog.Error("Error processing purchase", err)
+	}
+}
+
+func (h Handler) BalanceCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	callback := update.CallbackQuery.Message.Message
+	lang := update.CallbackQuery.From.LanguageCode
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
+	if customer == nil {
+		return
+	}
+
+	user, _ := h.paymentService.GetUser(ctx, customer.TelegramID)
+	var info strings.Builder
+	if user != nil {
+		expire := user.ExpireAt.Format("02.01.2006 15:04")
+		status := "ACTIVE"
+		if user.Status.Set {
+			status = string(user.Status.Value)
+		}
+		lastClient := "-"
+		if !user.LastConnectedNode.Null {
+			lastClient = user.LastConnectedNode.Value.GetNodeName()
+		}
+		start := time.Now().Truncate(24 * time.Hour)
+		usage, _ := h.paymentService.GetUserDailyUsage(ctx, user.UUID.String(), start, time.Now())
+		limit := 0.0
+		if v, ok := user.TrafficLimitBytes.Get(); ok {
+			limit = float64(v)
+		}
+		info.WriteString("📰 Информация об аккаунте:\n\n")
+		info.WriteString(fmt.Sprintf("├ Баланс: <%.0f ₽>\n", customer.Balance))
+		info.WriteString(fmt.Sprintf("├ Подписка до: <%s>\n", expire))
+		info.WriteString(fmt.Sprintf("├ Статус: <%s>\n", status))
+		info.WriteString(fmt.Sprintf("├ Последний клиент: <%s>\n\n", lastClient))
+		info.WriteString("🌐 Информация о трафике:\n\n")
+		info.WriteString(fmt.Sprintf("├ Лимит в сутки: <%s / %s>\n", utils.FormatGB(usage), utils.FormatGB(limit)))
+		info.WriteString(fmt.Sprintf("├ Всего использовано: <%s>\n", utils.FormatGB(user.LifetimeUsedTrafficBytes)))
+		untilReset := start.Add(24 * time.Hour).Sub(time.Now())
+		info.WriteString(fmt.Sprintf("├ До сброса трафика: <%s>", untilReset.Truncate(time.Second)))
+	} else {
+		info.WriteString(fmt.Sprintf(h.translation.GetText(lang, "balance_info"), int(customer.Balance)))
+	}
+
+	keyboard := [][]models.InlineKeyboardButton{
+		{{Text: h.translation.GetText(lang, "topup_button"), CallbackData: CallbackTopup}},
+		{{Text: h.translation.GetText(lang, "buy_sub_balance_button"), CallbackData: CallbackBuy}},
+		{{Text: h.translation.GetText(lang, "back_button"), CallbackData: CallbackStart}},
+	}
+
+	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      callback.Chat.ID,
+		MessageID:   callback.ID,
+		ParseMode:   models.ParseModeHTML,
+		Text:        info.String(),
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: keyboard},
+	})
+	if err != nil {
+		slog.Error("Error sending balance message", err)
+	}
+}
+
+func (h Handler) TopupCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	callback := update.CallbackQuery.Message.Message
+	lang := update.CallbackQuery.From.LanguageCode
+	keyboard := [][]models.InlineKeyboardButton{
+		{{Text: "100", CallbackData: fmt.Sprintf("%s?amount=100", CallbackTopupMethod)}},
+		{{Text: "300", CallbackData: fmt.Sprintf("%s?amount=300", CallbackTopupMethod)}},
+		{{Text: "500", CallbackData: fmt.Sprintf("%s?amount=500", CallbackTopupMethod)}},
+		{{Text: h.translation.GetText(lang, "back_button"), CallbackData: CallbackBalance}},
+	}
+	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:      callback.Chat.ID,
+		MessageID:   callback.ID,
+		Text:        h.translation.GetText(lang, "topup_button"),
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: keyboard},
+	})
+	if err != nil {
+		slog.Error("Error sending topup message", err)
+	}
+}
+
+func (h Handler) TopupMethodCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	callback := update.CallbackQuery.Message.Message
+	data := parseCallbackData(update.CallbackQuery.Data)
+	amount := data["amount"]
+	lang := update.CallbackQuery.From.LanguageCode
+
+	var keyboard [][]models.InlineKeyboardButton
+	if config.IsCryptoPayEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(lang, "crypto_button"), CallbackData: fmt.Sprintf("%s?month=0&invoiceType=%s&amount=%s", CallbackPayment, database.InvoiceTypeCrypto, amount)}})
+	}
+	if config.IsYookasaEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(lang, "card_button"), CallbackData: fmt.Sprintf("%s?month=0&invoiceType=%s&amount=%s", CallbackPayment, database.InvoiceTypeYookasa, amount)}})
+	}
+	if config.IsTelegramStarsEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(lang, "stars_button"), CallbackData: fmt.Sprintf("%s?month=0&invoiceType=%s&amount=%s", CallbackPayment, database.InvoiceTypeTelegram, amount)}})
+	}
+	keyboard = append(keyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(lang, "back_button"), CallbackData: CallbackTopup}})
+
+	_, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
+		ChatID:      callback.Chat.ID,
+		MessageID:   callback.ID,
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: keyboard},
+	})
+	if err != nil {
+		slog.Error("Error sending topup methods", err)
+	}
+}
+
+func (h Handler) PayFromBalanceCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	callback := update.CallbackQuery.Message.Message
+	data := parseCallbackData(update.CallbackQuery.Data)
+	month, _ := strconv.Atoi(data["month"])
+
+	ctxTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	customer, err := h.customerRepository.FindByTelegramId(ctxTimeout, callback.Chat.ID)
+	if err != nil || customer == nil {
+		return
+	}
+	if err := h.paymentService.PurchaseFromBalance(ctxTimeout, customer, month); err != nil {
+		slog.Error("error pay from balance", err)
 	}
 }
 
