@@ -83,7 +83,7 @@ The application requires the following environment variables to be set:
 | `SUPPORT_URL`            | URL to support chat or page (optional) - if not set, button will not be displayed                                                            |
 | `FEEDBACK_URL`           | URL to feedback/reviews page (optional) - if not set, button will not be displayed                                                           |
 | `CHANNEL_URL`            | URL to Telegram channel (optional) - if not set, button will not be displayed                                                                |
-| `ADMIN_TELEGRAM_ID`      | Admin telegram id                                                                                                                            |
+| `ADMIN_TELEGRAM_IDS` | Comma separated list of admin Telegram IDs                                                                                                                            |
 | `TRIAL_TRAFFIC_LIMIT`    | Maximum allowed traffic in gb for trial subscriptions                                                                                        |     
 | `TRIAL_DAYS`             | Number of days for trial subscriptions. if 0 = disabled.                                                                                     |
 | `INBOUND_UUIDS`          | Comma-separated list of inbound UUIDs to assign to users (e.g., "773db654-a8b2-413a-a50b-75c3536238fd,bc979bdd-f1fa-4d94-8a51-38a0f518a2a2") |

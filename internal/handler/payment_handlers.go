@@ -83,37 +83,10 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	langCode := update.CallbackQuery.From.LanguageCode
 	month := callbackQuery["month"]
-	amount := callbackQuery["amount"]
 
-	var keyboard [][]models.InlineKeyboardButton
-
-	if config.IsCryptoPayEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "crypto_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeCrypto, amount)},
-		})
+	keyboard := [][]models.InlineKeyboardButton{
+		{{Text: h.translation.GetText(langCode, "buy_sub_balance_button"), CallbackData: fmt.Sprintf("%s?month=%s", CallbackPayFromBal, month)}},
 	}
-
-	if config.IsYookasaEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeYookasa, amount)},
-		})
-	}
-
-	if config.IsTelegramStarsEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "stars_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeTelegram, amount)},
-		})
-	}
-
-	if config.GetTributeWebHookUrl() != "" {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
-		})
-	}
-
-	keyboard = append(keyboard, []models.InlineKeyboardButton{
-		{Text: h.translation.GetText(langCode, "buy_sub_balance_button"), CallbackData: fmt.Sprintf("%s?month=%s", CallbackPayFromBal, month)},
-	})
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
 		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackBuy},
@@ -142,9 +115,12 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	}
 
 	invoiceType := database.InvoiceType(callbackQuery["invoiceType"])
+	amountParam, _ := strconv.Atoi(callbackQuery["amount"])
 
 	var price int
-	if invoiceType == database.InvoiceTypeTelegram {
+	if month == 0 {
+		price = amountParam
+	} else if invoiceType == database.InvoiceTypeTelegram {
 		price = config.StarsPrice(month)
 	} else {
 		price = config.Price(month)
@@ -178,7 +154,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{
 					{Text: h.translation.GetText(langCode, "pay_button"), URL: paymentURL},
-					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, price)},
+					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: h.buildPaymentBackData(month, amountParam)},
 				},
 			},
 		},
@@ -355,4 +331,11 @@ func parseCallbackData(data string) map[string]string {
 	}
 
 	return result
+}
+
+func (h Handler) buildPaymentBackData(month int, amount int) string {
+	if month == 0 {
+		return fmt.Sprintf("%s?amount=%d", CallbackTopupMethod, amount)
+	}
+	return fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, amount)
 }

@@ -198,6 +198,12 @@ func (h Handler) buildAccountInfo(ctx context.Context, customer *database.Custom
 	user, _ := h.paymentService.GetUser(ctx, customer.TelegramID)
 	var info strings.Builder
 	if user != nil {
+		if user.ExpireAt.After(time.Now()) {
+			info.WriteString(h.translation.GetText(lang, "subscription_active_hint"))
+		} else {
+			info.WriteString(h.translation.GetText(lang, "subscription_inactive_hint"))
+		}
+		info.WriteString("\n\n")
 		expire := user.ExpireAt.Format("02.01.2006 15:04")
 		status := "ACTIVE"
 		if user.Status.Set {

@@ -6,6 +6,7 @@ import (
 	remapi "github.com/Jolymmiles/remnawave-api-go/api"
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/google/uuid"
 	"log/slog"
 	"remnawave-tg-shop-bot/internal/cache"
 	"remnawave-tg-shop-bot/internal/config"
@@ -19,15 +20,16 @@ import (
 )
 
 type PaymentService struct {
-	purchaseRepository *database.PurchaseRepository
-	remnawaveClient    *remnawave.Client
-	customerRepository *database.CustomerRepository
-	telegramBot        *bot.Bot
-	translation        *translation.Manager
-	cryptoPayClient    *cryptopay.Client
-	yookasaClient      *yookasa.Client
-	referralRepository *database.ReferralRepository
-	cache              *cache.Cache
+	purchaseRepository  *database.PurchaseRepository
+	remnawaveClient     *remnawave.Client
+	customerRepository  *database.CustomerRepository
+	telegramBot         *bot.Bot
+	translation         *translation.Manager
+	cryptoPayClient     *cryptopay.Client
+	yookasaClient       *yookasa.Client
+	referralRepository  *database.ReferralRepository
+	promocodeRepository *database.PromocodeRepository
+	cache               *cache.Cache
 }
 
 func NewPaymentService(
@@ -39,18 +41,20 @@ func NewPaymentService(
 	cryptoPayClient *cryptopay.Client,
 	yookasaClient *yookasa.Client,
 	referralRepository *database.ReferralRepository,
+	promocodeRepository *database.PromocodeRepository,
 	cache *cache.Cache,
 ) *PaymentService {
 	return &PaymentService{
-		purchaseRepository: purchaseRepository,
-		remnawaveClient:    remnawaveClient,
-		customerRepository: customerRepository,
-		telegramBot:        telegramBot,
-		translation:        translation,
-		cryptoPayClient:    cryptoPayClient,
-		yookasaClient:      yookasaClient,
-		referralRepository: referralRepository,
-		cache:              cache,
+		purchaseRepository:  purchaseRepository,
+		remnawaveClient:     remnawaveClient,
+		customerRepository:  customerRepository,
+		telegramBot:         telegramBot,
+		translation:         translation,
+		cryptoPayClient:     cryptoPayClient,
+		yookasaClient:       yookasaClient,
+		referralRepository:  referralRepository,
+		promocodeRepository: promocodeRepository,
+		cache:               cache,
 	}
 }
 
@@ -82,16 +86,6 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	}
 
 	err = s.purchaseRepository.MarkAsPaid(ctx, purchase.ID)
-	if err != nil {
-		return err
-	}
-
-	newBalance := customer.Balance + purchase.Amount
-	customerFilesToUpdate := map[string]interface{}{
-		"balance": newBalance,
-	}
-
-	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
 	if err != nil {
 		return err
 	}
@@ -137,12 +131,10 @@ func (s PaymentService) PurchaseFromBalance(ctx context.Context, customer *datab
 	}
 
 	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    customer.TelegramID,
-		ParseMode: models.ParseModeHTML,
-		Text:      s.translation.GetText(customer.Language, "subscription_activated"),
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: s.createConnectKeyboard(customer),
-		},
+		ChatID:      customer.TelegramID,
+		ParseMode:   models.ParseModeHTML,
+		Text:        s.translation.GetText(customer.Language, "subscription_activated"),
+		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: s.createConnectKeyboard(customer)},
 	})
 	return err
 }
@@ -380,4 +372,29 @@ func (s PaymentService) GetUser(ctx context.Context, telegramId int64) (*remapi.
 
 func (s PaymentService) GetUserDailyUsage(ctx context.Context, uuid string, start, end time.Time) (float64, error) {
 	return s.remnawaveClient.GetUserDailyUsage(ctx, uuid, start, end)
+}
+func (s PaymentService) CreatePromocode(ctx context.Context, customer *database.Customer, months, uses int) (string, error) {
+	cost := config.Price(months) * uses
+	if !config.IsAdmin(customer.TelegramID) {
+		if customer.Balance < float64(cost) {
+			return "", fmt.Errorf("insufficient balance")
+		}
+		newBalance := customer.Balance - float64(cost)
+		if err := s.customerRepository.UpdateFields(ctx, customer.ID, map[string]interface{}{"balance": newBalance}); err != nil {
+			return "", err
+		}
+		customer.Balance = newBalance
+	}
+
+	code := uuid.New().String()[:8]
+	_, err := s.promocodeRepository.Create(ctx, &database.Promocode{
+		Code:      code,
+		Months:    months,
+		UsesLeft:  uses,
+		CreatedBy: customer.TelegramID,
+	})
+	if err != nil {
+		return "", err
+	}
+	return code, nil
 }

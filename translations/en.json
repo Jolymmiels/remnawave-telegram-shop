@@ -29,11 +29,13 @@
   "trial_activated": "Trial period activated",
   "trial_text": "Your trial version is active",
   "activate_trial_button": "Activate trial version",
-  "referral_button": "🤝 Referrals",
+  "referral_button": "🤝 Referrals and promo codes",
   "referral_text": "Invited: %d",
   "referral_bonus_granted": "You have received a referral bonus!",
   "stars_button": " ⭐Telegram Stars",
   "share_referral_button": "Share!",
+  "create_promocode_button": "🎁 Create promo code",
+  "promocode_created": "Promo code %s created",
   "web_app_button_text": "Connect",
   "tribute_button": "Tribute",
   "balance_topped_up": "Your balance has been topped up by %d",
@@ -41,5 +43,7 @@
   "topup_button": "Top up balance",
   "buy_sub_balance_button": "Buy subscription",
   "insufficient_balance": "Insufficient balance",
-  "balance_info": "Your balance: %d ₽"
+  "balance_info": "Your balance: %d ₽",
+  "subscription_active_hint": "Follow the instructions and press ‘Connect’.",
+  "subscription_inactive_hint": "⚠️ ATTENTION ⚠️\n\nYour subscription is inactive. To resume service, open ‘Subscription & Balance’, top up and buy a new subscription.\n\nUse the buttons below to continue"
 }

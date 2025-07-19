@@ -54,6 +54,7 @@ func main() {
 	customerRepository := database.NewCustomerRepository(pool)
 	purchaseRepository := database.NewPurchaseRepository(pool)
 	referralRepository := database.NewReferralRepository(pool)
+	promocodeRepository := database.NewPromocodeRepository(pool)
 
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
@@ -63,7 +64,7 @@ func main() {
 		panic(err)
 	}
 
-	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache)
+	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, promocodeRepository, cache)
 
 	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
 	if cronScheduler != nil {
@@ -79,7 +80,7 @@ func main() {
 
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
-	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache)
+	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, promocodeRepository, cache)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {
@@ -116,6 +117,7 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/sync", bot.MatchTypeExact, h.SyncUsersCommandHandler, isAdminMiddleware)
 
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPromoCreate, bot.MatchTypeExact, h.PromoCreateCallbackHandler, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.CreateCustomerIfNotExistMiddleware)
@@ -201,7 +203,7 @@ func fullHealthHandler(pool *pgxpool.Pool, rw *remnawave.Client) http.Handler {
 
 func isAdminMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
-		if update.Message != nil && update.Message.From.ID == config.GetAdminTelegramId() {
+		if update.Message != nil && config.IsAdmin(update.Message.From.ID) {
 			next(ctx, b, update)
 		} else {
 			return

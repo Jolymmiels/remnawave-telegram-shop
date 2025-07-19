@@ -11,15 +11,16 @@ import (
 )
 
 type Handler struct {
-	customerRepository *database.CustomerRepository
-	purchaseRepository *database.PurchaseRepository
-	cryptoPayClient    *cryptopay.Client
-	yookasaClient      *yookasa.Client
-	translation        *translation.Manager
-	paymentService     *payment.PaymentService
-	syncService        *sync.SyncService
-	referralRepository *database.ReferralRepository
-	cache              *cache.Cache
+	customerRepository  *database.CustomerRepository
+	purchaseRepository  *database.PurchaseRepository
+	cryptoPayClient     *cryptopay.Client
+	yookasaClient       *yookasa.Client
+	translation         *translation.Manager
+	paymentService      *payment.PaymentService
+	syncService         *sync.SyncService
+	referralRepository  *database.ReferralRepository
+	promocodeRepository *database.PromocodeRepository
+	cache               *cache.Cache
 }
 
 func NewHandler(
@@ -29,16 +30,17 @@ func NewHandler(
 	customerRepository *database.CustomerRepository,
 	purchaseRepository *database.PurchaseRepository,
 	cryptoPayClient *cryptopay.Client,
-	yookasaClient *yookasa.Client, referralRepository *database.ReferralRepository, cache *cache.Cache) *Handler {
+	yookasaClient *yookasa.Client, referralRepository *database.ReferralRepository, promocodeRepository *database.PromocodeRepository, cache *cache.Cache) *Handler {
 	return &Handler{
-		syncService:        syncService,
-		paymentService:     paymentService,
-		customerRepository: customerRepository,
-		purchaseRepository: purchaseRepository,
-		cryptoPayClient:    cryptoPayClient,
-		yookasaClient:      yookasaClient,
-		translation:        translation,
-		referralRepository: referralRepository,
-		cache:              cache,
+		syncService:         syncService,
+		paymentService:      paymentService,
+		customerRepository:  customerRepository,
+		purchaseRepository:  purchaseRepository,
+		cryptoPayClient:     cryptoPayClient,
+		yookasaClient:       yookasaClient,
+		translation:         translation,
+		referralRepository:  referralRepository,
+		promocodeRepository: promocodeRepository,
+		cache:               cache,
 	}
 }

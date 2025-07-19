@@ -12,5 +12,6 @@ const (
 	CallbackPayFromBal    = "pay_balance"
 	CallbackTrial         = "trial"
 	CallbackActivateTrial = "activate_trial"
-	CallbackReferral      = "referral"
+       CallbackReferral      = "referral"
+       CallbackPromoCreate   = "promo_create"
 )

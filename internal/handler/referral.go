@@ -32,6 +32,9 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 				{Text: h.translation.GetText(langCode, "share_referral_button"), URL: refLink},
 			},
 			{
+				{Text: h.translation.GetText(langCode, "create_promocode_button"), CallbackData: CallbackPromoCreate},
+			},
+			{
 				{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
 			},
 		}},
@@ -39,4 +42,18 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 	if err != nil {
 		slog.Error("Error sending referral message", err)
 	}
+}
+
+func (h Handler) PromoCreateCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
+	lang := update.CallbackQuery.From.LanguageCode
+	if customer == nil {
+		return
+	}
+	code, err := h.paymentService.CreatePromocode(ctx, customer, 1, 1)
+	if err != nil {
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.CallbackQuery.Message.Message.Chat.ID, Text: h.translation.GetText(lang, "insufficient_balance")})
+		return
+	}
+	_, _ = b.SendMessage(ctx, &bot.SendMessageParams{ChatID: update.CallbackQuery.Message.Message.Chat.ID, Text: fmt.Sprintf(h.translation.GetText(lang, "promocode_created"), code)})
 }

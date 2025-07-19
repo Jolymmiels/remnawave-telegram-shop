@@ -28,7 +28,7 @@ type config struct {
 	isYookasaEnabled                                          bool
 	isCryptoEnabled                                           bool
 	isTelegramStarsEnabled                                    bool
-	adminTelegramId                                           int64
+	adminTelegramIds                                          map[int64]struct{}
 	trialDays                                                 int
 	inboundUUIDs                                              map[uuid.UUID]uuid.UUID
 	referralDays                                              int
@@ -193,8 +193,20 @@ func IsTelegramStarsEnabled() bool {
 	return conf.isTelegramStarsEnabled
 }
 
-func GetAdminTelegramId() int64 {
-	return conf.adminTelegramId
+func IsAdmin(id int64) bool {
+	if conf.adminTelegramIds == nil {
+		return false
+	}
+	_, ok := conf.adminTelegramIds[id]
+	return ok
+}
+
+func GetAdminTelegramIds() []int64 {
+	ids := make([]int64, 0, len(conf.adminTelegramIds))
+	for id := range conf.adminTelegramIds {
+		ids = append(ids, id)
+	}
+	return ids
 }
 
 func GetHealthCheckPort() int {
@@ -250,10 +262,21 @@ func InitConfig() {
 			log.Println("No .env loaded:", err)
 		}
 	}
-	var err error
-	conf.adminTelegramId, err = strconv.ParseInt(os.Getenv("ADMIN_TELEGRAM_ID"), 10, 64)
-	if err != nil {
-		panic("ADMIN_TELEGRAM_ID .env variable not set")
+	conf.adminTelegramIds = make(map[int64]struct{})
+	idsStr := os.Getenv("ADMIN_TELEGRAM_IDS")
+	if idsStr == "" {
+		log.Panic("ADMIN_TELEGRAM_IDS .env variable not set")
+	}
+	for _, idStr := range strings.Split(idsStr, ",") {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			log.Panicf("invalid admin id %s: %v", idStr, err)
+		}
+		conf.adminTelegramIds[id] = struct{}{}
 	}
 
 	conf.telegramToken = mustEnv("TELEGRAM_TOKEN")
