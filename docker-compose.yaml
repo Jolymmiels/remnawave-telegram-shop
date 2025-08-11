@@ -8,6 +8,8 @@ services:
         condition: service_healthy
     volumes:
       - ./translations:/translations
+    networks:
+      - remnawave-network
 
   db:
     image: postgres:17
@@ -30,19 +32,15 @@ services:
       interval: 3s
       timeout: 10s
       retries: 3
-
-#  ngrok:
-#    image: ngrok/ngrok:latest
-#    command:
-#      - "http"
-#      - "http://bot:8080"
-#    environment:
-#      NGROK_AUTHTOKEN: TOKEN
-#    ports:
-#      - 4040:4040
+    networks:
+      - remnawave-network
 
 volumes:
   remnawave-telegram-shop-db-data:
     driver: local
     external: false
     name: remnawave-telegram-shop-db-data
+
+networks:
+  remnawave-network:
+    external: true

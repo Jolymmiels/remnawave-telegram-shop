@@ -9,4 +9,5 @@ const (
 	CallbackTrial         = "trial"
 	CallbackActivateTrial = "activate_trial"
 	CallbackReferral      = "referral"
+	CallbackInstallGuide  = "install_guide"
 )
