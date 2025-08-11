@@ -2,13 +2,15 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
@@ -168,7 +170,7 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: CallbackReferral}})
 	}
 
-	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "install_guide_button"), CallbackData: CallbackInstallGuide}})
+	inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "install_guide_button"), CallbackData: fmt.Sprintf("%s?from=%s", CallbackInstallGuide, CallbackStart)}})
 
 	if config.ServerStatusURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "server_status_button"), URL: config.ServerStatusURL()}})
@@ -189,6 +191,6 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	if config.TosURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()}})
 	}
-	
+
 	return inlineKeyboard
 }

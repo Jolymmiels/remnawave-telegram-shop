@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/translation"
@@ -39,6 +40,7 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 		},
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{{Text: h.translation.GetText(langCode, "install_guide_button"), CallbackData: fmt.Sprintf("%s?from=%s", CallbackInstallGuide, CallbackConnect)}},
 				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
 			},
 		},
@@ -73,6 +75,7 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 				}}})
 		}
 	}
+	markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "install_guide_button"), CallbackData: fmt.Sprintf("%s?from=%s", CallbackInstallGuide, CallbackConnect)}})
 	markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}})
 
 	isDisabled := true
@@ -103,7 +106,7 @@ func buildConnectText(customer *database.Customer, langCode string) string {
 		currentTime := time.Now()
 
 		if currentTime.Before(*customer.ExpireAt) {
-			formattedDate := customer.ExpireAt.Format("02.01.2006 15:04")
+			formattedDate := utils.FormatDateByLanguage(*customer.ExpireAt, langCode)
 
 			subscriptionActiveText := tm.GetText(langCode, "subscription_active")
 			info.WriteString(fmt.Sprintf(subscriptionActiveText, formattedDate))
