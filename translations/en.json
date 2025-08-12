@@ -1,5 +1,5 @@
 {
-  "greeting": "👋🏻 <b>Hello</b>\nThis is a bot for connecting to <b>wowblvck VPN</b>🛡️\n\nAvailable locations:\n🇩🇪 Germany\n\n<b>How to connect:</b>\n• Click the <b>\"Connect\"</b> button\n• Follow the short instructions",
+  "greeting": "👋🏻 <b>Hello</b>\nThis is a bot to connect to <b>wowblvck VPN</b>🛡️\n\nAvailable locations:\n🇩🇪 Germany\n\nTo start using the VPN, subscribe or activate a free trial period — it’s easy and fast!",
   "buy_button": "💰 Buy",
   "connect_button": "🔌 Connect",
   "back_button": "🔙 Back",
@@ -27,8 +27,8 @@
   "invoice_label": "Subscription",
   "invoice_title": "Subscription",
   "trial_button": "🔥 Try for free",
-  "trial_activated": "Trial period activated",
-  "trial_text": "Your trial version is active",
+  "trial_activated": "🎉 Trial period activated!\n\nYou now have <b>10 days</b> and <b>1 GB</b> of traffic to explore all the features of wowblvck VPN",
+  "trial_text": "🎉 The trial version lasts for <b>10 days</b>\n📶 Traffic volume is limited to <b>1 GB</b>\n\n🔒 After the trial period ends, you can subscribe and get full unlimited access",
   "activate_trial_button": "Activate trial",
   "referral_button": "🤝 Referrals",
   "referral_text": "Invited: %d",
