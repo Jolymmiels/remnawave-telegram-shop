@@ -36,6 +36,7 @@ var (
 	BuildDate = "unknown"
 )
 
+// main initializes configuration, translation manager, database (including migrations), external clients, repositories, services, scheduled tasks, and the HTTP health endpoint, starts the Telegram bot, and runs until an interrupt signal triggers graceful shutdown.
 func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
@@ -168,6 +169,8 @@ func main() {
 	}
 }
 
+// fullHealthHandler constructs an HTTP handler that reports system status and build metadata as JSON.
+// The handler pings the provided PostgreSQL pool and Remnawave client with a 5-second timeout, sets HTTP 503 if either check fails (otherwise 200), and returns a JSON object with keys: status, db, remnawave, time, version, commit, and buildDate.
 func fullHealthHandler(pool *pgxpool.Pool, rw *remnawave.Client) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		status := map[string]string{

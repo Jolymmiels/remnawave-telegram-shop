@@ -41,6 +41,10 @@ func (t *headerTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return t.base.RoundTrip(r)
 }
 
+// NewClient creates a Client configured to communicate with the RemnaWave API.
+// It reads the X-Api-Key from configuration and, when mode == "local", configures requests to include local-forward headers.
+// The returned Client uses an HTTP transport that injects the X-Api-Key and optional local proxy headers into every request.
+// NewClient panics if creating the underlying remapi client fails.
 func NewClient(baseURL, token, mode string) *Client {
 	xApiKey := config.GetXApiKey()
 	local := mode == "local"
@@ -241,6 +245,8 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 	return &userCreate.(*remapi.UserResponse).Response, nil
 }
 
+// GenerateUsername formats a username by concatenating customerId and telegramId with an underscore,
+// producing "<customerId>_<telegramId>".
 func generateUsername(customerId int64, telegramId int64) string {
 	return fmt.Sprintf("%d_%d", customerId, telegramId)
 }
