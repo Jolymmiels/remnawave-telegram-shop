@@ -124,14 +124,18 @@ func Price12() int {
 	return conf.price12
 }
 
+// DaysInMonth returns the configured number of days considered in a month.
 func DaysInMonth() int {
 	return conf.daysInMonth
 }
 
+// ExternalSquadUUID returns the configured external squad UUID. It is uuid.Nil when EXTERNAL_SQUAD_UUID was not set.
 func ExternalSquadUUID() uuid.UUID {
 	return conf.externalSquadUUID
 }
 
+// Price returns the configured price for the given subscription duration in months.
+// Supported durations are 1, 3, 6, and 12; any other value returns the 1-month price.
 func Price(month int) int {
 	switch month {
 	case 1:
@@ -272,6 +276,9 @@ func envBool(key string) bool {
 	return os.Getenv(key) == "true"
 }
 
+// InitConfig initializes the package-level configuration by loading environment variables and populating the internal config.
+//
+// It optionally loads a .env file, reads required and optional environment variables, applies defaults, enables feature flags, parses UUIDs, and validates constrained values. The function panics when required variables are missing or when values fail validation or parsing (for example: numeric IDs, UUIDs, or invalid mode values).
 func InitConfig() {
 	if os.Getenv("DISABLE_ENV_FILE") != "true" {
 		if err := godotenv.Load(".env"); err != nil {
