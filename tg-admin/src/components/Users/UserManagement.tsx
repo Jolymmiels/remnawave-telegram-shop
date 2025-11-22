@@ -45,6 +45,7 @@ interface User {
   created_at: string
   subscription_link?: string
   language: string
+  is_blocked: boolean
   payments_count: number
   referrals_count: number
   total_spent: number
