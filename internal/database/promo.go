@@ -3,10 +3,11 @@ package database
 import (
 	"context"
 	"errors"
+	"time"
+
 	"github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v4"
 	"github.com/jackc/pgx/v4/pgxpool"
-	"time"
 )
 
 type Promo struct {

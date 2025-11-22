@@ -49,6 +49,7 @@ type config struct {
 	trialInternalSquads                                       map[uuid.UUID]uuid.UUID
 	trialExternalSquadUUID                                    uuid.UUID
 	remnawaveHeaders                                          map[string]string
+	botAdminURL                                               string
 	trialTrafficLimitResetStrategy                            string
 	trafficLimitResetStrategy                                 string
 }
@@ -64,6 +65,9 @@ func TrialRemnawaveTag() string {
 		return conf.trialRemnawaveTag
 	}
 	return conf.remnawaveTag
+}
+func BotAdminURL() string {
+	return conf.botAdminURL
 }
 
 func DefaultLanguage() string {
@@ -527,6 +531,11 @@ func InitConfig() {
 	} else {
 		conf.trialExternalSquadUUID = uuid.Nil
 		slog.Info("No trial external squad specified, will use regular EXTERNAL_SQUAD_UUID for trial users")
+	}
+
+	conf.botAdminURL = os.Getenv("BOT_ADMIN_URL")
+	if conf.botAdminURL == "" {
+		panic(fmt.Sprintf("BOT_ADMIN_URL environment variable not set"))
 	}
 
 	conf.remnawaveHeaders = func() map[string]string {

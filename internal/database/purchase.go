@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"remnawave-tg-shop-bot/internal/stats"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -302,7 +303,6 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 	return p, nil
 }
 
-
 func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.Context, customerID int64) (*Purchase, error) {
 	query := sq.Select("*").
 		From("purchase").
@@ -337,4 +337,105 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 	}
 
 	return p, nil
+}
+
+func (pr *PurchaseRepository) GetTotalAmountByDateRange(ctx context.Context, start, end time.Time) (float64, error) {
+	query := `
+        SELECT COALESCE(SUM(amount), 0)
+        FROM purchase
+        WHERE status = $1 AND paid_at >= $2 AND paid_at <= $3
+    `
+	var total float64
+	err := pr.pool.QueryRow(ctx, query, PurchaseStatusPaid, start, end).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get total amount: %w", err)
+	}
+	return total, nil
+}
+
+func (pr *PurchaseRepository) GetMonthlyGrowthLastYear(ctx context.Context) ([]stats.MonthlyGrowth, error) {
+	query := `
+        SELECT 
+            TO_CHAR(months.month, 'Mon YYYY') as month,
+            COALESCE(SUM(p.amount), 0) as amount
+        FROM generate_series(
+            DATE_TRUNC('month', NOW() - INTERVAL '11 months'),
+            DATE_TRUNC('month', NOW()),
+            '1 month'
+        ) AS months(month)
+        LEFT JOIN purchase p ON DATE_TRUNC('month', p.paid_at) = months.month AND p.status = $1
+        GROUP BY months.month
+        ORDER BY months.month
+    `
+	rows, err := pr.pool.Query(ctx, query, PurchaseStatusPaid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query monthly growth: %w", err)
+	}
+	defer rows.Close()
+
+	var result []stats.MonthlyGrowth
+	for rows.Next() {
+		var item stats.MonthlyGrowth
+		err := rows.Scan(&item.Month, &item.Amount)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan monthly growth row: %w", err)
+		}
+		result = append(result, item)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating monthly growth rows: %w", err)
+	}
+
+	return result, nil
+}
+
+func (pr *PurchaseRepository) FindByCustomerID(ctx context.Context, customerID int64) ([]Purchase, error) {
+	buildSelect := sq.Select("*").
+		From("purchase").
+		Where(sq.Eq{"customer_id": customerID}).
+		OrderBy("created_at DESC").
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select query: %w", err)
+	}
+
+	rows, err := pr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query purchases: %w", err)
+	}
+	defer rows.Close()
+
+	var purchases []Purchase
+	for rows.Next() {
+		var purchase Purchase
+		err = rows.Scan(
+			&purchase.ID,
+			&purchase.Amount,
+			&purchase.CustomerID,
+			&purchase.CreatedAt,
+			&purchase.Month,
+			&purchase.PaidAt,
+			&purchase.Currency,
+			&purchase.ExpireAt,
+			&purchase.Status,
+			&purchase.InvoiceType,
+			&purchase.CryptoInvoiceID,
+			&purchase.CryptoInvoiceLink,
+			&purchase.YookasaURL,
+			&purchase.YookasaID,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan purchase: %w", err)
+		}
+		purchases = append(purchases, purchase)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating rows: %w", err)
+	}
+
+	return purchases, nil
 }

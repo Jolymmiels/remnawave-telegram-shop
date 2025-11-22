@@ -3,14 +3,14 @@ package http
 import (
 	"fmt"
 	"net/http"
-	"private-remnawave-telegram-shop-bot/internal/app"
-	"private-remnawave-telegram-shop-bot/internal/broadcast"
-	"private-remnawave-telegram-shop-bot/internal/database"
-	"private-remnawave-telegram-shop-bot/internal/http/handler"
-	"private-remnawave-telegram-shop-bot/internal/payment"
-	"private-remnawave-telegram-shop-bot/internal/promo"
-	"private-remnawave-telegram-shop-bot/internal/remnawave"
-	"private-remnawave-telegram-shop-bot/internal/tribute"
+	"remnawave-tg-shop-bot/internal/broadcast"
+	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/http/handler"
+	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/promo"
+	"remnawave-tg-shop-bot/internal/remnawave"
+	"remnawave-tg-shop-bot/internal/tribute"
 	"strings"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -128,13 +128,13 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 		http.ServeFile(w, r, buildPath+"index.html")
 	})
 
-	if app.GetTributeWebHookUrl() != "" {
-		tributeHandler := tribute.NewClient(paymentService)
-		mux.Handle(app.GetTributeWebHookUrl(), tributeHandler.WebHookHandler())
+	if config.GetTributeWebHookUrl() != "" {
+		tributeHandler := tribute.NewClient(paymentService, customerRepository)
+		mux.Handle(config.GetTributeWebHookUrl(), tributeHandler.WebHookHandler())
 	}
 
 	return &http.Server{
-		Addr:    fmt.Sprintf(":%d", app.GetHealthCheckPort()),
+		Addr:    fmt.Sprintf(":%d", config.GetHealthCheckPort()),
 		Handler: mux,
 	}
 }

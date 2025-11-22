@@ -9,4 +9,5 @@ const (
 	CallbackTrial         = "trial"
 	CallbackActivateTrial = "activate_trial"
 	CallbackReferral      = "referral"
+	CallbackPromo         = "promo"
 )

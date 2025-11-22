@@ -3,8 +3,8 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"private-remnawave-telegram-shop-bot/internal/database"
-	"private-remnawave-telegram-shop-bot/internal/promo"
+	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/promo"
 	"strconv"
 	"strings"
 	"time"

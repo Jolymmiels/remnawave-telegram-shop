@@ -2,9 +2,10 @@ package broadcast
 
 import (
 	"context"
-	"github.com/go-telegram/bot"
 	"log/slog"
-	"private-remnawave-telegram-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/database"
+
+	"github.com/go-telegram/bot"
 )
 
 type Service struct {

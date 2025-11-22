@@ -3,7 +3,7 @@ package promo
 import (
 	"context"
 	"fmt"
-	"private-remnawave-telegram-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/database"
 	"strings"
 	"time"
 )
@@ -45,7 +45,7 @@ func (s *Service) Create(ctx context.Context, req *database.CreatePromoRequest) 
 
 func (s *Service) ValidatePromoCode(ctx context.Context, code string, customerID int64) (*database.ValidatePromoResponse, error) {
 	code = strings.TrimSpace(strings.ToUpper(code))
-	
+
 	promo, err := s.repository.GetByCode(ctx, code)
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving promo: %w", err)

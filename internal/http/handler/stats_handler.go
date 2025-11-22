@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"private-remnawave-telegram-shop-bot/internal/database"
-	"private-remnawave-telegram-shop-bot/internal/stats"
+	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/stats"
 	"strconv"
 	"time"
 )

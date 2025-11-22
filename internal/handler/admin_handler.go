@@ -2,15 +2,16 @@ package handler
 
 import (
 	"context"
+	"log/slog"
+	"remnawave-tg-shop-bot/internal/config"
+	"strings"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
-	"private-remnawave-telegram-shop-bot/internal/app"
-	"strings"
 )
 
 func (h *Handler) AdminCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	webAppURL := app.BotAdminURL()
+	webAppURL := config.BotAdminURL()
 	if !strings.HasSuffix(webAppURL, "/") {
 		webAppURL += "/"
 	}

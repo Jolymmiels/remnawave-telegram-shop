@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"private-remnawave-telegram-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/database"
 	"strconv"
 	"strings"
 )

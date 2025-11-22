@@ -3,11 +3,10 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
-	"private-remnawave-telegram-shop-bot/internal/broadcast"
+	"remnawave-tg-shop-bot/internal/broadcast"
+	"remnawave-tg-shop-bot/internal/database"
 	"strconv"
 	"strings"
-
-	"private-remnawave-telegram-shop-bot/internal/database"
 )
 
 type BroadcastHandler struct {

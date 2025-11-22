@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
 	"log/slog"
 	"remnawave-tg-shop-bot/internal/cache"
 	"remnawave-tg-shop-bot/internal/config"
@@ -16,6 +14,9 @@ import (
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"remnawave-tg-shop-bot/utils"
 	"time"
+
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 type PaymentService struct {
@@ -428,4 +429,32 @@ func (s PaymentService) createTributeInvoice(ctx context.Context, amount float64
 	}
 
 	return "", purchaseId, nil
+}
+
+func (s *PaymentService) ExtendSubscription(ctx context.Context, customerID int64, bonusDays int) error {
+	customer, err := s.customerRepository.FindById(ctx, customerID)
+	if err != nil {
+		return fmt.Errorf("failed to find customer: %w", err)
+	}
+	if customer == nil {
+		return fmt.Errorf("customer not found")
+	}
+
+	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), bonusDays, false)
+	if err != nil {
+		slog.Error("Error creating user", err)
+		return err
+	}
+
+	customerFilesToUpdate := map[string]interface{}{
+		"subscription_link": user.GetSubscriptionUrl(),
+		"expire_at":         user.GetExpireAt(),
+	}
+
+	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }

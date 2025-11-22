@@ -3,10 +3,11 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"net/http"
-	"private-remnawave-telegram-shop-bot/internal/remnawave"
+	"remnawave-tg-shop-bot/internal/remnawave"
 	"time"
+
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 func FullHealthHandler(pool *pgxpool.Pool, rw *remnawave.Client) http.Handler {

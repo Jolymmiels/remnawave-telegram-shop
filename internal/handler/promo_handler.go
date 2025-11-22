@@ -3,10 +3,11 @@ package handler
 import (
 	"context"
 	"fmt"
-	"github.com/go-telegram/bot"
-	"github.com/go-telegram/bot/models"
 	"strconv"
 	"strings"
+
+	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 func (h *Handler) PromoCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -35,7 +36,7 @@ func (h *Handler) PromoCommandHandler(ctx context.Context, b *bot.Bot, update *m
 	promoCode := strings.TrimSpace(messageParts[1])
 
 	// Validate promo code
-	validation, err := h.promoService.ValidatePromoCode(ctx, promoCode, customer.ID)
+	validation, err := h.promo.ValidatePromoCode(ctx, promoCode, customer.ID)
 	if err != nil {
 		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
@@ -114,7 +115,7 @@ func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 	}
 
 	// Apply the promo code
-	err = h.promoService.ApplyPromoCode(ctx, promoID, customer.ID)
+	err = h.promo.ApplyPromoCode(ctx, promoID, customer.ID)
 	if err != nil {
 		_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
@@ -125,7 +126,7 @@ func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 	}
 
 	// Update customer expiry date with bonus days
-	promo, err := h.promoService.GetPromoByID(ctx, promoID)
+	promo, err := h.promo.GetPromoByID(ctx, promoID)
 	if err != nil {
 		_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
