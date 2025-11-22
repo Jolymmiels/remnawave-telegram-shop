@@ -41,9 +41,9 @@ import { getTelegramSafeAreaStyles, getTelegramSafeAreaDropdownStyles } from '..
 interface User {
   id: number
   telegram_id: number
-  expire_at?: string
+  expire_at?: string | null
   created_at: string
-  subscription_link?: string
+  subscription_link?: string | null
   language: string
   is_blocked: boolean
   payments_count: number
@@ -59,11 +59,18 @@ interface UserSearchResponse {
 interface Payment {
   id: number
   amount: number
+  customer_id: number
+  created_at: string
+  month: number
+  paid_at?: string | null
   currency: string
+  expire_at?: string | null
   status: string
   invoice_type: string
-  created_at: string
-  paid_at?: string
+  crypto_invoice_id?: number | null
+  crypto_invoice_link?: string | null
+  yookasa_url?: string | null
+  yookasa_id?: string | null
 }
 
 const UserManagement: React.FC = () => {
@@ -180,7 +187,7 @@ const UserManagement: React.FC = () => {
     openDetails()
   }
 
-  const formatDate = (dateString?: string) => {
+  const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Не указано'
     return new Date(dateString).toLocaleString('ru-RU')
   }

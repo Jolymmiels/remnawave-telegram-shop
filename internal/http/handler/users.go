@@ -42,8 +42,21 @@ type UserWithDetails struct {
 	TotalSpent       float64 `json:"total_spent"`
 }
 
-type UserPaymentHistory struct {
-	database.Purchase
+type PaymentDTO struct {
+	ID              int64   `json:"id"`
+	Amount          float64 `json:"amount"`
+	CustomerID      int64   `json:"customer_id"`
+	CreatedAt       string  `json:"created_at"`
+	Month           int     `json:"month"`
+	PaidAt          *string `json:"paid_at"`
+	Currency        string  `json:"currency"`
+	ExpireAt        *string `json:"expire_at"`
+	Status          string  `json:"status"`
+	InvoiceType     string  `json:"invoice_type"`
+	CryptoInvoiceID *int64  `json:"crypto_invoice_id"`
+	CryptoInvoiceLink *string `json:"crypto_invoice_link"`
+	YookasaURL      *string `json:"yookasa_url"`
+	YookasaID       *string `json:"yookasa_id"`
 }
 
 // SearchUsers handles GET /api/users/search?q=query&limit=20&offset=0
@@ -198,8 +211,43 @@ func (uh *UsersHandler) GetUserPayments(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Convert to DTOs with snake_case fields
+	paymentDTOs := make([]PaymentDTO, len(payments))
+	for i, p := range payments {
+		paidAtStr := ""
+		if p.PaidAt != nil {
+			paidAtStr = p.PaidAt.Format("2006-01-02T15:04:05Z07:00")
+		}
+		expireAtStr := ""
+		if p.ExpireAt != nil {
+			expireAtStr = p.ExpireAt.Format("2006-01-02T15:04:05Z07:00")
+		}
+		
+		yookasaIDStr := ""
+		if p.YookasaID != nil {
+			yookasaIDStr = p.YookasaID.String()
+		}
+		
+		paymentDTOs[i] = PaymentDTO{
+			ID:              p.ID,
+			Amount:          p.Amount,
+			CustomerID:      p.CustomerID,
+			CreatedAt:       p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Month:           p.Month,
+			PaidAt:          stringPtrIfNotEmpty(paidAtStr),
+			Currency:        p.Currency,
+			ExpireAt:        stringPtrIfNotEmpty(expireAtStr),
+			Status:          string(p.Status),
+			InvoiceType:     string(p.InvoiceType),
+			CryptoInvoiceID: p.CryptoInvoiceID,
+			CryptoInvoiceLink: p.CryptoInvoiceLink,
+			YookasaURL:      p.YookasaURL,
+			YookasaID:       stringPtrIfNotEmpty(yookasaIDStr),
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(payments); err != nil {
+	if err := json.NewEncoder(w).Encode(paymentDTOs); err != nil {
 		slog.Error("Failed to encode payments", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -396,5 +444,13 @@ func (uh *UsersHandler) getCustomerPayments(ctx context.Context, customerID int6
 
 // Helper function to create string pointer
 func stringPtr(s string) *string {
+	return &s
+}
+
+// Helper function to create string pointer if not empty
+func stringPtrIfNotEmpty(s string) *string {
+	if s == "" {
+		return nil
+	}
 	return &s
 }

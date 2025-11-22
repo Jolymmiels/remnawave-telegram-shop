@@ -141,10 +141,13 @@ const UserManagement = () => {
     }, [currentPage]);
     const totalPages = Math.ceil(totalUsers / itemsPerPage);
     // Mobile Card Component
-    const UserCard = ({ user }) => (<Card padding="sm" shadow="sm" withBorder>
+    const UserCard = ({ user }) => (<Card padding="sm" shadow="sm" withBorder style={{ opacity: user.is_blocked ? 0.6 : 1 }}>
       <Flex justify="space-between" align="flex-start" mb="xs">
         <Box>
-          <Text fw={500} size="sm">ID: {user.telegram_id}</Text>
+          <Flex gap="xs" align="center">
+            <Text fw={500} size="sm">ID: {user.telegram_id}</Text>
+            {user.is_blocked && <Badge color="red" size="xs">Заблокирован</Badge>}
+          </Flex>
           {getStatusBadge(user)}
         </Box>
         <Menu shadow="md" width={200}>
@@ -257,9 +260,12 @@ const UserManagement = () => {
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
-                {users.map((user) => (<Table.Tr key={user.id}>
+                {users.map((user) => (<Table.Tr key={user.id} style={{ opacity: user.is_blocked ? 0.6 : 1, backgroundColor: user.is_blocked ? 'rgba(250, 82, 82, 0.05)' : 'transparent' }}>
                     <Table.Td>
-                      <Text fw={500}>{user.telegram_id}</Text>
+                      <Group gap="xs">
+                        <Text fw={500}>{user.telegram_id}</Text>
+                        {user.is_blocked && <Badge color="red" size="sm">Заблокирован</Badge>}
+                      </Group>
                     </Table.Td>
                     <Table.Td>
                       {getStatusBadge(user)}
@@ -342,9 +348,13 @@ const UserManagement = () => {
               <Text>{selectedUser.telegram_id}</Text>
             </Group>
             <Group>
-              <Text fw={500}>Статус:</Text>
+              <Text fw={500}>Статус подписки:</Text>
               {getStatusBadge(selectedUser)}
             </Group>
+            {selectedUser.is_blocked && (<Group>
+                <Text fw={500}>Статус блокировки:</Text>
+                <Badge color="red">Пользователь заблокирован</Badge>
+              </Group>)}
             <Group>
               <Text fw={500}>Дата регистрации:</Text>
               <Text>{formatDate(selectedUser.created_at)}</Text>

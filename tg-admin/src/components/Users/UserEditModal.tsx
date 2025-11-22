@@ -14,10 +14,11 @@ import { getTelegramSafeAreaStyles } from '../../lib/telegram-safe-area'
 interface User {
   id: number
   telegram_id: number
-  expire_at?: string
+  expire_at?: string | null
   created_at: string
-  subscription_link?: string
+  subscription_link?: string | null
   language: string
+  is_blocked: boolean
   payments_count: number
   referrals_count: number
   total_spent: number
