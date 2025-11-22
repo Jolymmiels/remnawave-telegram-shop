@@ -30,10 +30,15 @@ type UserSearchResponse struct {
 }
 
 type UserWithDetails struct {
-	database.Customer
-	PaymentsCount  int     `json:"payments_count"`
-	ReferralsCount int     `json:"referrals_count"`
-	TotalSpent     float64 `json:"total_spent"`
+	ID               int64   `json:"id"`
+	TelegramID       int64   `json:"telegram_id"`
+	ExpireAt         *string `json:"expire_at"`
+	CreatedAt        string  `json:"created_at"`
+	SubscriptionLink *string `json:"subscription_link"`
+	Language         string  `json:"language"`
+	PaymentsCount    int     `json:"payments_count"`
+	ReferralsCount   int     `json:"referrals_count"`
+	TotalSpent       float64 `json:"total_spent"`
 }
 
 type UserPaymentHistory struct {
@@ -106,8 +111,18 @@ func (uh *UsersHandler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 	// Enrich with additional details
 	usersWithDetails := make([]UserWithDetails, 0, len(customers))
 	for _, customer := range customers {
+		var expireAtStr *string
+		if customer.ExpireAt != nil {
+			expireAtStr = stringPtr(customer.ExpireAt.Format("2006-01-02T15:04:05Z07:00"))
+		}
+		
 		userDetails := UserWithDetails{
-			Customer: customer,
+			ID:               customer.ID,
+			TelegramID:       customer.TelegramID,
+			ExpireAt:         expireAtStr,
+			CreatedAt:        customer.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			SubscriptionLink: customer.SubscriptionLink,
+			Language:         customer.Language,
 		}
 
 		// Get payments count and total spent
@@ -384,4 +399,9 @@ func (uh *UsersHandler) UnblockUser(w http.ResponseWriter, r *http.Request) {
 // Helper function to get customer payments
 func (uh *UsersHandler) getCustomerPayments(ctx context.Context, customerID int64) ([]database.Purchase, error) {
 	return uh.purchaseRepository.FindByCustomerID(ctx, customerID)
+}
+
+// Helper function to create string pointer
+func stringPtr(s string) *string {
+	return &s
 }

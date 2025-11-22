@@ -189,7 +189,7 @@ const UserManagement = () => {
         
         <Group justify="space-between">
           <Text size="xs" c="dimmed">Язык</Text>
-          <Badge variant="light" size="xs">{user.language.toUpperCase()}</Badge>
+          <Badge variant="light" size="xs">{(user.language || 'EN').toUpperCase()}</Badge>
         </Group>
         
         <SimpleGrid cols={3}>
@@ -269,7 +269,7 @@ const UserManagement = () => {
                     </Table.Td>
                     <Table.Td>
                       <Badge variant="light" size="sm">
-                        {user.language.toUpperCase()}
+                        {(user.language || 'EN').toUpperCase()}
                       </Badge>
                     </Table.Td>
                     <Table.Td>
@@ -355,7 +355,7 @@ const UserManagement = () => {
             </Group>
             <Group>
               <Text fw={500}>Язык:</Text>
-              <Badge variant="light">{selectedUser.language.toUpperCase()}</Badge>
+              <Badge variant="light">{(selectedUser.language || 'EN').toUpperCase()}</Badge>
             </Group>
             
             <Text fw={500} mt="md">История платежей:</Text>

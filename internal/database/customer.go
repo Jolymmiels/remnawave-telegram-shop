@@ -22,12 +22,12 @@ func NewCustomerRepository(poll *pgxpool.Pool) *CustomerRepository {
 }
 
 type Customer struct {
-	ID               int64      `db:"id"`
-	TelegramID       int64      `db:"telegram_id"`
-	ExpireAt         *time.Time `db:"expire_at"`
-	CreatedAt        time.Time  `db:"created_at"`
-	SubscriptionLink *string    `db:"subscription_link"`
-	Language         string     `db:"language"`
+	ID               int64      `db:"id" json:"id"`
+	TelegramID       int64      `db:"telegram_id" json:"telegram_id"`
+	ExpireAt         *time.Time `db:"expire_at" json:"expire_at"`
+	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
+	SubscriptionLink *string    `db:"subscription_link" json:"subscription_link"`
+	Language         string     `db:"language" json:"language"`
 }
 
 func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDate, endDate time.Time) (*[]Customer, error) {
