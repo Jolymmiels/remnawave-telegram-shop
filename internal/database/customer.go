@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	sq "github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"log/slog"
 	"remnawave-tg-shop-bot/utils"
 	"time"
+
+	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type CustomerRepository struct {
@@ -331,4 +332,155 @@ func (cr *CustomerRepository) DeleteByNotInTelegramIds(ctx context.Context, tele
 
 	return nil
 
+}
+
+type UserGrowthStats struct {
+	NewUsersLastMonth int64 `json:"new_users_last_month"`
+	TotalUsers        int64 `json:"total_users"`
+}
+
+func (cr *CustomerRepository) GetUserGrowthStats(ctx context.Context) (*UserGrowthStats, error) {
+	stats := &UserGrowthStats{}
+
+	now := time.Now()
+	startOfCurrentMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	countNewQuery := `SELECT COUNT(*) FROM customer WHERE created_at >= $1 AND created_at < $2`
+	startOfLastMonth := startOfCurrentMonth.AddDate(0, -1, 0)
+	endOfLastMonth := startOfCurrentMonth
+
+	err := cr.pool.QueryRow(ctx, countNewQuery, startOfLastMonth, endOfLastMonth).Scan(&stats.NewUsersLastMonth)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count new users in the last month: %w", err)
+	}
+
+	countTotalQuery := `SELECT COUNT(*) FROM customer`
+	err = cr.pool.QueryRow(ctx, countTotalQuery).Scan(&stats.TotalUsers)
+	if err != nil {
+		return nil, fmt.Errorf("failed to count total users: %w", err)
+	}
+
+	return stats, nil
+}
+
+func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) {
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+		From("customer").
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query all customers: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []Customer
+	for rows.Next() {
+		var customer Customer
+		err := rows.Scan(
+			&customer.ID,
+			&customer.TelegramID,
+			&customer.ExpireAt,
+			&customer.CreatedAt,
+			&customer.SubscriptionLink,
+			&customer.Language,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan customer row: %w", err)
+		}
+		customers = append(customers, customer)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over customer rows: %w", err)
+	}
+
+	return &customers, nil
+}
+
+func (cr *CustomerRepository) FindNonExpired(ctx context.Context) (*[]Customer, error) {
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+		From("customer").
+		Where(sq.Gt{"expire_at": time.Now()}).
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query non-expired customers: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []Customer
+	for rows.Next() {
+		var customer Customer
+		err := rows.Scan(
+			&customer.ID,
+			&customer.TelegramID,
+			&customer.ExpireAt,
+			&customer.CreatedAt,
+			&customer.SubscriptionLink,
+			&customer.Language,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan customer row: %w", err)
+		}
+		customers = append(customers, customer)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over customer rows: %w", err)
+	}
+
+	return &customers, nil
+}
+
+func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, error) {
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+		From("customer").
+		Where(sq.LtOrEq{"expire_at": time.Now()}).
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query expired customers: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []Customer
+	for rows.Next() {
+		var customer Customer
+		err := rows.Scan(
+			&customer.ID,
+			&customer.TelegramID,
+			&customer.ExpireAt,
+			&customer.CreatedAt,
+			&customer.SubscriptionLink,
+			&customer.Language,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan customer row: %w", err)
+		}
+		customers = append(customers, customer)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over customer rows: %w", err)
+	}
+
+	return &customers, nil
 }

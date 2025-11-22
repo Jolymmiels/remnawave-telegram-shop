@@ -8,17 +8,20 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"remnawave-tg-shop-bot/internal/broadcast"
 	"remnawave-tg-shop-bot/internal/cache"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
-	"remnawave-tg-shop-bot/internal/handler"
+	tghandler "remnawave-tg-shop-bot/internal/handler"
+	httpserver "remnawave-tg-shop-bot/internal/http"
+	httphandler "remnawave-tg-shop-bot/internal/http/handler"
 	"remnawave-tg-shop-bot/internal/notification"
 	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/promo"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/translation"
-	"remnawave-tg-shop-bot/internal/tribute"
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"strconv"
 	"strings"
@@ -87,7 +90,11 @@ func main() {
 
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
-	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache)
+	promoService := promo.NewService(database.NewPromoRepository(pool))
+	broadcastRepository := database.NewBroadcastRepository(pool)
+	broadcastService := broadcast.NewService(broadcastRepository, b, customerRepository)
+	statsHandler := httphandler.NewStatsHandler(purchaseRepository, customerRepository)
+	h := tghandler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, promoService)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {
@@ -122,15 +129,19 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, h.StartCommandHandler, h.SuspiciousUserFilterMiddleware)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/connect", bot.MatchTypeExact, h.ConnectCommandHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/sync", bot.MatchTypeExact, h.SyncUsersCommandHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/admin", bot.MatchTypeExact, h.AdminCommandHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/promo", bot.MatchTypePrefix, h.PromoCommandHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPromo, bot.MatchTypePrefix, h.PromoCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.PreCheckoutQuery != nil
 	}, h.PreCheckoutCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
@@ -139,71 +150,23 @@ func main() {
 		return update.Message != nil && update.Message.SuccessfulPayment != nil
 	}, h.SuccessPaymentHandler, h.SuspiciousUserFilterMiddleware)
 
-	mux := http.NewServeMux()
-	mux.Handle("/healthcheck", fullHealthHandler(pool, remnawaveClient))
-	if config.GetTributeWebHookUrl() != "" {
-		tributeHandler := tribute.NewClient(paymentService, customerRepository)
-		mux.Handle(config.GetTributeWebHookUrl(), tributeHandler.WebHookHandler())
-	}
-
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%d", config.GetHealthCheckPort()),
-		Handler: mux,
-	}
+	srv := httpserver.NewServer(statsHandler, pool, remnawaveClient, paymentService, broadcastService, promoService, customerRepository, purchaseRepository, referralRepository)
 	go func() {
-		log.Printf("Server listening on %s", srv.Addr)
+		log.Printf("HTTP server listening on %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Server error: %v", err)
+			log.Fatalf("HTTP server error: %v", err)
 		}
 	}()
 
 	slog.Info("Bot is starting...")
 	b.Start(ctx)
 
-	log.Println("Shutting down health server…")
+	log.Println("Shutting down HTTP server…")
 	shutdownCtx, shutCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutCancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {
-		log.Printf("Health server shutdown error: %v", err)
+		log.Printf("HTTP server shutdown error: %v", err)
 	}
-}
-
-func fullHealthHandler(pool *pgxpool.Pool, rw *remnawave.Client) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		status := map[string]string{
-			"status":    "ok",
-			"db":        "ok",
-			"rw":        "ok",
-			"time":      time.Now().Format(time.RFC3339),
-			"version":   Version,
-			"commit":    Commit,
-			"buildDate": BuildDate,
-		}
-
-		dbCtx, dbCancel := context.WithTimeout(r.Context(), 5*time.Second)
-		defer dbCancel()
-		if err := pool.Ping(dbCtx); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			status["status"] = "fail"
-			status["db"] = "error: " + err.Error()
-		}
-
-		rwCtx, rwCancel := context.WithTimeout(r.Context(), 5*time.Second)
-		defer rwCancel()
-		if err := rw.Ping(rwCtx); err != nil {
-			w.WriteHeader(http.StatusServiceUnavailable)
-			status["status"] = "fail"
-			status["rw"] = "error: " + err.Error()
-		}
-
-		if status["status"] == "ok" {
-			w.WriteHeader(http.StatusOK)
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"status":"%s","db":"%s","remnawave":"%s","time":"%s","version":"%s","commit":"%s","buildDate":"%s"}`,
-			status["status"], status["db"], status["rw"], status["time"], Version, Commit, BuildDate)
-	})
 }
 
 func isAdminMiddleware(next bot.HandlerFunc) bot.HandlerFunc {

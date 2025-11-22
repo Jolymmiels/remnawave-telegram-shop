@@ -1,0 +1,2 @@
+DROP TABLE IF EXISTS promo_usage;
+DROP TABLE IF EXISTS promo;

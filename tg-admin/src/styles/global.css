@@ -1,0 +1,48 @@
+/* Disable zoom and prevent scaling */
+html, body {
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  overscroll-behavior: contain;
+}
+
+/* Prevent double-tap zoom */
+* {
+  touch-action: manipulation;
+}
+
+/* Disable zoom on input focus (iOS Safari) */
+input, textarea, select {
+  font-size: 16px !important;
+}
+
+/* Prevent text selection */
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Telegram Web App specific styles */
+html {
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  position: fixed;
+  width: 100%;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
