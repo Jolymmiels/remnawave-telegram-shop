@@ -37,5 +37,6 @@
   "web_app_button_text": "🔌 Подключиться",
   "tribute_button" : "Tribute",
   "tribute_cancelled" : "Tribute cancelled",
-  "access_denied": "⚠️ Доступ запрещён. Пожалуйста, обновите информацию профиля."
+  "access_denied": "⚠️ Доступ запрещён. Пожалуйста, обновите информацию профиля.",
+  "admin_panel_button": "⚙️ Админ панель"
 }

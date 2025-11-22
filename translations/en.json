@@ -43,5 +43,6 @@
   "web_app_button_text": "Connect",
   "tribute_button": "Tribute",
   "tribute_cancelled": "Tribute cancelled",
-  "access_denied": "⚠️ Access denied. Please update your profile information."
+  "access_denied": "⚠️ Access denied. Please update your profile information.",
+  "admin_panel_button": "⚙️ Admin Panel"
 }

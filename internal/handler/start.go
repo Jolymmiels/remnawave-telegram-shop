@@ -187,5 +187,13 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	if config.TosURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()}})
 	}
+
+	// Add admin panel button if user is admin
+	if existingCustomer.TelegramID == config.GetAdminTelegramId() && config.BotAdminURL() != "" {
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "admin_panel_button"), WebApp: &models.WebAppInfo{
+			URL: config.BotAdminURL(),
+		}}})
+	}
+
 	return inlineKeyboard
 }
