@@ -63,7 +63,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-			&customer.Language,customer.Language,
+						&customer.Language,
 			&customer.IsBlocked,
 		)
 		if err != nil {
@@ -98,7 +98,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 		&customer.ExpireAt,
 		&customer.CreatedAt,
 		&customer.SubscriptionLink,
-		&customer.Language,customer.Language,
+					&customer.Language,
 			&customer.IsBlocked,
 	)
 	if err != nil {
@@ -129,7 +129,7 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 		&customer.ExpireAt,
 		&customer.CreatedAt,
 		&customer.SubscriptionLink,
-		&customer.Language,customer.Language,
+					&customer.Language,
 			&customer.IsBlocked,
 	)
 	if err != nil {
@@ -233,7 +233,7 @@ func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-			&customer.Language,customer.Language,
+						&customer.Language,
 			&customer.IsBlocked,
 		)
 		if err != nil {
@@ -393,7 +393,7 @@ func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) 
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-			&customer.Language,customer.Language,
+						&customer.Language,
 			&customer.IsBlocked,
 		)
 		if err != nil {
@@ -435,7 +435,7 @@ func (cr *CustomerRepository) FindNonExpired(ctx context.Context) (*[]Customer, 
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-			&customer.Language,customer.Language,
+						&customer.Language,
 			&customer.IsBlocked,
 		)
 		if err != nil {
@@ -477,7 +477,7 @@ func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, err
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-			&customer.Language,customer.Language,
+						&customer.Language,
 			&customer.IsBlocked,
 		)
 		if err != nil {
