@@ -36,6 +36,7 @@ type UserWithDetails struct {
 	CreatedAt        string  `json:"created_at"`
 	SubscriptionLink *string `json:"subscription_link"`
 	Language         string  `json:"language"`
+	IsBlocked        bool    `json:"is_blocked"`
 	PaymentsCount    int     `json:"payments_count"`
 	ReferralsCount   int     `json:"referrals_count"`
 	TotalSpent       float64 `json:"total_spent"`
@@ -123,6 +124,7 @@ func (uh *UsersHandler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 			CreatedAt:        customer.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
 			SubscriptionLink: customer.SubscriptionLink,
 			Language:         customer.Language,
+			IsBlocked:        customer.IsBlocked,
 		}
 
 		// Get payments count and total spent
@@ -299,10 +301,9 @@ func (uh *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// For now, we'll "soft delete" by setting expire_at to past date
-	// In a production system, you might want proper soft deletion or cascading deletes
+	// Soft delete by setting is_blocked flag
 	updates := map[string]interface{}{
-		"expire_at": "1970-01-01 00:00:00",
+		"is_blocked": true,
 	}
 
 	if err := uh.customerRepository.UpdateFields(ctx, customer.ID, updates); err != nil {
@@ -337,9 +338,9 @@ func (uh *UsersHandler) BlockUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Block user by expiring their subscription
+	// Block user using is_blocked flag
 	updates := map[string]interface{}{
-		"expire_at": "1970-01-01 00:00:00",
+		"is_blocked": true,
 	}
 
 	if err := uh.customerRepository.UpdateFields(ctx, customer.ID, updates); err != nil {
@@ -374,17 +375,9 @@ func (uh *UsersHandler) UnblockUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse request body for new expiration date
-	var requestData struct {
-		ExpireAt *string `json:"expire_at"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&requestData); err != nil {
-		http.Error(w, "Invalid JSON", http.StatusBadRequest)
-		return
-	}
-
+	// Unblock user using is_blocked flag
 	updates := map[string]interface{}{
-		"expire_at": requestData.ExpireAt,
+		"is_blocked": false,
 	}
 
 	if err := uh.customerRepository.UpdateFields(ctx, customer.ID, updates); err != nil {

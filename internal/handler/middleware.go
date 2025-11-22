@@ -81,6 +81,24 @@ func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.Handle
 			return
 		}
 
+		// Check if user is blocked in database
+		customer, err := h.customerRepository.FindByTelegramId(ctx, userID)
+		if err != nil {
+			slog.Error("Failed to check if user is blocked", "error", err)
+			// Continue on error - don't block legitimate requests due to DB issues
+		} else if customer != nil && customer.IsBlocked {
+			slog.Warn("blocked user by is_blocked flag", "userId", utils.MaskHalfInt64(userID))
+			_, err := b.SendMessage(ctx, &bot.SendMessageParams{
+				ChatID:    chatID,
+				Text:      h.translation.GetText(langCode, "access_denied"),
+				ParseMode: models.ParseModeHTML,
+			})
+			if err != nil {
+				slog.Error("error sending blocked user message", err)
+			}
+			return
+		}
+
 		if config.GetBlockedTelegramIds()[userID] {
 			slog.Warn("blocked user by telegram id", "userId", utils.MaskHalfInt64(userID))
 			_, err := b.SendMessage(ctx, &bot.SendMessageParams{
