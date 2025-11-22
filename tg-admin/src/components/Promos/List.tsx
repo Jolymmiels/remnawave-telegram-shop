@@ -217,7 +217,7 @@ const PromosList: React.FC = () => {
           
           {deleteModal.promo && deleteModal.promo.used_count > 0 && (
             <Alert icon={<IconInfoCircle size={16} />} color="yellow">
-              Этот промокод был использован {deleteModal.promo.used_count} times.
+              Этот промокод был использован {deleteModal.promo.used_count} раз.
             </Alert>
           )}
 
