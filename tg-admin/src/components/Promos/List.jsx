@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Box, Text, Badge, Stack, Card, Group, ActionIcon, Switch, Button, Modal, Alert } from '@mantine/core';
+import { Box, Text, Badge, Stack, Card, Group, ActionIcon, Switch, Button, Modal, Alert, CopyButton, Tooltip } from '@mantine/core';
 import { notifications } from '@mantine/notifications';
-import { IconTrash, IconCheck, IconX, IconInfoCircle } from '@tabler/icons-react';
+import { IconTrash, IconCheck, IconX, IconInfoCircle, IconCopy, IconShare } from '@tabler/icons-react';
 import { usePromos } from '@/context/PromosContext';
 import { useFormat } from '@/hooks/useFormat';
 import { useTelegram } from '@/hooks/useTelegram';
@@ -15,6 +15,22 @@ const PromosList = () => {
         open: false,
         promo: null
     });
+    const [botUsername, setBotUsername] = useState('');
+    useEffect(() => {
+        const fetchBotConfig = async () => {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                if (data.bot_username) {
+                    setBotUsername(data.bot_username);
+                }
+            }
+            catch (error) {
+                console.error('Failed to fetch bot config:', error);
+            }
+        };
+        fetchBotConfig();
+    }, []);
     useEffect(() => {
         // Only load if not already initialized to prevent duplicate requests
         if (!initialized && !loading) {
@@ -108,6 +124,23 @@ const PromosList = () => {
               <Group justify="space-between" mb="md">
                 <Group>
                   <Text size="lg" fw={600}>{promo.code}</Text>
+                  
+                  <CopyButton value={promo.code}>
+                    {({ copied, copy }) => (<Tooltip label={copied ? 'Скопировано' : 'Копировать код'}>
+                        <ActionIcon size="sm" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
+                          {copied ? <IconCheck size={14}/> : <IconCopy size={14}/>}
+                        </ActionIcon>
+                      </Tooltip>)}
+                  </CopyButton>
+
+                  <CopyButton value={`https://t.me/${botUsername}?start=promo_${promo.code}`}>
+                    {({ copied, copy }) => (<Tooltip label={copied ? 'Ссылка скопирована' : 'Скопировать ссылку'}>
+                        <ActionIcon size="sm" variant="subtle" color={copied ? 'green' : 'blue'} onClick={copy}>
+                          {copied ? <IconCheck size={14}/> : <IconShare size={14}/>}
+                        </ActionIcon>
+                      </Tooltip>)}
+                  </CopyButton>
+
                   <Badge color={getStatusColor(promo)} variant="light">
                     {getStatusText(promo)}
                   </Badge>
@@ -165,7 +198,7 @@ const PromosList = () => {
           </Text>
           
           {deleteModal.promo && deleteModal.promo.used_count > 0 && (<Alert icon={<IconInfoCircle size={16}/>} color="yellow">
-              Этот промокод был использован {deleteModal.promo.used_count} times.
+              Этот промокод был использован {deleteModal.promo.used_count} раз.
             </Alert>)}
 
           <Group>

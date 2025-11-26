@@ -7,6 +7,8 @@ const PurchasesView = React.lazy(() => import('./components/Stats/PurchasesView'
 const UsersView = React.lazy(() => import('./components/Stats/UsersView'));
 const BroadcastsView = React.lazy(() => import('./components/Broadcasts/List'));
 const PromosView = React.lazy(() => import('./components/Promos/List'));
+const UserManagement = React.lazy(() => import('./components/Users/UserManagement'));
+const UserDetailsPage = React.lazy(() => import('./components/Users/UserDetailsPage'));
 // Loading component
 const PageLoader = () => (<Center h={200}>
     <Loader size="md"/>
@@ -44,6 +46,20 @@ export const router = createHashRouter([
             <PromosView />
           </Suspense>),
                 handle: { title: 'Промокоды' }
+            },
+            {
+                path: '/user-management',
+                element: (<Suspense fallback={<PageLoader />}>
+            <UserManagement />
+          </Suspense>),
+                handle: { title: 'Управление пользователями' }
+            },
+            {
+                path: '/user/:telegramId',
+                element: (<Suspense fallback={<PageLoader />}>
+            <UserDetailsPage />
+          </Suspense>),
+                handle: { title: 'Детали пользователя' }
             },
             // Catch-all route for any unmatched paths (including Telegram WebApp data)
             {

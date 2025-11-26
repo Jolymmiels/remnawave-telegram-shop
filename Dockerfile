@@ -3,6 +3,13 @@ WORKDIR /modules
 COPY go.mod go.sum ./
 RUN go mod download
 
+FROM --platform=$BUILDPLATFORM node:22-alpine AS frontend
+WORKDIR /frontend
+COPY tg-admin/package.json tg-admin/package-lock.json ./
+RUN npm ci
+COPY tg-admin/ ./
+RUN npm run build
+
 FROM --platform=$BUILDPLATFORM golang:1.25.3-alpine AS builder
 WORKDIR /app
 
@@ -40,6 +47,7 @@ COPY --from=builder /bin/app /app/app
 
 COPY --from=builder /app/db /db
 COPY --from=builder /app/translations /translations
+COPY --from=frontend /frontend/dist /tg-admin/dist
 
 USER 1000
 

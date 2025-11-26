@@ -20,6 +20,9 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 	mux := http.NewServeMux()
 	mux.Handle("/healthcheck", handler.FullHealthHandler(pool, remnawaveClient))
 
+	// Config endpoint (public)
+	mux.HandleFunc("/api/config", handler.GetBotConfig)
+
 	// Auth handlers
 	authHandler := handler.NewAuthHandler()
 	mux.HandleFunc("/api/auth/check-admin", authHandler.CheckAdmin)

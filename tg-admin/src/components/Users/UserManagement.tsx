@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Stack,
   Paper,
@@ -12,7 +13,6 @@ import {
   Text,
   Pagination,
   Loader,
-  Alert,
   Menu,
   rem,
   Card,
@@ -56,34 +56,17 @@ interface UserSearchResponse {
   total: number
 }
 
-interface Payment {
-  id: number
-  amount: number
-  customer_id: number
-  created_at: string
-  month: number
-  paid_at?: string | null
-  currency: string
-  expire_at?: string | null
-  status: string
-  invoice_type: string
-  crypto_invoice_id?: number | null
-  crypto_invoice_link?: string | null
-  yookasa_url?: string | null
-  yookasa_id?: string | null
-}
+
 
 const UserManagement: React.FC = () => {
+  const navigate = useNavigate()
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
-  const [userPayments, setUserPayments] = useState<Payment[]>([])
-  const [paymentsLoading, setPaymentsLoading] = useState(false)
   
-  const [detailsOpened, { open: openDetails, close: closeDetails }] = useDisclosure(false)
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false)
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false)
   
@@ -117,22 +100,6 @@ const UserManagement: React.FC = () => {
       })
     } finally {
       setLoading(false)
-    }
-  }
-
-  const fetchUserPayments = async (telegramId: number) => {
-    // Prevent duplicate requests
-    if (paymentsLoading) return
-    
-    setPaymentsLoading(true)
-    try {
-      const payments: Payment[] = await http.get(`/api/users/${telegramId}/payments`)
-      setUserPayments(payments)
-    } catch (error) {
-      console.error('Failed to fetch user payments:', error)
-      setUserPayments([])
-    } finally {
-      setPaymentsLoading(false)
     }
   }
 
@@ -182,9 +149,7 @@ const UserManagement: React.FC = () => {
   }
 
   const openUserDetails = (user: User) => {
-    setSelectedUser(user)
-    fetchUserPayments(user.telegram_id)
-    openDetails()
+    navigate(`/user/${user.telegram_id}`)
   }
 
   const formatDate = (dateString?: string | null) => {
@@ -486,82 +451,7 @@ const UserManagement: React.FC = () => {
         )}
       </Paper>
 
-      {/* User Details Modal */}
-      <Modal 
-        opened={detailsOpened} 
-        onClose={closeDetails} 
-        title="Детали пользователя" 
-        size="lg"
-        styles={getTelegramSafeAreaStyles()}
-      >
-        {selectedUser && (
-          <Stack>
-            <Group>
-              <Text fw={500}>Telegram ID:</Text>
-              <Text>{selectedUser.telegram_id}</Text>
-            </Group>
-            <Group>
-              <Text fw={500}>Статус подписки:</Text>
-              {getStatusBadge(selectedUser)}
-            </Group>
-            {selectedUser.is_blocked && (
-              <Group>
-                <Text fw={500}>Статус блокировки:</Text>
-                <Badge color="red">Пользователь заблокирован</Badge>
-              </Group>
-            )}
-            <Group>
-              <Text fw={500}>Дата регистрации:</Text>
-              <Text>{formatDate(selectedUser.created_at)}</Text>
-            </Group>
-            <Group>
-              <Text fw={500}>Подписка истекает:</Text>
-              <Text>{formatDate(selectedUser.expire_at)}</Text>
-            </Group>
-            <Group>
-              <Text fw={500}>Язык:</Text>
-              <Badge variant="light">{(selectedUser.language || 'EN').toUpperCase()}</Badge>
-            </Group>
-            
-            <Text fw={500} mt="md">История платежей:</Text>
-            {paymentsLoading ? (
-              <Loader size="sm" />
-            ) : userPayments.length > 0 ? (
-              <Table>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Сумма</Table.Th>
-                    <Table.Th>Валюта</Table.Th>
-                    <Table.Th>Статус</Table.Th>
-                    <Table.Th>Тип</Table.Th>
-                    <Table.Th>Дата</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {userPayments.map((payment) => (
-                    <Table.Tr key={payment.id}>
-                      <Table.Td>{payment.amount}</Table.Td>
-                      <Table.Td>{payment.currency}</Table.Td>
-                      <Table.Td>
-                        <Badge
-                          color={payment.status === 'paid' ? 'green' : 'yellow'}
-                          size="sm"
-                        >
-                          {payment.status}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>{payment.invoice_type}</Table.Td>
-                      <Table.Td>{formatDate(payment.paid_at || payment.created_at)}</Table.Td>
-                    </Table.Tr>
-                  ))}
-                </Table.Tbody>
-              </Table>
-            ) : (
-              <Alert>Платежи не найдены</Alert>
-            )}
-          </Stack>
-        )}
-      </Modal>
+      
 
       {/* Delete Confirmation Modal */}
       <Modal 

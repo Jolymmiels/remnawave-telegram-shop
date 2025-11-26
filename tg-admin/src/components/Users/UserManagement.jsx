@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Stack, Paper, TextInput, Button, Table, Group, Badge, ActionIcon, Modal, Text, Pagination, Loader, Alert, Menu, rem, Card, Flex, Box, SimpleGrid, } from '@mantine/core';
+import { useNavigate } from 'react-router-dom';
+import { Stack, Paper, TextInput, Button, Table, Group, Badge, ActionIcon, Modal, Text, Pagination, Loader, Menu, rem, Card, Flex, Box, SimpleGrid, } from '@mantine/core';
 import { useMediaQuery } from '@mantine/hooks';
 import { IconSearch, IconDots, IconEdit, IconTrash, IconBan, IconCheck, IconEye, IconCoin, IconUsers, } from '@tabler/icons-react';
 import { http } from '../../lib/http';
@@ -8,15 +9,13 @@ import { notifications } from '@mantine/notifications';
 import UserEditModal from './UserEditModal';
 import { getTelegramSafeAreaStyles, getTelegramSafeAreaDropdownStyles } from '../../lib/telegram-safe-area';
 const UserManagement = () => {
+    const navigate = useNavigate();
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [totalUsers, setTotalUsers] = useState(0);
     const [selectedUser, setSelectedUser] = useState(null);
-    const [userPayments, setUserPayments] = useState([]);
-    const [paymentsLoading, setPaymentsLoading] = useState(false);
-    const [detailsOpened, { open: openDetails, close: closeDetails }] = useDisclosure(false);
     const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false);
     const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false);
     const isMobile = useMediaQuery('(max-width: 768px)');
@@ -49,23 +48,6 @@ const UserManagement = () => {
         }
         finally {
             setLoading(false);
-        }
-    };
-    const fetchUserPayments = async (telegramId) => {
-        // Prevent duplicate requests
-        if (paymentsLoading)
-            return;
-        setPaymentsLoading(true);
-        try {
-            const payments = await http.get(`/api/users/${telegramId}/payments`);
-            setUserPayments(payments);
-        }
-        catch (error) {
-            console.error('Failed to fetch user payments:', error);
-            setUserPayments([]);
-        }
-        finally {
-            setPaymentsLoading(false);
         }
     };
     const handleSearch = () => {
@@ -114,9 +96,7 @@ const UserManagement = () => {
         }
     };
     const openUserDetails = (user) => {
-        setSelectedUser(user);
-        fetchUserPayments(user.telegram_id);
-        openDetails();
+        navigate(`/user/${user.telegram_id}`);
     };
     const formatDate = (dateString) => {
         if (!dateString)
@@ -340,61 +320,7 @@ const UserManagement = () => {
           </>)}
       </Paper>
 
-      {/* User Details Modal */}
-      <Modal opened={detailsOpened} onClose={closeDetails} title="Детали пользователя" size="lg" styles={getTelegramSafeAreaStyles()}>
-        {selectedUser && (<Stack>
-            <Group>
-              <Text fw={500}>Telegram ID:</Text>
-              <Text>{selectedUser.telegram_id}</Text>
-            </Group>
-            <Group>
-              <Text fw={500}>Статус подписки:</Text>
-              {getStatusBadge(selectedUser)}
-            </Group>
-            {selectedUser.is_blocked && (<Group>
-                <Text fw={500}>Статус блокировки:</Text>
-                <Badge color="red">Пользователь заблокирован</Badge>
-              </Group>)}
-            <Group>
-              <Text fw={500}>Дата регистрации:</Text>
-              <Text>{formatDate(selectedUser.created_at)}</Text>
-            </Group>
-            <Group>
-              <Text fw={500}>Подписка истекает:</Text>
-              <Text>{formatDate(selectedUser.expire_at)}</Text>
-            </Group>
-            <Group>
-              <Text fw={500}>Язык:</Text>
-              <Badge variant="light">{(selectedUser.language || 'EN').toUpperCase()}</Badge>
-            </Group>
-            
-            <Text fw={500} mt="md">История платежей:</Text>
-            {paymentsLoading ? (<Loader size="sm"/>) : userPayments.length > 0 ? (<Table>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Сумма</Table.Th>
-                    <Table.Th>Валюта</Table.Th>
-                    <Table.Th>Статус</Table.Th>
-                    <Table.Th>Тип</Table.Th>
-                    <Table.Th>Дата</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {userPayments.map((payment) => (<Table.Tr key={payment.id}>
-                      <Table.Td>{payment.amount}</Table.Td>
-                      <Table.Td>{payment.currency}</Table.Td>
-                      <Table.Td>
-                        <Badge color={payment.status === 'paid' ? 'green' : 'yellow'} size="sm">
-                          {payment.status}
-                        </Badge>
-                      </Table.Td>
-                      <Table.Td>{payment.invoice_type}</Table.Td>
-                      <Table.Td>{formatDate(payment.paid_at || payment.created_at)}</Table.Td>
-                    </Table.Tr>))}
-                </Table.Tbody>
-              </Table>) : (<Alert>Платежи не найдены</Alert>)}
-          </Stack>)}
-      </Modal>
+      
 
       {/* Delete Confirmation Modal */}
       <Modal opened={deleteOpened} onClose={closeDelete} title="Подтверждение удаления" styles={getTelegramSafeAreaStyles()}>
