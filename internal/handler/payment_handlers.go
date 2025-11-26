@@ -73,7 +73,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	})
 
 	if err != nil {
-		slog.Error("Error sending buy message", err)
+		slog.Error("Error sending buy message", "error", err)
 	}
 }
 
@@ -104,12 +104,12 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 		if config.RequirePaidPurchaseForStars() {
 			customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
 			if err != nil {
-				slog.Error("Error finding customer for stars check", err)
+				slog.Error("Error finding customer for stars check", "error", err)
 				shouldShowStarsButton = false
 			} else if customer != nil {
 				paidPurchase, err := h.purchaseRepository.FindSuccessfulPaidPurchaseByCustomer(ctx, customer.ID)
 				if err != nil {
-					slog.Error("Error checking paid purchase", err)
+					slog.Error("Error checking paid purchase", "error", err)
 					shouldShowStarsButton = false
 				} else if paidPurchase == nil {
 					shouldShowStarsButton = false
@@ -145,7 +145,7 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	})
 
 	if err != nil {
-		slog.Error("Error sending sell message", err)
+		slog.Error("Error sending sell message", "error", err)
 	}
 }
 
@@ -154,7 +154,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	month, err := strconv.Atoi(callbackQuery["month"])
 	if err != nil {
-		slog.Error("Error getting month from query", err)
+		slog.Error("Error getting month from query", "error", err)
 		return
 	}
 
@@ -171,7 +171,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	defer cancel()
 	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
 	if err != nil {
-		slog.Error("Error finding customer", err)
+		slog.Error("Error finding customer", "error", err)
 		return
 	}
 	if customer == nil {
@@ -182,7 +182,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
 	paymentURL, purchaseId, err := h.paymentService.CreatePurchase(ctxWithUsername, float64(price), month, customer, invoiceType)
 	if err != nil {
-		slog.Error("Error creating payment", err)
+		slog.Error("Error creating payment", "error", err)
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		},
 	})
 	if err != nil {
-		slog.Error("Error updating sell message", err)
+		slog.Error("Error updating sell message", "error", err)
 		return
 	}
 	h.cache.Set(purchaseId, message.ID)
@@ -213,7 +213,7 @@ func (h Handler) PreCheckoutCallbackHandler(ctx context.Context, b *bot.Bot, upd
 		OK:                 true,
 	})
 	if err != nil {
-		slog.Error("Error sending answer pre checkout query", err)
+		slog.Error("Error sending answer pre checkout query", "error", err)
 	}
 }
 
@@ -222,14 +222,14 @@ func (h Handler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *
 	purchaseId, err := strconv.Atoi(payload[0])
 	username := payload[1]
 	if err != nil {
-		slog.Error("Error parsing purchase id", err)
+		slog.Error("Error parsing purchase id", "error", err)
 		return
 	}
 
 	ctxWithUsername := context.WithValue(ctx, "username", username)
 	err = h.paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseId))
 	if err != nil {
-		slog.Error("Error processing purchase", err)
+		slog.Error("Error processing purchase", "error", err)
 	}
 }
 

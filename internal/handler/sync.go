@@ -15,6 +15,6 @@ func (h Handler) SyncUsersCommandHandler(ctx context.Context, b *bot.Bot, update
 		Text:   "Users synced",
 	})
 	if err != nil {
-		slog.Error("Error sending sync message", err)
+		slog.Error("Error sending sync message", "error", err)
 	}
 }

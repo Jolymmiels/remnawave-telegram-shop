@@ -17,7 +17,7 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	}
 	c, err := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	if err != nil {
-		slog.Error("Error finding customer", err)
+		slog.Error("Error finding customer", "error", err)
 		return
 	}
 	if c == nil {
@@ -40,7 +40,7 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		}},
 	})
 	if err != nil {
-		slog.Error("Error sending /trial message", err)
+		slog.Error("Error sending /trial message", "error", err)
 	}
 }
 
@@ -50,7 +50,7 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 	}
 	c, err := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	if err != nil {
-		slog.Error("Error finding customer", err)
+		slog.Error("Error finding customer", "error", err)
 		return
 	}
 	if c == nil {
@@ -72,7 +72,7 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: h.createConnectKeyboard(langCode)},
 	})
 	if err != nil {
-		slog.Error("Error sending /trial message", err)
+		slog.Error("Error sending /trial message", "error", err)
 	}
 }
 

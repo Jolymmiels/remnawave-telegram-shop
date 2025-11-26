@@ -17,7 +17,7 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 	refLink := fmt.Sprintf("https://telegram.me/share/url?url=https://t.me/%s?start=ref_%d", update.CallbackQuery.Message.Message.From.Username, refCode)
 	count, err := h.referralRepository.CountByReferrer(ctx, customer.TelegramID)
 	if err != nil {
-		slog.Error("error counting referrals", err)
+		slog.Error("error counting referrals", "error", err)
 		return
 	}
 	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), count)
@@ -37,6 +37,6 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 		}},
 	})
 	if err != nil {
-		slog.Error("Error sending referral message", err)
+		slog.Error("Error sending referral message", "error", err)
 	}
 }

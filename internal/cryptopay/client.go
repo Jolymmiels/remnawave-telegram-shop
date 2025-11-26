@@ -63,7 +63,7 @@ func (c *Client) CreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, er
 	}
 
 	if !apiResp.Ok {
-		return nil, fmt.Errorf("API create failed: %s", apiResp.Ok)
+		return nil, fmt.Errorf("API create failed: ok=%v", apiResp.Ok)
 	}
 
 	return &apiResp.Result, nil

@@ -198,7 +198,7 @@ func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, update
 
 	rowsAffected := result.RowsAffected()
 	if rowsAffected == 0 {
-		return fmt.Errorf("no customer found with id: %d", utils.MaskHalfInt64(id))
+		return fmt.Errorf("no customer found with id: %s", utils.MaskHalfInt64(id))
 	}
 
 	if err := tx.Commit(ctx); err != nil {

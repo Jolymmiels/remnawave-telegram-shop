@@ -266,14 +266,14 @@ func checkYookasaInvoice(
 		invoice, err := yookasaClient.GetPayment(ctx, *purchase.YookasaID)
 
 		if err != nil {
-			slog.Error("Error getting invoice", "invoiceId", purchase.YookasaID, err)
+			slog.Error("Error getting invoice", "invoiceId", purchase.YookasaID, "error", err)
 			continue
 		}
 
 		if invoice.IsCancelled() {
 			err := paymentService.CancelYookassaPayment(purchase.ID)
 			if err != nil {
-				slog.Error("Error canceling invoice", "invoiceId", invoice.ID, "purchaseId", purchase.ID, err)
+				slog.Error("Error canceling invoice", "invoiceId", invoice.ID, "purchaseId", purchase.ID, "error", err)
 			}
 			continue
 		}
@@ -284,7 +284,7 @@ func checkYookasaInvoice(
 
 		purchaseId, err := strconv.Atoi(invoice.Metadata["purchaseId"])
 		if err != nil {
-			slog.Error("Error parsing purchaseId", "invoiceId", invoice.ID, err)
+			slog.Error("Error parsing purchaseId", "invoiceId", invoice.ID, "error", err)
 		}
 		ctxWithValue := context.WithValue(ctx, "username", invoice.Metadata["username"])
 		err = paymentService.ProcessPurchaseById(ctxWithValue, int64(purchaseId))
@@ -343,7 +343,7 @@ func checkCryptoPayInvoice(
 			ctxWithUsername := context.WithValue(ctx, "username", username)
 			err = paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseID))
 			if err != nil {
-				slog.Error("Error processing invoice", "invoiceId", invoice.InvoiceID, err)
+				slog.Error("Error processing invoice", "invoiceId", invoice.InvoiceID, "error", err)
 			} else {
 				slog.Info("Invoice processed", "invoiceId", invoice.InvoiceID, "purchaseId", purchaseID)
 			}
