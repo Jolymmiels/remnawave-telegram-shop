@@ -133,7 +133,7 @@ const PromosList = () => {
                       </Tooltip>)}
                   </CopyButton>
 
-                  <CopyButton value={`https://t.me/${botUsername}?start=promo_${promo.code}`}>
+                  <CopyButton value={`https://t.me/${botUsername}?start=promo=${promo.code}`}>
                     {({ copied, copy }) => (<Tooltip label={copied ? 'Ссылка скопирована' : 'Скопировать ссылку'}>
                         <ActionIcon size="sm" variant="subtle" color={copied ? 'green' : 'blue'} onClick={copy}>
                           {copied ? <IconCheck size={14}/> : <IconShare size={14}/>}

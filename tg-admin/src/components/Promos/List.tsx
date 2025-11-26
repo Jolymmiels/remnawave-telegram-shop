@@ -165,7 +165,7 @@ const PromosList: React.FC = () => {
                     )}
                   </CopyButton>
 
-                  <CopyButton value={`https://t.me/${botUsername}?start=promo_${promo.code}`}>
+                  <CopyButton value={`https://t.me/${botUsername}?start=promo=${promo.code}`}>
                     {({ copied, copy }) => (
                       <Tooltip label={copied ? 'Ссылка скопирована' : 'Скопировать ссылку'}>
                         <ActionIcon 
