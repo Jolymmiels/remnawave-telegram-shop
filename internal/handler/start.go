@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -64,6 +65,19 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		if err != nil {
 			slog.Error("Error updating customer", "error", err)
 			return
+		}
+	}
+
+	// Handle promo code from deep link (start=promo=CODE)
+	if strings.Contains(update.Message.Text, "promo=") {
+		parts := strings.Split(update.Message.Text, " ")
+		if len(parts) > 1 {
+			arg := parts[1]
+			if strings.HasPrefix(arg, "promo=") {
+				promoCode := strings.TrimPrefix(arg, "promo=")
+				h.handlePromoFromStart(ctx, b, update, existingCustomer, promoCode)
+				return
+			}
 		}
 	}
 
@@ -196,4 +210,50 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	}
 
 	return inlineKeyboard
+}
+
+func (h Handler) handlePromoFromStart(ctx context.Context, b *bot.Bot, update *models.Update, customer *database.Customer, promoCode string) {
+	langCode := customer.Language
+
+	// Validate promo code
+	validation, err := h.promo.ValidatePromoCode(ctx, promoCode, customer.ID)
+	if err != nil {
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   h.translation.GetText(langCode, "error_validating_promo"),
+		})
+		return
+	}
+
+	if !validation.Valid {
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   validation.Message,
+		})
+		return
+	}
+
+	// Show promo confirmation
+	keyboard := &models.InlineKeyboardMarkup{
+		InlineKeyboard: [][]models.InlineKeyboardButton{
+			{
+				{
+					Text:         h.translation.GetText(langCode, "apply_promo"),
+					CallbackData: fmt.Sprintf("%s_%d", CallbackPromo, validation.PromoID),
+				},
+			},
+			{
+				{
+					Text:         h.translation.GetText(langCode, "cancel"),
+					CallbackData: CallbackStart,
+				},
+			},
+		},
+	}
+
+	_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:      update.Message.Chat.ID,
+		Text:        validation.Message,
+		ReplyMarkup: keyboard,
+	})
 }
