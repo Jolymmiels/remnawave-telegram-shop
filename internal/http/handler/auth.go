@@ -134,7 +134,7 @@ func (ah *AuthHandler) validateTelegramInitData(initData string) (int64, error) 
 	expectedHashString := hex.EncodeToString(expectedHash.Sum(nil))
 
 	// Verify hash
-	if hash != expectedHashString {
+	if !hmac.Equal([]byte(hash), []byte(expectedHashString)) {
 		return 0, fmt.Errorf("invalid signature")
 	}
 
@@ -151,8 +151,8 @@ func (ah *AuthHandler) validateTelegramInitData(initData string) (int64, error) 
 
 	// Check if data is not too old (1 hour = 3600 seconds)
 	now := time.Now().Unix()
-	if now-authDate > 3600 {
-		return 0, fmt.Errorf("init data expired")
+	if now-authDate > 3600 || authDate > now+60 {
+		return 0, fmt.Errorf("init data expired or invalid")
 	}
 
 	// Extract user ID
