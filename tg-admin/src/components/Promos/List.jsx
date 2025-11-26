@@ -121,10 +121,10 @@ const PromosList = () => {
         {items.length === 0 ? (<Text c="dimmed" ta="center" py="xl">
             No promo codes found. Create one above to get started.
           </Text>) : (items.map((promo) => (<Card key={promo.id} shadow="sm" padding="md" radius="md" withBorder>
-              <Group justify="space-between" mb="md">
-                <Group>
-                  <Text size="lg" fw={600}>{promo.code}</Text>
-                  
+              <Group justify="space-between" wrap="nowrap" mb="md">
+                <Text size="lg" fw={600} style={{ whiteSpace: 'nowrap' }}>{promo.code}</Text>
+                
+                <Group gap="xs" wrap="nowrap">
                   <CopyButton value={promo.code}>
                     {({ copied, copy }) => (<Tooltip label={copied ? 'Скопировано' : 'Копировать код'}>
                         <ActionIcon size="sm" variant="subtle" color={copied ? 'green' : 'gray'} onClick={copy}>
@@ -141,13 +141,12 @@ const PromosList = () => {
                       </Tooltip>)}
                   </CopyButton>
 
-                  <Badge color={getStatusColor(promo)} variant="light">
+                  <Badge color={getStatusColor(promo)} variant="light" style={{ whiteSpace: 'nowrap' }}>
                     {getStatusText(promo)}
                   </Badge>
-                </Group>
-                
-                <Group>
+
                   <Switch checked={promo.active} onChange={() => handleToggleActive(promo.id, promo.active)} disabled={isPromoExpired(promo) || false}/>
+                  
                   <ActionIcon color="red" variant="light" onClick={() => {
                 hapticFeedback.soft();
                 setDeleteModal({ open: true, promo });

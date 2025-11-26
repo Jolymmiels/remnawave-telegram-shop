@@ -52,11 +52,11 @@ func (s *Service) CreateBroadcast(ctx context.Context, content, broadcastType, l
 	var customers *[]database.Customer
 	switch broadcastType {
 	case database.BroadcastAll:
-		customers, err = s.customers.FindAll(ctx)
+		customers, err = s.customers.FindAllWithLanguage(ctx, language)
 	case database.BroadcastActive:
-		customers, err = s.customers.FindNonExpired(ctx)
+		customers, err = s.customers.FindNonExpiredWithLanguage(ctx, language)
 	case database.BroadcastInactive:
-		customers, err = s.customers.FindExpired(ctx)
+		customers, err = s.customers.FindExpiredWithLanguage(ctx, language)
 	}
 	if err != nil {
 		slog.Error("failed to find customers", "error", err)
@@ -211,3 +211,5 @@ func extractRetryAfter(err error) int {
 func (s *Service) List(ctx context.Context, params database.BroadcastListParams) (*[]database.Broadcast, error) {
 	return s.repo.List(ctx, params)
 }
+
+

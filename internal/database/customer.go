@@ -315,6 +315,24 @@ func (cr *CustomerRepository) UpdateBatch(ctx context.Context, customers []Custo
 	return nil
 }
 
+func (cr *CustomerRepository) DeleteByTelegramId(ctx context.Context, telegramID int64) error {
+	buildDelete := sq.Delete("customer").
+		PlaceholderFormat(sq.Dollar).
+		Where(sq.Eq{"telegram_id": telegramID})
+
+	sqlStr, args, err := buildDelete.ToSql()
+	if err != nil {
+		return fmt.Errorf("failed to build delete query: %w", err)
+	}
+
+	_, err = cr.pool.Exec(ctx, sqlStr, args...)
+	if err != nil {
+		return fmt.Errorf("failed to delete customer: %w", err)
+	}
+
+	return nil
+}
+
 func (cr *CustomerRepository) DeleteByNotInTelegramIds(ctx context.Context, telegramIDs []int64) error {
 	var buildDelete sq.DeleteBuilder
 	if len(telegramIDs) == 0 {
@@ -369,9 +387,17 @@ func (cr *CustomerRepository) GetUserGrowthStats(ctx context.Context) (*UserGrow
 }
 
 func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) {
+	return cr.FindAllWithLanguage(ctx, "")
+}
+
+func (cr *CustomerRepository) FindAllWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
 	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
 		From("customer").
 		PlaceholderFormat(sq.Dollar)
+
+	if language != "" {
+		buildSelect = buildSelect.Where(sq.Eq{"language": language})
+	}
 
 	sql, args, err := buildSelect.ToSql()
 	if err != nil {
@@ -410,10 +436,18 @@ func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) 
 }
 
 func (cr *CustomerRepository) FindNonExpired(ctx context.Context) (*[]Customer, error) {
+	return cr.FindNonExpiredWithLanguage(ctx, "")
+}
+
+func (cr *CustomerRepository) FindNonExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
 	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
 		From("customer").
 		Where(sq.Gt{"expire_at": time.Now()}).
 		PlaceholderFormat(sq.Dollar)
+
+	if language != "" {
+		buildSelect = buildSelect.Where(sq.Eq{"language": language})
+	}
 
 	sql, args, err := buildSelect.ToSql()
 	if err != nil {
@@ -452,10 +486,18 @@ func (cr *CustomerRepository) FindNonExpired(ctx context.Context) (*[]Customer, 
 }
 
 func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, error) {
+	return cr.FindExpiredWithLanguage(ctx, "")
+}
+
+func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
 	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
 		From("customer").
 		Where(sq.LtOrEq{"expire_at": time.Now()}).
 		PlaceholderFormat(sq.Dollar)
+
+	if language != "" {
+		buildSelect = buildSelect.Where(sq.Eq{"language": language})
+	}
 
 	sql, args, err := buildSelect.ToSql()
 	if err != nil {
@@ -491,4 +533,34 @@ func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, err
 	}
 
 	return &customers, nil
+}
+
+func (cr *CustomerRepository) GetDistinctLanguages(ctx context.Context) ([]string, error) {
+	query := sq.Select("DISTINCT language").
+		From("customer").
+		Where(sq.NotEq{"language": ""}).
+		OrderBy("language").
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to execute query: %w", err)
+	}
+	defer rows.Close()
+
+	var languages []string
+	for rows.Next() {
+		var lang string
+		if err := rows.Scan(&lang); err != nil {
+			return nil, fmt.Errorf("failed to scan language: %w", err)
+		}
+		languages = append(languages, lang)
+	}
+
+	return languages, nil
 }

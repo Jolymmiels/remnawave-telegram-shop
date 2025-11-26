@@ -337,24 +337,8 @@ func (uh *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Find customer first
-	customer, err := uh.customerRepository.FindByTelegramId(ctx, telegramID)
-	if err != nil {
-		slog.Error("Failed to find customer", "error", err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-	if customer == nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	// Soft delete by setting is_blocked flag
-	updates := map[string]interface{}{
-		"is_blocked": true,
-	}
-
-	if err := uh.customerRepository.UpdateFields(ctx, customer.ID, updates); err != nil {
+	// Delete customer from database
+	if err := uh.customerRepository.DeleteByTelegramId(ctx, telegramID); err != nil {
 		slog.Error("Failed to delete customer", "error", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return

@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
-import { Box, TextInput, Textarea, Select, Button, Group, Title, Alert } from '@mantine/core'
-import { IconSend, IconInfoCircle } from '@tabler/icons-react'
+import React, { useState, useEffect } from 'react'
+import { Box, Select, Textarea, Button, Group, Title, Alert, SegmentedControl, Text } from '@mantine/core'
+import { IconSend, IconInfoCircle, IconUsers, IconUserCheck, IconUserOff } from '@tabler/icons-react'
 import { useBroadcasts } from '@/context/BroadcastsContext'
 import { notifications } from '@mantine/notifications'
 import { useTelegram } from '@/hooks/useTelegram'
@@ -10,7 +10,27 @@ const CreateForm: React.FC = () => {
   const { hapticFeedback } = useTelegram()
   const [content, setContent] = useState('')
   const [type, setType] = useState<string>('all')
-  const [language, setLanguage] = useState('')
+  const [language, setLanguage] = useState<string | null>(null)
+  const [availableLanguages, setAvailableLanguages] = useState<string[]>([])
+
+  useEffect(() => {
+    const fetchLanguages = async () => {
+      try {
+        const response = await fetch('/api/languages')
+        if (!response.ok) {
+          console.error('Failed to fetch languages:', response.status)
+          return
+        }
+        const data = await response.json()
+        if (Array.isArray(data)) {
+          setAvailableLanguages(data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch languages:', error)
+      }
+    }
+    fetchLanguages()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,11 +51,11 @@ const CreateForm: React.FC = () => {
       await create({
         content: content.trim(),
         type,
-        language: language.trim() || undefined
+        language: language || undefined
       })
       
       setContent('')
-      setLanguage('')
+      setLanguage(null)
       
       hapticFeedback.success()
       notifications.show({
@@ -53,14 +73,10 @@ const CreateForm: React.FC = () => {
     }
   }
 
-  const handleSelectionChange = () => {
-    hapticFeedback.selectionChanged()
-  }
-
   const typeOptions = [
-    { value: 'all', label: '🌍 Всем пользователям' },
-    { value: 'active', label: '✅ Только активным' },
-    { value: 'inactive', label: '⏰ Только неактивным' }
+    { value: 'all', label: <Group gap={4} wrap="nowrap"><IconUsers size={16} />Всем</Group> },
+    { value: 'active', label: <Group gap={4} wrap="nowrap"><IconUserCheck size={16} />Активным</Group> },
+    { value: 'inactive', label: <Group gap={4} wrap="nowrap"><IconUserOff size={16} />Неактивным</Group> }
   ]
 
   return (
@@ -83,25 +99,28 @@ const CreateForm: React.FC = () => {
           mb="md"
         />
 
-        <Group grow mb="md">
-          <Select
-            label="Тип получателей"
+        <Box mb="md">
+          <Text size="sm" fw={500} mb={4}>Получатели</Text>
+          <SegmentedControl
+            fullWidth
             data={typeOptions}
             value={type}
             onChange={(value) => {
-              handleSelectionChange()
-              setType(value || 'all')
+              hapticFeedback.selectionChanged()
+              setType(value)
             }}
-            allowDeselect={false}
           />
-          
-          <TextInput
-            label="Язык (необязательно)"
-            placeholder="ru, en, es..."
-            value={language}
-            onChange={(e) => setLanguage(e.target.value)}
-          />
-        </Group>
+        </Box>
+
+        <Select
+          label="Язык (необязательно)"
+          placeholder="Все языки"
+          data={availableLanguages.map(lang => ({ value: lang, label: lang.toUpperCase() }))}
+          value={language}
+          onChange={setLanguage}
+          clearable
+          mb="md"
+        />
 
         <Group justify="flex-end">
           <Button

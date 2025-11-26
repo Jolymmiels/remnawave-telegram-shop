@@ -31,6 +31,7 @@ import {
   IconEye,
   IconCoin,
   IconUsers,
+  IconRefresh,
 } from '@tabler/icons-react'
 import { http } from '../../lib/http'
 import { useDisclosure } from '@mantine/hooks'
@@ -69,6 +70,8 @@ const UserManagement: React.FC = () => {
   
   const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false)
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
+  const [syncLoading, setSyncLoading] = useState(false)
   
   const isMobile = useMediaQuery('(max-width: 768px)')
   const itemsPerPage = 20
@@ -108,9 +111,31 @@ const UserManagement: React.FC = () => {
     fetchUsers(1, searchQuery)
   }
 
+  const handleSync = async () => {
+    try {
+      setSyncLoading(true)
+      await http.post('/api/sync', {})
+      notifications.show({
+        title: 'Синхронизация',
+        message: 'Синхронизация запущена',
+        color: 'blue',
+      })
+      setTimeout(() => fetchUsers(currentPage, searchQuery), 2000)
+    } catch (error: any) {
+      notifications.show({
+        title: 'Ошибка',
+        message: error?.message || 'Не удалось запустить синхронизацию',
+        color: 'red',
+      })
+    } finally {
+      setSyncLoading(false)
+    }
+  }
+
   const handleUserAction = async (user: User, action: 'block' | 'unblock' | 'delete') => {
     try {
       if (action === 'delete') {
+        setDeleteLoading(true)
         await http.delete(`/api/users/${user.telegram_id}/delete`)
         notifications.show({
           title: 'Успешно',
@@ -138,13 +163,15 @@ const UserManagement: React.FC = () => {
       // Refresh users list
       fetchUsers(currentPage, searchQuery)
       closeDelete()
-    } catch (error) {
+    } catch (error: any) {
       console.error(`Failed to ${action} user:`, error)
       notifications.show({
         title: 'Ошибка',
-        message: `Не удалось ${action === 'delete' ? 'удалить' : action === 'block' ? 'заблокировать' : 'разблокировать'} пользователя`,
+        message: error?.message || `Не удалось ${action === 'delete' ? 'удалить' : action === 'block' ? 'заблокировать' : 'разблокировать'} пользователя`,
         color: 'red',
       })
+    } finally {
+      setDeleteLoading(false)
     }
   }
 
@@ -285,6 +312,15 @@ const UserManagement: React.FC = () => {
       <Paper p="md" shadow="sm">
         <Group justify="space-between" mb="md">
           <Text size="sm" c="dimmed">Всего пользователей: {totalUsers}</Text>
+          <Button 
+            size="xs" 
+            variant="light" 
+            leftSection={<IconRefresh size={14} />}
+            loading={syncLoading}
+            onClick={handleSync}
+          >
+            Синхронизация
+          </Button>
         </Group>
         
         <Group mb="md">
@@ -469,11 +505,12 @@ const UserManagement: React.FC = () => {
               Это действие нельзя будет отменить.
             </Text>
             <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={closeDelete}>
+              <Button variant="default" onClick={closeDelete} disabled={deleteLoading}>
                 Отмена
               </Button>
               <Button
                 color="red"
+                loading={deleteLoading}
                 onClick={() => selectedUser && handleUserAction(selectedUser, 'delete')}
               >
                 Удалить

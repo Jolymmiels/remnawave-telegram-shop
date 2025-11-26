@@ -146,10 +146,10 @@ const PromosList: React.FC = () => {
         ) : (
           items.map((promo) => (
             <Card key={promo.id} shadow="sm" padding="md" radius="md" withBorder>
-              <Group justify="space-between" mb="md">
-                <Group>
-                  <Text size="lg" fw={600}>{promo.code}</Text>
-                  
+              <Group justify="space-between" wrap="nowrap" mb="md">
+                <Text size="lg" fw={600} style={{ whiteSpace: 'nowrap' }}>{promo.code}</Text>
+                
+                <Group gap="xs" wrap="nowrap">
                   <CopyButton value={promo.code}>
                     {({ copied, copy }) => (
                       <Tooltip label={copied ? 'Скопировано' : 'Копировать код'}>
@@ -180,17 +180,16 @@ const PromosList: React.FC = () => {
                     )}
                   </CopyButton>
 
-                  <Badge color={getStatusColor(promo)} variant="light">
+                  <Badge color={getStatusColor(promo)} variant="light" style={{ whiteSpace: 'nowrap' }}>
                     {getStatusText(promo)}
                   </Badge>
-                </Group>
-                
-                <Group>
+
                   <Switch
                     checked={promo.active}
                     onChange={() => handleToggleActive(promo.id, promo.active)}
                     disabled={isPromoExpired(promo) || false}
                   />
+                  
                   <ActionIcon 
                     color="red" 
                     variant="light"

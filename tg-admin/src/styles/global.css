@@ -46,3 +46,8 @@ body {
   overflow-y: auto;
   overflow-x: hidden;
 }
+
+/* Telegram Mini App safe area - offset from header buttons */
+.mantine-AppShell-main {
+  padding-top: calc(var(--tg-content-safe-area-inset-top, 56px) + 48px) !important;
+}

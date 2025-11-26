@@ -150,7 +150,7 @@ func main() {
 		return update.Message != nil && update.Message.SuccessfulPayment != nil
 	}, h.SuccessPaymentHandler, h.SuspiciousUserFilterMiddleware)
 
-	srv := httpserver.NewServer(statsHandler, pool, remnawaveClient, paymentService, broadcastService, promoService, customerRepository, purchaseRepository, referralRepository)
+	srv := httpserver.NewServer(statsHandler, pool, remnawaveClient, paymentService, broadcastService, promoService, customerRepository, purchaseRepository, referralRepository, syncService)
 	go func() {
 		log.Printf("HTTP server listening on %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

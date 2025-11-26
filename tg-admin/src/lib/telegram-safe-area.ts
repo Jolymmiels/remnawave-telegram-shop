@@ -1,26 +1,38 @@
 // Utility functions for Telegram WebApp safe area handling
+// Based on official Telegram Mini Apps documentation:
+// - SafeAreaInset: device safe area (notches, navigation bars)
+// - ContentSafeAreaInset: content area (Telegram header, etc.)
 
 export const getTelegramSafeAreaStyles = () => ({
   content: {
-    margin: 'var(--tg-viewport-safe-area-inset-top, 0px) var(--tg-viewport-safe-area-inset-right, 0px) var(--tg-viewport-safe-area-inset-bottom, 0px) var(--tg-viewport-safe-area-inset-left, 0px)',
+    paddingTop: 'var(--tg-content-safe-area-inset-top, 0px)',
+    paddingRight: 'var(--tg-content-safe-area-inset-right, 0px)',
+    paddingBottom: 'var(--tg-content-safe-area-inset-bottom, 0px)',
+    paddingLeft: 'var(--tg-content-safe-area-inset-left, 0px)',
   }
 })
 
 export const getTelegramSafeAreaMargins = () => ({
-  marginTop: 'calc(var(--tg-viewport-safe-area-inset-top, 0px) + 16px)',
-  marginRight: 'calc(var(--tg-viewport-safe-area-inset-right, 0px) + 16px)',
-  marginBottom: 'calc(var(--tg-viewport-safe-area-inset-bottom, 0px) + 16px)',
-  marginLeft: 'calc(var(--tg-viewport-safe-area-inset-left, 0px) + 16px)',
+  marginTop: 'var(--tg-safe-area-inset-top, 0px)',
+  marginRight: 'var(--tg-safe-area-inset-right, 0px)',
+  marginBottom: 'var(--tg-safe-area-inset-bottom, 0px)',
+  marginLeft: 'var(--tg-safe-area-inset-left, 0px)',
 })
 
 export const getTelegramSafeAreaDropdownStyles = () => ({
-  margin: 'var(--tg-viewport-safe-area-inset-top, 0px) var(--tg-viewport-safe-area-inset-right, 0px) var(--tg-viewport-safe-area-inset-bottom, 0px) var(--tg-viewport-safe-area-inset-left, 0px)',
+  marginTop: 'var(--tg-content-safe-area-inset-top, 0px)',
 })
 
 // CSS custom properties for Telegram WebApp safe areas
 export const TELEGRAM_SAFE_AREA_CSS_VARS = {
-  TOP: 'var(--tg-viewport-safe-area-inset-top, 0px)',
-  RIGHT: 'var(--tg-viewport-safe-area-inset-right, 0px)', 
-  BOTTOM: 'var(--tg-viewport-safe-area-inset-bottom, 0px)',
-  LEFT: 'var(--tg-viewport-safe-area-inset-left, 0px)',
+  // Device safe area (notches, navigation bars)
+  SAFE_TOP: 'var(--tg-safe-area-inset-top, 0px)',
+  SAFE_RIGHT: 'var(--tg-safe-area-inset-right, 0px)', 
+  SAFE_BOTTOM: 'var(--tg-safe-area-inset-bottom, 0px)',
+  SAFE_LEFT: 'var(--tg-safe-area-inset-left, 0px)',
+  // Content safe area (Telegram header, etc.)
+  CONTENT_TOP: 'var(--tg-content-safe-area-inset-top, 0px)',
+  CONTENT_RIGHT: 'var(--tg-content-safe-area-inset-right, 0px)',
+  CONTENT_BOTTOM: 'var(--tg-content-safe-area-inset-bottom, 0px)',
+  CONTENT_LEFT: 'var(--tg-content-safe-area-inset-left, 0px)',
 } as const

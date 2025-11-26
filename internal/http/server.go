@@ -10,22 +10,31 @@ import (
 	"remnawave-tg-shop-bot/internal/payment"
 	"remnawave-tg-shop-bot/internal/promo"
 	"remnawave-tg-shop-bot/internal/remnawave"
+	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/tribute"
 	"strings"
 
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *remnawave.Client, paymentService *payment.PaymentService, broadcastService *broadcast.Service, promoService *promo.Service, customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository) *http.Server {
+func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *remnawave.Client, paymentService *payment.PaymentService, broadcastService *broadcast.Service, promoService *promo.Service, customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, syncService *sync.SyncService) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/healthcheck", handler.FullHealthHandler(pool, remnawaveClient))
 
 	// Config endpoint (public)
 	mux.HandleFunc("/api/config", handler.GetBotConfig)
 
+	// Languages endpoint
+	langHandler := handler.NewLanguagesHandler(customerRepository)
+	mux.HandleFunc("/api/languages", langHandler.GetLanguages)
+
 	// Auth handlers
 	authHandler := handler.NewAuthHandler()
 	mux.HandleFunc("/api/auth/check-admin", authHandler.CheckAdmin)
+
+	// Sync endpoint
+	syncHandler := handler.NewSyncHandler(syncService)
+	mux.HandleFunc("/api/sync", authHandler.RequireAdmin(syncHandler.Sync))
 
 	// Protected admin endpoints - require admin authentication
 	mux.HandleFunc("/api/stats/totals", authHandler.RequireAdmin(sh.GetStatsTotals))
