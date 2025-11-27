@@ -143,27 +143,33 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 }
 
 func (cr *CustomerRepository) Create(ctx context.Context, customer *Customer) (*Customer, error) {
-	buildInsert := sq.Insert("customer").
-		Columns("telegram_id", "expire_at", "language").
-		PlaceholderFormat(sq.Dollar).
-		Values(customer.TelegramID, customer.ExpireAt, customer.Language).
-		Suffix("RETURNING id, created_at")
-	sqlStr, args, err := buildInsert.ToSql()
-	if err != nil {
-		return nil, fmt.Errorf("failed to build insert query: %w", err)
+	return cr.FindOrCreate(ctx, customer)
+}
+
+func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Customer) (*Customer, error) {
+	query := `
+		INSERT INTO customer (telegram_id, expire_at, language)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = customer.telegram_id
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked
+	`
+
+	row := cr.pool.QueryRow(ctx, query, customer.TelegramID, customer.ExpireAt, customer.Language)
+	var result Customer
+	if err := row.Scan(
+		&result.ID,
+		&result.TelegramID,
+		&result.ExpireAt,
+		&result.CreatedAt,
+		&result.SubscriptionLink,
+		&result.Language,
+		&result.IsBlocked,
+	); err != nil {
+		return nil, fmt.Errorf("failed to find or create customer: %w", err)
 	}
 
-	row := cr.pool.QueryRow(ctx, sqlStr, args...)
-	var id int64
-	var createdAt time.Time
-	if err := row.Scan(&id, &createdAt); err != nil {
-		return nil, fmt.Errorf("failed to insert customer: %w", err)
-	}
-	customer.ID = id
-	customer.CreatedAt = createdAt
-
-	slog.Info("user created in bot database", "telegramId", utils.MaskHalfInt64(customer.TelegramID))
-	return customer, nil
+	slog.Info("user found or created in bot database", "telegramId", utils.MaskHalfInt64(result.TelegramID))
+	return &result, nil
 }
 
 func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
