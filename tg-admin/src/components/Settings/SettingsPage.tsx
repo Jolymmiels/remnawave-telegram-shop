@@ -8,7 +8,6 @@ import {
   Switch,
   Button,
   Group,
-  Divider,
   Text,
   LoadingOverlay,
   Select,
@@ -122,12 +121,7 @@ const SettingsPage: React.FC = () => {
     <Stack gap="md" pos="relative">
       <LoadingOverlay visible={loading} />
       
-      <Group justify="space-between" align="center">
-        <Title order={3}>Настройки</Title>
-        <Button onClick={handleSave} loading={saving} size="sm">
-          Сохранить
-        </Button>
-      </Group>
+      <Title order={3}>Настройки</Title>
 
       <Accordion defaultValue={['prices']} multiple variant="separated">
         {/* Prices Section */}
@@ -169,41 +163,6 @@ const SettingsPage: React.FC = () => {
                 </SimpleGrid>
               </Box>
 
-              <Divider />
-
-              <Box>
-                <Text fw={600} size="sm" mb="xs">Telegram Stars</Text>
-                <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
-                  <NumberInput
-                    label="1 мес"
-                    size="xs"
-                    value={Number(settings.stars_price_1) || 0}
-                    onChange={v => updateSetting('stars_price_1', v || 0)}
-                    min={0}
-                  />
-                  <NumberInput
-                    label="3 мес"
-                    size="xs"
-                    value={Number(settings.stars_price_3) || 0}
-                    onChange={v => updateSetting('stars_price_3', v || 0)}
-                    min={0}
-                  />
-                  <NumberInput
-                    label="6 мес"
-                    size="xs"
-                    value={Number(settings.stars_price_6) || 0}
-                    onChange={v => updateSetting('stars_price_6', v || 0)}
-                    min={0}
-                  />
-                  <NumberInput
-                    label="12 мес"
-                    size="xs"
-                    value={Number(settings.stars_price_12) || 0}
-                    onChange={v => updateSetting('stars_price_12', v || 0)}
-                    min={0}
-                  />
-                </SimpleGrid>
-              </Box>
             </Stack>
           </Accordion.Panel>
         </Accordion.Item>
@@ -332,12 +291,44 @@ const SettingsPage: React.FC = () => {
                     onChange={e => updateSetting('telegram_stars_enabled', e.currentTarget.checked)}
                   />
                 </Group>
-                <Switch
-                  label="Требовать оплаченную покупку"
-                  size="xs"
-                  checked={settings.require_paid_purchase_for_stars === 'true'}
-                  onChange={e => updateSetting('require_paid_purchase_for_stars', e.currentTarget.checked)}
-                />
+                <Stack gap="xs">
+                  <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="xs">
+                    <NumberInput
+                      label="1 мес"
+                      size="xs"
+                      value={Number(settings.stars_price_1) || 0}
+                      onChange={v => updateSetting('stars_price_1', v || 0)}
+                      min={0}
+                    />
+                    <NumberInput
+                      label="3 мес"
+                      size="xs"
+                      value={Number(settings.stars_price_3) || 0}
+                      onChange={v => updateSetting('stars_price_3', v || 0)}
+                      min={0}
+                    />
+                    <NumberInput
+                      label="6 мес"
+                      size="xs"
+                      value={Number(settings.stars_price_6) || 0}
+                      onChange={v => updateSetting('stars_price_6', v || 0)}
+                      min={0}
+                    />
+                    <NumberInput
+                      label="12 мес"
+                      size="xs"
+                      value={Number(settings.stars_price_12) || 0}
+                      onChange={v => updateSetting('stars_price_12', v || 0)}
+                      min={0}
+                    />
+                  </SimpleGrid>
+                  <Switch
+                    label="Требовать оплаченную покупку"
+                    size="xs"
+                    checked={settings.require_paid_purchase_for_stars === 'true'}
+                    onChange={e => updateSetting('require_paid_purchase_for_stars', e.currentTarget.checked)}
+                  />
+                </Stack>
               </Paper>
 
               {/* CryptoPay */}
