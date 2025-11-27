@@ -28,6 +28,7 @@ import {
   IconExternalLink,
   IconDeviceMobile,
   IconTrash,
+  IconUserX,
 } from '@tabler/icons-react'
 import { http } from '../../lib/http'
 import { backButton } from '@telegram-apps/sdk'
@@ -85,6 +86,8 @@ const UserDetailsPage: React.FC = () => {
   const [deleteModalOpened, setDeleteModalOpened] = useState(false)
   const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [revokeModalOpened, setRevokeModalOpened] = useState(false)
+  const [revoking, setRevoking] = useState(false)
 
   const goBack = () => {
     navigate('/user-management')
@@ -185,6 +188,31 @@ const UserDetailsPage: React.FC = () => {
     setDeleteModalOpened(true)
   }
 
+  const handleRevokeSubscription = async () => {
+    if (!telegramId) return
+    
+    setRevoking(true)
+    try {
+      await http.post(`/api/users/${telegramId}/revoke-subscription`, {})
+      setUser(prev => prev ? { ...prev, expire_at: null, subscription_link: null } : null)
+      notifications.show({
+        title: 'Успешно',
+        message: 'Подписка отозвана',
+        color: 'green',
+      })
+    } catch (error) {
+      console.error('Failed to revoke subscription:', error)
+      notifications.show({
+        title: 'Ошибка',
+        message: 'Не удалось отозвать подписку',
+        color: 'red',
+      })
+    } finally {
+      setRevoking(false)
+      setRevokeModalOpened(false)
+    }
+  }
+
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return '-'
     return new Date(dateString).toLocaleString('ru-RU', {
@@ -258,7 +286,21 @@ const UserDetailsPage: React.FC = () => {
             <Text size="xl" fw={700}>ID: {user.telegram_id}</Text>
             {user.is_blocked && <Badge color="red">Заблокирован</Badge>}
           </Group>
-          {getStatusBadge(user)}
+          <Group gap="xs">
+            {getStatusBadge(user)}
+            {user.expire_at && new Date(user.expire_at) > new Date() && (
+              <Tooltip label="Отозвать подписку">
+                <ActionIcon
+                  size="sm"
+                  variant="subtle"
+                  color="red"
+                  onClick={() => setRevokeModalOpened(true)}
+                >
+                  <IconUserX size={16} />
+                </ActionIcon>
+              </Tooltip>
+            )}
+          </Group>
         </Group>
 
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
@@ -480,6 +522,29 @@ const UserDetailsPage: React.FC = () => {
           </Button>
           <Button color="red" onClick={handleDeleteDevice} loading={deleting}>
             Удалить
+          </Button>
+        </Group>
+      </Modal>
+
+      <Modal
+        opened={revokeModalOpened}
+        onClose={() => setRevokeModalOpened(false)}
+        title="Отзыв подписки"
+        centered
+      >
+        <Text mb="md">
+          Вы уверены, что хотите отозвать подписку пользователя{' '}
+          <Text span fw={600}>{user?.telegram_id}</Text>?
+          <Text size="sm" c="dimmed" mt="xs">
+            Это действие сгенерирует новую ссылку на подписку и сбросит текущую.
+          </Text>
+        </Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setRevokeModalOpened(false)}>
+            Отмена
+          </Button>
+          <Button color="red" onClick={handleRevokeSubscription} loading={revoking}>
+            Отозвать
           </Button>
         </Group>
       </Modal>

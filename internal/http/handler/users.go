@@ -541,3 +541,46 @@ func (uh *UsersHandler) DeleteUserDevice(w http.ResponseWriter, r *http.Request)
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// RevokeSubscription handles POST /api/users/{telegramID}/revoke-subscription
+func (uh *UsersHandler) RevokeSubscription(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	telegramIDStr := r.PathValue("telegramID")
+	telegramID, err := strconv.ParseInt(telegramIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid Telegram ID", http.StatusBadRequest)
+		return
+	}
+
+	if uh.remnawaveClient == nil {
+		http.Error(w, "Remnawave client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	userUuid, err := uh.remnawaveClient.GetUserUuidByTelegramId(ctx, telegramID)
+	if err != nil {
+		slog.Error("Failed to get user UUID", "error", err, "telegramID", telegramID)
+		http.Error(w, "User not found in Remnawave", http.StatusNotFound)
+		return
+	}
+
+	if err := uh.remnawaveClient.RevokeUserSubscription(ctx, userUuid); err != nil {
+		slog.Error("Failed to revoke subscription", "error", err, "telegramID", telegramID)
+		http.Error(w, "Failed to revoke subscription", http.StatusInternalServerError)
+		return
+	}
+
+	// Also update local database - clear expire_at and subscription_link
+	customer, err := uh.customerRepository.FindByTelegramId(ctx, telegramID)
+	if err == nil && customer != nil {
+		updates := map[string]interface{}{
+			"expire_at":         nil,
+			"subscription_link": nil,
+		}
+		_ = uh.customerRepository.UpdateFields(ctx, customer.ID, updates)
+	}
+
+	slog.Info("Subscription revoked", "telegramID", telegramID)
+	w.WriteHeader(http.StatusNoContent)
+}

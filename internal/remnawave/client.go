@@ -462,3 +462,25 @@ func (r *Client) DeleteAllUserDevices(ctx context.Context, userUuid string) erro
 		return errors.New("failed to delete all devices")
 	}
 }
+
+func (r *Client) RevokeUserSubscription(ctx context.Context, userUuid string) error {
+	resp, err := r.client.Users().RevokeUserSubscription(ctx, &remapi.RevokeUserSubscriptionBodyDto{}, remapi.UsersControllerRevokeUserSubscriptionParams{
+		UUID: userUuid,
+	})
+	if err != nil {
+		return err
+	}
+
+	switch resp.(type) {
+	case *remapi.UserResponse:
+		return nil
+	case *remapi.UsersControllerRevokeUserSubscriptionNotFound:
+		return errors.New("user not found")
+	case *remapi.UsersControllerRevokeUserSubscriptionBadRequest:
+		return errors.New("bad request")
+	case *remapi.UsersControllerRevokeUserSubscriptionInternalServerError:
+		return errors.New("internal server error")
+	default:
+		return errors.New("failed to revoke subscription")
+	}
+}
