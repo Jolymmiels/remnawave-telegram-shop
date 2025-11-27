@@ -46,6 +46,9 @@ interface Plan {
   price_12: number
   traffic_limit: number
   device_limit: number | null
+  internal_squads: string
+  external_squad_uuid: string
+  remnawave_tag: string
   is_active: boolean
   is_default: boolean
 }
@@ -62,6 +65,9 @@ const defaultPlan: Omit<Plan, 'id' | 'is_default'> = {
   price_12: 0,
   traffic_limit: 0,
   device_limit: null,
+  internal_squads: '',
+  external_squad_uuid: '',
+  remnawave_tag: '',
   is_active: true,
 }
 
@@ -147,6 +153,9 @@ const SettingsPage: React.FC = () => {
       price_12: plan.price_12,
       traffic_limit: plan.traffic_limit,
       device_limit: plan.device_limit,
+      internal_squads: plan.internal_squads || '',
+      external_squad_uuid: plan.external_squad_uuid || '',
+      remnawave_tag: plan.remnawave_tag || '',
       is_active: plan.is_active,
     })
     setPlanModalOpen(true)
@@ -228,6 +237,15 @@ const SettingsPage: React.FC = () => {
 
   const setSelectedSquads = (key: string, values: string[]) => {
     updateSetting(key, values.join(','))
+  }
+
+  const getPlanSquads = (squadsStr: string): string[] => {
+    if (!squadsStr) return []
+    return squadsStr.split(',').filter(Boolean)
+  }
+
+  const setPlanSquads = (values: string[]) => {
+    setPlanForm(prev => ({ ...prev, internal_squads: values.join(',') }))
   }
 
   const FieldLabel: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -330,17 +348,23 @@ const SettingsPage: React.FC = () => {
 
                       <Divider my="xs" />
                       
-                      <Group justify="space-between">
+                      <Stack gap={4}>
                         <Text size="xs" c="dimmed">
                           Трафик: {plan.traffic_limit > 0 ? `${plan.traffic_limit} ГБ` : '∞'} 
                           {plan.device_limit && ` • Устройств: ${plan.device_limit}`}
                         </Text>
+                        {(plan.internal_squads || plan.external_squad_uuid) && (
+                          <Text size="xs" c="dimmed">
+                            Squads: {getPlanSquads(plan.internal_squads).length > 0 && `${getPlanSquads(plan.internal_squads).length} internal`}
+                            {plan.external_squad_uuid && (getPlanSquads(plan.internal_squads).length > 0 ? ' + 1 external' : '1 external')}
+                          </Text>
+                        )}
                         {!plan.is_default && (
-                          <Button size="compact-xs" variant="light" onClick={() => handleSetDefaultPlan(plan)}>
+                          <Button size="compact-xs" variant="light" onClick={() => handleSetDefaultPlan(plan)} mt={4}>
                             Сделать по умолчанию
                           </Button>
                         )}
-                      </Group>
+                      </Stack>
                     </Paper>
                   ))}
                 </SimpleGrid>
@@ -736,6 +760,51 @@ const SettingsPage: React.FC = () => {
               allowDecimal={false}
             />
           </SimpleGrid>
+
+          <Divider label="Remnawave" labelPosition="center" />
+
+          <TextInput
+            label="Тег в Remnawave"
+            size="xs"
+            value={planForm.remnawave_tag}
+            onChange={e => setPlanForm(prev => ({ ...prev, remnawave_tag: e.target.value }))}
+          />
+
+          <Box>
+            <FieldLabel>Internal Squads</FieldLabel>
+            <Stack gap={4}>
+              {internalSquadOptions.map(opt => (
+                <Switch
+                  key={opt.value}
+                  label={opt.label}
+                  size="xs"
+                  checked={getPlanSquads(planForm.internal_squads).includes(opt.value)}
+                  onChange={e => {
+                    const current = getPlanSquads(planForm.internal_squads)
+                    if (e.currentTarget.checked) {
+                      setPlanSquads([...current, opt.value])
+                    } else {
+                      setPlanSquads(current.filter(v => v !== opt.value))
+                    }
+                  }}
+                />
+              ))}
+              {internalSquadOptions.length === 0 && (
+                <Text size="xs" c="dimmed">Нет доступных squads</Text>
+              )}
+            </Stack>
+          </Box>
+
+          <Select
+            label="External Squad"
+            size="xs"
+            data={externalSquadOptions}
+            value={planForm.external_squad_uuid}
+            onChange={v => setPlanForm(prev => ({ ...prev, external_squad_uuid: v || '' }))}
+            clearable
+          />
+
+          <Divider />
 
           <Switch
             label="Активен"

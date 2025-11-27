@@ -20,14 +20,17 @@ type PlansResponse struct {
 }
 
 type PlanRequest struct {
-	Name         string `json:"name"`
-	Price1       int    `json:"price_1"`
-	Price3       int    `json:"price_3"`
-	Price6       int    `json:"price_6"`
-	Price12      int    `json:"price_12"`
-	TrafficLimit int    `json:"traffic_limit"`
-	DeviceLimit  *int   `json:"device_limit"`
-	IsActive     bool   `json:"is_active"`
+	Name              string `json:"name"`
+	Price1            int    `json:"price_1"`
+	Price3            int    `json:"price_3"`
+	Price6            int    `json:"price_6"`
+	Price12           int    `json:"price_12"`
+	TrafficLimit      int    `json:"traffic_limit"`
+	DeviceLimit       *int   `json:"device_limit"`
+	InternalSquads    string `json:"internal_squads"`
+	ExternalSquadUUID string `json:"external_squad_uuid"`
+	RemnawaveTag      string `json:"remnawave_tag"`
+	IsActive          bool   `json:"is_active"`
 }
 
 // List returns all plans
@@ -56,15 +59,18 @@ func (h *PlansHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	plan := &database.Plan{
-		Name:         req.Name,
-		Price1:       req.Price1,
-		Price3:       req.Price3,
-		Price6:       req.Price6,
-		Price12:      req.Price12,
-		TrafficLimit: req.TrafficLimit,
-		DeviceLimit:  req.DeviceLimit,
-		IsActive:     req.IsActive,
-		IsDefault:    false,
+		Name:              req.Name,
+		Price1:            req.Price1,
+		Price3:            req.Price3,
+		Price6:            req.Price6,
+		Price12:           req.Price12,
+		TrafficLimit:      req.TrafficLimit,
+		DeviceLimit:       req.DeviceLimit,
+		InternalSquads:    req.InternalSquads,
+		ExternalSquadUUID: req.ExternalSquadUUID,
+		RemnawaveTag:      req.RemnawaveTag,
+		IsActive:          req.IsActive,
+		IsDefault:         false,
 	}
 
 	created, err := h.planRepository.Create(r.Context(), plan)
@@ -99,15 +105,18 @@ func (h *PlansHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	plan := &database.Plan{
-		ID:           id,
-		Name:         req.Name,
-		Price1:       req.Price1,
-		Price3:       req.Price3,
-		Price6:       req.Price6,
-		Price12:      req.Price12,
-		TrafficLimit: req.TrafficLimit,
-		DeviceLimit:  req.DeviceLimit,
-		IsActive:     req.IsActive,
+		ID:                id,
+		Name:              req.Name,
+		Price1:            req.Price1,
+		Price3:            req.Price3,
+		Price6:            req.Price6,
+		Price12:           req.Price12,
+		TrafficLimit:      req.TrafficLimit,
+		DeviceLimit:       req.DeviceLimit,
+		InternalSquads:    req.InternalSquads,
+		ExternalSquadUUID: req.ExternalSquadUUID,
+		RemnawaveTag:      req.RemnawaveTag,
+		IsActive:          req.IsActive,
 	}
 
 	updated, err := h.planRepository.Update(r.Context(), plan)

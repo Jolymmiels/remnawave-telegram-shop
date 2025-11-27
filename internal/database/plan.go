@@ -13,18 +13,21 @@ import (
 )
 
 type Plan struct {
-	ID           int64      `db:"id" json:"id"`
-	Name         string     `db:"name" json:"name"`
-	Price1       int        `db:"price_1" json:"price_1"`
-	Price3       int        `db:"price_3" json:"price_3"`
-	Price6       int        `db:"price_6" json:"price_6"`
-	Price12      int        `db:"price_12" json:"price_12"`
-	TrafficLimit int        `db:"traffic_limit" json:"traffic_limit"`
-	DeviceLimit  *int       `db:"device_limit" json:"device_limit"`
-	IsActive     bool       `db:"is_active" json:"is_active"`
-	IsDefault    bool       `db:"is_default" json:"is_default"`
-	CreatedAt    time.Time  `db:"created_at" json:"created_at"`
-	UpdatedAt    time.Time  `db:"updated_at" json:"updated_at"`
+	ID                int64     `db:"id" json:"id"`
+	Name              string    `db:"name" json:"name"`
+	Price1            int       `db:"price_1" json:"price_1"`
+	Price3            int       `db:"price_3" json:"price_3"`
+	Price6            int       `db:"price_6" json:"price_6"`
+	Price12           int       `db:"price_12" json:"price_12"`
+	TrafficLimit      int       `db:"traffic_limit" json:"traffic_limit"`
+	DeviceLimit       *int      `db:"device_limit" json:"device_limit"`
+	InternalSquads    string    `db:"internal_squads" json:"internal_squads"`
+	ExternalSquadUUID string    `db:"external_squad_uuid" json:"external_squad_uuid"`
+	RemnawaveTag      string    `db:"remnawave_tag" json:"remnawave_tag"`
+	IsActive          bool      `db:"is_active" json:"is_active"`
+	IsDefault         bool      `db:"is_default" json:"is_default"`
+	CreatedAt         time.Time `db:"created_at" json:"created_at"`
+	UpdatedAt         time.Time `db:"updated_at" json:"updated_at"`
 }
 
 // GetPrice returns the price for a given month period
@@ -59,16 +62,16 @@ func NewPlanRepository(pool *pgxpool.Pool) *PlanRepository {
 
 var planColumns = []string{
 	"id", "name", "price_1", "price_3", "price_6", "price_12",
-	"traffic_limit", "device_limit", "is_active", "is_default",
-	"created_at", "updated_at",
+	"traffic_limit", "device_limit", "internal_squads", "external_squad_uuid", "remnawave_tag",
+	"is_active", "is_default", "created_at", "updated_at",
 }
 
 func (pr *PlanRepository) scanPlan(row pgx.Row) (*Plan, error) {
 	var plan Plan
 	err := row.Scan(
 		&plan.ID, &plan.Name, &plan.Price1, &plan.Price3, &plan.Price6, &plan.Price12,
-		&plan.TrafficLimit, &plan.DeviceLimit, &plan.IsActive, &plan.IsDefault,
-		&plan.CreatedAt, &plan.UpdatedAt,
+		&plan.TrafficLimit, &plan.DeviceLimit, &plan.InternalSquads, &plan.ExternalSquadUUID, &plan.RemnawaveTag,
+		&plan.IsActive, &plan.IsDefault, &plan.CreatedAt, &plan.UpdatedAt,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -85,8 +88,8 @@ func (pr *PlanRepository) scanPlans(rows pgx.Rows) ([]Plan, error) {
 		var plan Plan
 		err := rows.Scan(
 			&plan.ID, &plan.Name, &plan.Price1, &plan.Price3, &plan.Price6, &plan.Price12,
-			&plan.TrafficLimit, &plan.DeviceLimit, &plan.IsActive, &plan.IsDefault,
-			&plan.CreatedAt, &plan.UpdatedAt,
+			&plan.TrafficLimit, &plan.DeviceLimit, &plan.InternalSquads, &plan.ExternalSquadUUID, &plan.RemnawaveTag,
+			&plan.IsActive, &plan.IsDefault, &plan.CreatedAt, &plan.UpdatedAt,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan plan: %w", err)
@@ -174,14 +177,15 @@ func (pr *PlanRepository) FindDefault(ctx context.Context) (*Plan, error) {
 // Create creates a new plan
 func (pr *PlanRepository) Create(ctx context.Context, plan *Plan) (*Plan, error) {
 	query := `
-		INSERT INTO plan (name, price_1, price_3, price_6, price_12, traffic_limit, device_limit, is_active, is_default)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-		RETURNING id, name, price_1, price_3, price_6, price_12, traffic_limit, device_limit, is_active, is_default, created_at, updated_at
+		INSERT INTO plan (name, price_1, price_3, price_6, price_12, traffic_limit, device_limit, internal_squads, external_squad_uuid, remnawave_tag, is_active, is_default)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+		RETURNING id, name, price_1, price_3, price_6, price_12, traffic_limit, device_limit, internal_squads, external_squad_uuid, remnawave_tag, is_active, is_default, created_at, updated_at
 	`
 
 	row := pr.pool.QueryRow(ctx, query,
 		plan.Name, plan.Price1, plan.Price3, plan.Price6, plan.Price12,
-		plan.TrafficLimit, plan.DeviceLimit, plan.IsActive, plan.IsDefault,
+		plan.TrafficLimit, plan.DeviceLimit, plan.InternalSquads, plan.ExternalSquadUUID, plan.RemnawaveTag,
+		plan.IsActive, plan.IsDefault,
 	)
 
 	return pr.scanPlan(row)
@@ -192,14 +196,16 @@ func (pr *PlanRepository) Update(ctx context.Context, plan *Plan) (*Plan, error)
 	query := `
 		UPDATE plan SET
 			name = $2, price_1 = $3, price_3 = $4, price_6 = $5, price_12 = $6,
-			traffic_limit = $7, device_limit = $8, is_active = $9, updated_at = NOW()
+			traffic_limit = $7, device_limit = $8, internal_squads = $9, external_squad_uuid = $10, remnawave_tag = $11,
+			is_active = $12, updated_at = NOW()
 		WHERE id = $1
-		RETURNING id, name, price_1, price_3, price_6, price_12, traffic_limit, device_limit, is_active, is_default, created_at, updated_at
+		RETURNING id, name, price_1, price_3, price_6, price_12, traffic_limit, device_limit, internal_squads, external_squad_uuid, remnawave_tag, is_active, is_default, created_at, updated_at
 	`
 
 	row := pr.pool.QueryRow(ctx, query,
 		plan.ID, plan.Name, plan.Price1, plan.Price3, plan.Price6, plan.Price12,
-		plan.TrafficLimit, plan.DeviceLimit, plan.IsActive,
+		plan.TrafficLimit, plan.DeviceLimit, plan.InternalSquads, plan.ExternalSquadUUID, plan.RemnawaveTag,
+		plan.IsActive,
 	)
 
 	return pr.scanPlan(row)
