@@ -484,3 +484,29 @@ func (r *Client) RevokeUserSubscription(ctx context.Context, userUuid string) er
 		return errors.New("failed to revoke subscription")
 	}
 }
+
+// Squad represents an internal squad from Remnawave
+type Squad struct {
+	UUID uuid.UUID `json:"uuid"`
+	Name string    `json:"name"`
+}
+
+// GetSquads returns all available internal squads from Remnawave
+func (r *Client) GetSquads(ctx context.Context) ([]Squad, error) {
+	resp, err := r.client.InternalSquadControllerGetInternalSquads(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	squadsResp := resp.(*remapi.GetInternalSquadsResponseDto).GetResponse()
+
+	squads := make([]Squad, 0, len(squadsResp.GetInternalSquads()))
+	for _, s := range squadsResp.GetInternalSquads() {
+		squads = append(squads, Squad{
+			UUID: s.UUID,
+			Name: s.Name,
+		})
+	}
+
+	return squads, nil
+}

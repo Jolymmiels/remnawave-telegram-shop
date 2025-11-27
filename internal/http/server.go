@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *remnawave.Client, paymentService *payment.PaymentService, broadcastService *broadcast.Service, promoService *promo.Service, customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, syncService *sync.SyncService) *http.Server {
+func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *remnawave.Client, paymentService *payment.PaymentService, broadcastService *broadcast.Service, promoService *promo.Service, customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, syncService *sync.SyncService, settingsRepository *database.SettingsRepository) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/healthcheck", handler.FullHealthHandler(pool, remnawaveClient))
 
@@ -142,6 +142,20 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}))
+
+	// Settings endpoints - require admin privileges
+	settingsH := handler.NewSettingsHandler(settingsRepository, remnawaveClient)
+	mux.HandleFunc("/api/settings", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			settingsH.GetSettings(w, r)
+		case http.MethodPut:
+			settingsH.UpdateSettings(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/squads", authHandler.RequireAdmin(settingsH.GetSquads))
 
 	buildPath := "./tg-admin/dist/"
 	fs := http.FileServer(http.Dir(buildPath))

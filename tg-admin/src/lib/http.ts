@@ -158,3 +158,11 @@ export const http = {
   put: (u: string, b: any) => request('PUT', u, b),
   delete: (u: string) => request('DELETE', u)
 }
+
+export function httpGet<T>(url: string): Promise<T> {
+  return request('GET', url)
+}
+
+export function httpPut<T>(url: string, body: any): Promise<T> {
+  return request('PUT', url, body)
+}

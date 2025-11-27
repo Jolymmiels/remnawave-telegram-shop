@@ -1,7 +1,7 @@
 import React from 'react'
 import { Group, UnstyledButton, Text, Stack } from '@mantine/core'
 import { useLocation } from 'react-router-dom'
-import { IconChartBar, IconUsers, IconSpeakerphone, IconTicket } from '@tabler/icons-react'
+import { IconChartBar, IconUsers, IconSpeakerphone, IconTicket, IconSettings } from '@tabler/icons-react'
 import { useTelegram } from '@/hooks/useTelegram'
 
 interface BottomNavigationProps {
@@ -30,8 +30,13 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ onSelect }) => {
     },
     {
       path: '/promos',
-      label: 'Промокоды',
+      label: 'Промо',
       icon: IconTicket
+    },
+    {
+      path: '/settings',
+      label: 'Настройки',
+      icon: IconSettings
     }
   ]
 

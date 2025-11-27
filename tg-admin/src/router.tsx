@@ -10,6 +10,7 @@ const BroadcastsView = React.lazy(() => import('./components/Broadcasts/List'))
 const PromosView = React.lazy(() => import('./components/Promos/List'))
 const UserManagement = React.lazy(() => import('./components/Users/UserManagement'))
 const UserDetailsPage = React.lazy(() => import('./components/Users/UserDetailsPage'))
+const SettingsPage = React.lazy(() => import('./components/Settings/SettingsPage'))
 
 // Loading component
 const PageLoader = () => (
@@ -77,6 +78,15 @@ export const router = createHashRouter([
           </Suspense>
         ),
         handle: { title: 'Детали пользователя' }
+      },
+      { 
+        path: '/settings', 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <SettingsPage />
+          </Suspense>
+        ),
+        handle: { title: 'Настройки' }
       },
       // Catch-all route for any unmatched paths (including Telegram WebApp data)
       { 
