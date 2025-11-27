@@ -71,7 +71,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ onSelect }) => {
           >
             <Stack gap={2} align="center">
               <Icon size={18} stroke={1.5} />
-              <Text size="10px" fw={isActive ? 600 : 400} style={{ whiteSpace: 'nowrap' }}>
+              <Text size="10px" fw={500} style={{ whiteSpace: 'nowrap' }}>
                 {label}
               </Text>
             </Stack>
