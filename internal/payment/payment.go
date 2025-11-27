@@ -59,13 +59,25 @@ func NewPaymentService(
 }
 
 func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int64) error {
-	purchase, err := s.purchaseRepository.FindById(ctx, purchaseId)
+	// Atomically lock the purchase for processing to prevent race conditions
+	purchase, err := s.purchaseRepository.LockForProcessing(ctx, purchaseId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to lock purchase: %w", err)
 	}
 	if purchase == nil {
-		return fmt.Errorf("purchase with crypto invoice id %s not found", utils.MaskHalfInt64(purchaseId))
+		// Already being processed or already processed by another worker
+		slog.Debug("Purchase already locked or processed", "purchaseId", utils.MaskHalfInt64(purchaseId))
+		return nil
 	}
+
+	// If processing fails, unlock the purchase so it can be retried
+	defer func() {
+		if err != nil {
+			if unlockErr := s.purchaseRepository.UnlockPurchase(ctx, purchaseId); unlockErr != nil {
+				slog.Error("Failed to unlock purchase after error", "purchaseId", purchaseId, "error", unlockErr)
+			}
+		}
+	}()
 
 	customer, err := s.customerRepository.FindById(ctx, purchase.CustomerID)
 	if err != nil {

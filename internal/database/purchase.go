@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"remnawave-tg-shop-bot/internal/stats"
+	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -25,10 +26,11 @@ const (
 type PurchaseStatus string
 
 const (
-	PurchaseStatusNew     PurchaseStatus = "new"
-	PurchaseStatusPending PurchaseStatus = "pending"
-	PurchaseStatusPaid    PurchaseStatus = "paid"
-	PurchaseStatusCancel  PurchaseStatus = "cancel"
+	PurchaseStatusNew        PurchaseStatus = "new"
+	PurchaseStatusPending    PurchaseStatus = "pending"
+	PurchaseStatusProcessing PurchaseStatus = "processing"
+	PurchaseStatusPaid       PurchaseStatus = "paid"
+	PurchaseStatusCancel     PurchaseStatus = "cancel"
 )
 
 type Purchase struct {
@@ -133,9 +135,14 @@ func (pr *PurchaseRepository) FindById(ctx context.Context, id int64) (*Purchase
 }
 
 func (pr *PurchaseRepository) FindByInvoiceTypeAndStatus(ctx context.Context, invoiceType InvoiceType, status PurchaseStatus) ([]Purchase, error) {
+	// Exclude purchases that are currently being processed to avoid race conditions
 	query := sq.Select(purchaseColumns...).
 		From("purchase").
-		Where(sq.And{sq.Eq{"invoice_type": invoiceType}, sq.Eq{"status": status}}).
+		Where(sq.And{
+			sq.Eq{"invoice_type": invoiceType},
+			sq.Eq{"status": status},
+			sq.NotEq{"status": PurchaseStatusProcessing},
+		}).
 		PlaceholderFormat(sq.Dollar)
 
 	sql, args, err := query.ToSql()
@@ -263,6 +270,28 @@ func (pr *PurchaseRepository) MarkAsPaid(ctx context.Context, purchaseID int64) 
 		"status":  PurchaseStatusPaid,
 		"paid_at": time.Now(),
 	})
+}
+
+// LockForProcessing atomically locks a purchase for processing.
+// Returns the purchase if successfully locked, nil if already locked/processed by another worker.
+// This prevents race conditions when multiple workers try to process the same purchase.
+func (pr *PurchaseRepository) LockForProcessing(ctx context.Context, purchaseID int64) (*Purchase, error) {
+	query := `
+		UPDATE purchase SET status = $1
+		WHERE id = $2 AND status = $3
+		RETURNING ` + strings.Join(purchaseColumns, ", ")
+
+	row := pr.pool.QueryRow(ctx, query, PurchaseStatusProcessing, purchaseID, PurchaseStatusPending)
+	return scanPurchase(row)
+}
+
+// UnlockPurchase releases the lock if processing failed, returning to pending status
+func (pr *PurchaseRepository) UnlockPurchase(ctx context.Context, purchaseID int64) error {
+	_, err := pr.pool.Exec(ctx,
+		"UPDATE purchase SET status = $1 WHERE id = $2 AND status = $3",
+		PurchaseStatusPending, purchaseID, PurchaseStatusProcessing,
+	)
+	return err
 }
 
 func (pr *PurchaseRepository) CountByPlanID(ctx context.Context, planID int64) (int64, error) {
