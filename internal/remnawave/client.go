@@ -485,7 +485,7 @@ func (r *Client) RevokeUserSubscription(ctx context.Context, userUuid string) er
 	}
 }
 
-// Squad represents an internal squad from Remnawave
+// Squad represents an internal or external squad from Remnawave
 type Squad struct {
 	UUID uuid.UUID `json:"uuid"`
 	Name string    `json:"name"`
@@ -502,6 +502,26 @@ func (r *Client) GetSquads(ctx context.Context) ([]Squad, error) {
 
 	squads := make([]Squad, 0, len(squadsResp.GetInternalSquads()))
 	for _, s := range squadsResp.GetInternalSquads() {
+		squads = append(squads, Squad{
+			UUID: s.UUID,
+			Name: s.Name,
+		})
+	}
+
+	return squads, nil
+}
+
+// GetExternalSquads returns all available external squads from Remnawave
+func (r *Client) GetExternalSquads(ctx context.Context) ([]Squad, error) {
+	resp, err := r.client.ExternalSquadControllerGetExternalSquads(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	squadsResp := resp.(*remapi.GetExternalSquadsResponseDto).GetResponse()
+
+	squads := make([]Squad, 0, len(squadsResp.GetExternalSquads()))
+	for _, s := range squadsResp.GetExternalSquads() {
 		squads = append(squads, Squad{
 			UUID: s.UUID,
 			Name: s.Name,

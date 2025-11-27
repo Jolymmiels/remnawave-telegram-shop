@@ -5,7 +5,8 @@ import {
   hapticFeedback,
   themeParams,
   miniApp,
-  viewport
+  viewport,
+  settingsButton
 } from '@telegram-apps/sdk'
 import { extractAndCacheInitData } from '../lib/http'
 
@@ -193,12 +194,38 @@ export const useTelegram = () => {
     initializeApp()
   }, [])
 
+  const setupSettingsButton = (onClick: () => void) => {
+    try {
+      if (settingsButton.isSupported()) {
+        if (!settingsButton.isMounted()) {
+          settingsButton.mount()
+        }
+        settingsButton.show()
+        settingsButton.onClick(onClick)
+      }
+    } catch (error) {
+      console.warn('Settings button not available:', error)
+    }
+  }
+
+  const hideSettingsButton = () => {
+    try {
+      if (settingsButton.isSupported() && settingsButton.isMounted()) {
+        settingsButton.hide()
+      }
+    } catch (error) {
+      console.warn('Settings button hide failed:', error)
+    }
+  }
+
   return { 
     miniApp: miniApp.isSupported() ? miniApp : null,
     viewport: viewport.mount.isAvailable() ? viewport : null,
     hapticFeedback: hapticFeedbackActions,
     themeParams: themeParams.isMounted() ? themeParams : null,
     getInitData,
-    applyThemeClasses
+    applyThemeClasses,
+    setupSettingsButton,
+    hideSettingsButton
   }
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import { Outlet, useNavigate } from 'react-router-dom'
 import { AppShell } from '@mantine/core'
 import BottomNavigation from './components/BottomNavigation'
@@ -11,7 +11,13 @@ import './styles/global.css';
 
 const AppContent: React.FC = () => {
   const navigate = useNavigate()
-  useTelegram() // Initialize Telegram SDK
+  const { setupSettingsButton } = useTelegram()
+
+  useEffect(() => {
+    setupSettingsButton(() => {
+      navigate('/settings')
+    })
+  }, [navigate, setupSettingsButton])
 
   const handleNavigation = (path: string) => {
     navigate(path)

@@ -28,7 +28,8 @@ type UpdateSettingsRequest struct {
 }
 
 type SquadsResponse struct {
-	Squads []remnawave.Squad `json:"squads"`
+	InternalSquads []remnawave.Squad `json:"internal_squads"`
+	ExternalSquads []remnawave.Squad `json:"external_squads"`
 }
 
 // GetSettings returns all settings
@@ -73,12 +74,21 @@ func (h *SettingsHandler) GetSquads(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	squads, err := h.remnawaveClient.GetSquads(r.Context())
+	internalSquads, err := h.remnawaveClient.GetSquads(r.Context())
 	if err != nil {
-		http.Error(w, "Failed to fetch squads", http.StatusInternalServerError)
+		http.Error(w, "Failed to fetch internal squads", http.StatusInternalServerError)
+		return
+	}
+
+	externalSquads, err := h.remnawaveClient.GetExternalSquads(r.Context())
+	if err != nil {
+		http.Error(w, "Failed to fetch external squads", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(SquadsResponse{Squads: squads})
+	json.NewEncoder(w).Encode(SquadsResponse{
+		InternalSquads: internalSquads,
+		ExternalSquads: externalSquads,
+	})
 }
