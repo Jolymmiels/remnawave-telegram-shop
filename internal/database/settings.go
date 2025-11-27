@@ -88,6 +88,20 @@ func (sr *SettingsRepository) GetBool(key string) bool {
 	return sr.cache[key] == "true"
 }
 
+// GetFloat returns a setting value as float64
+func (sr *SettingsRepository) GetFloat(key string, defaultValue float64) float64 {
+	sr.mu.RLock()
+	defer sr.mu.RUnlock()
+
+	if val, ok := sr.cache[key]; ok && val != "" {
+		var result float64
+		if _, err := fmt.Sscanf(val, "%f", &result); err == nil {
+			return result
+		}
+	}
+	return defaultValue
+}
+
 // GetAll returns all settings as a map
 func (sr *SettingsRepository) GetAll() map[string]string {
 	sr.mu.RLock()

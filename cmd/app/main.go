@@ -69,6 +69,7 @@ func main() {
 	if err := settingsRepository.LoadAll(ctx); err != nil {
 		slog.Warn("Failed to load settings from database, using env defaults", "error", err)
 	}
+	planRepository := database.NewPlanRepository(pool)
 
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
@@ -99,7 +100,7 @@ func main() {
 	broadcastService := broadcast.NewService(broadcastRepository, b, customerRepository)
 	broadcastService.SetAppContext(ctx)
 	statsHandler := httphandler.NewStatsHandler(purchaseRepository, customerRepository)
-	h := tghandler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, promoService)
+	h := tghandler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, promoService, planRepository, settingsRepository)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {
@@ -139,6 +140,7 @@ func main() {
 
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPlan, bot.MatchTypePrefix, h.PlanCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
@@ -160,7 +162,7 @@ func main() {
 		return update.Message != nil && update.Message.SuccessfulPayment != nil
 	}, h.SuccessPaymentHandler, h.SuspiciousUserFilterMiddleware)
 
-	srv := httpserver.NewServer(statsHandler, pool, remnawaveClient, paymentService, broadcastService, promoService, customerRepository, purchaseRepository, referralRepository, syncService, settingsRepository)
+	srv := httpserver.NewServer(statsHandler, pool, remnawaveClient, paymentService, broadcastService, promoService, customerRepository, purchaseRepository, referralRepository, syncService, settingsRepository, planRepository)
 	go func() {
 		log.Printf("HTTP server listening on %s", srv.Addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

@@ -17,7 +17,7 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 )
 
-func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *remnawave.Client, paymentService *payment.PaymentService, broadcastService *broadcast.Service, promoService *promo.Service, customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, syncService *sync.SyncService, settingsRepository *database.SettingsRepository) *http.Server {
+func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *remnawave.Client, paymentService *payment.PaymentService, broadcastService *broadcast.Service, promoService *promo.Service, customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, syncService *sync.SyncService, settingsRepository *database.SettingsRepository, planRepository *database.PlanRepository) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("/healthcheck", handler.FullHealthHandler(pool, remnawaveClient))
 
@@ -156,6 +156,36 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 		}
 	}))
 	mux.HandleFunc("/api/squads", authHandler.RequireAdmin(settingsH.GetSquads))
+
+	// Plans endpoints - require admin privileges
+	plansH := handler.NewPlansHandler(planRepository)
+	mux.HandleFunc("/api/plans", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodGet:
+			plansH.List(w, r)
+		case http.MethodPost:
+			plansH.Create(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/plans/{id}", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method {
+		case http.MethodPut:
+			plansH.Update(w, r)
+		case http.MethodDelete:
+			plansH.Delete(w, r)
+		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/plans/{id}/default", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			plansH.SetDefault(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
 
 	buildPath := "./tg-admin/dist/"
 	fs := http.FileServer(http.Dir(buildPath))

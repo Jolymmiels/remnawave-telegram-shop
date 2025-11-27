@@ -22,6 +22,8 @@ type Handler struct {
 	referralRepository *database.ReferralRepository
 	promo              *promo.Service
 	cache              *cache.Cache
+	planRepository     *database.PlanRepository
+	settingsRepository *database.SettingsRepository
 }
 
 func NewHandler(
@@ -35,6 +37,8 @@ func NewHandler(
 	referralRepository *database.ReferralRepository,
 	cache *cache.Cache,
 	promo *promo.Service,
+	planRepository *database.PlanRepository,
+	settingsRepository *database.SettingsRepository,
 ) *Handler {
 	return &Handler{
 		syncService:        syncService,
@@ -47,5 +51,7 @@ func NewHandler(
 		translation:        translation,
 		referralRepository: referralRepository,
 		cache:              cache,
+		planRepository:     planRepository,
+		settingsRepository: settingsRepository,
 	}
 }

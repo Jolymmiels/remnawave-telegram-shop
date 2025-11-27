@@ -163,6 +163,14 @@ export function httpGet<T>(url: string): Promise<T> {
   return request('GET', url)
 }
 
+export function httpPost<T>(url: string, body: any): Promise<T> {
+  return request('POST', url, body)
+}
+
 export function httpPut<T>(url: string, body: any): Promise<T> {
   return request('PUT', url, body)
+}
+
+export function httpDelete<T>(url: string): Promise<T> {
+  return request('DELETE', url)
 }

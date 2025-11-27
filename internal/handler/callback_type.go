@@ -13,4 +13,5 @@ const (
 	CallbackDevices       = "devices"
 	CallbackDeviceDelete  = "device_delete:"
 	CallbackDeviceConfirm = "device_confirm:"
+	CallbackPlan          = "plan"
 )
