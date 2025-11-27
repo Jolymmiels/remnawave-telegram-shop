@@ -13,7 +13,8 @@ import {
   Modal,
   Alert,
   CopyButton,
-  Tooltip
+  Tooltip,
+  SimpleGrid
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconTrash, IconCheck, IconX, IconInfoCircle, IconCopy, IconShare } from '@tabler/icons-react'
@@ -138,7 +139,7 @@ const PromosList: React.FC = () => {
         <CreateForm />
       </Box>
 
-      <Stack gap="md">
+      <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
         {items.length === 0 ? (
           <Text c="dimmed" ta="center" py="xl">
             No promo codes found. Create one above to get started.
@@ -248,7 +249,7 @@ const PromosList: React.FC = () => {
             </Card>
           ))
         )}
-      </Stack>
+      </SimpleGrid>
 
       <Modal
         opened={deleteModal.open}

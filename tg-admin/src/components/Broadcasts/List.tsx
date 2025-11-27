@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Box, Text, Badge, Stack, Card, Group, Divider, Progress, Tooltip, ActionIcon } from '@mantine/core'
+import { Box, Text, Badge, Stack, Card, Group, Divider, Progress, Tooltip, ActionIcon, SimpleGrid } from '@mantine/core'
 import { IconCheck, IconClock, IconLoader, IconX, IconTrash } from '@tabler/icons-react'
 import { useBroadcasts } from '@/context/BroadcastsContext'
 import { useFormat } from '@/hooks/useFormat'
@@ -86,7 +86,7 @@ const BroadcastsList: React.FC = () => {
         <CreateForm />
       </Box>
 
-      <Stack gap="md">
+      <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
         {items.map((broadcast) => {
           const processed = broadcast.SentCount + broadcast.FailedCount + broadcast.BlockedCount
           const progress = broadcast.TotalCount > 0 ? (processed / broadcast.TotalCount) * 100 : 0
@@ -187,7 +187,7 @@ const BroadcastsList: React.FC = () => {
             </Text>
           </Card>
         )}
-      </Stack>
+      </SimpleGrid>
     </Stack>
   )
 }
