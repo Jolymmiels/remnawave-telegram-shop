@@ -24,7 +24,7 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		slog.Error("customer not exist", "telegramId", utils.MaskHalfInt64(update.CallbackQuery.From.ID), "error", err)
 		return
 	}
-	if c.SubscriptionLink != nil {
+	if c.SubscriptionLink != nil || c.TrialUsed {
 		return
 	}
 	callback := update.CallbackQuery.Message.Message
@@ -57,12 +57,15 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 		slog.Error("customer not exist", "telegramId", utils.MaskHalfInt64(update.CallbackQuery.From.ID), "error", err)
 		return
 	}
-	if c.SubscriptionLink != nil {
+	if c.SubscriptionLink != nil || c.TrialUsed {
 		return
 	}
 	callback := update.CallbackQuery.Message.Message
 	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
 	_, err = h.paymentService.ActivateTrial(ctxWithUsername, update.CallbackQuery.From.ID)
+	if err == nil {
+		_ = h.customerRepository.UpdateFields(ctx, c.ID, map[string]interface{}{"trial_used": true})
+	}
 	langCode := update.CallbackQuery.From.LanguageCode
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      callback.Chat.ID,

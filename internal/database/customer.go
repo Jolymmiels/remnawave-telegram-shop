@@ -30,10 +30,11 @@ type Customer struct {
 	SubscriptionLink *string    `db:"subscription_link" json:"subscription_link"`
 	Language         string     `db:"language" json:"language"`
 	IsBlocked        bool       `db:"is_blocked" json:"is_blocked"`
+	TrialUsed        bool       `db:"trial_used" json:"trial_used"`
 }
 
 func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDate, endDate time.Time) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
 		From("customer").
 		Where(
 			sq.And{
@@ -64,8 +65,9 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-						&customer.Language,
+			&customer.Language,
 			&customer.IsBlocked,
+			&customer.TrialUsed,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -81,7 +83,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 }
 
 func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
 		From("customer").
 		Where(sq.Eq{"id": id}).
 		PlaceholderFormat(sq.Dollar)
@@ -99,8 +101,9 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 		&customer.ExpireAt,
 		&customer.CreatedAt,
 		&customer.SubscriptionLink,
-					&customer.Language,
-			&customer.IsBlocked,
+		&customer.Language,
+		&customer.IsBlocked,
+		&customer.TrialUsed,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -112,7 +115,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 }
 
 func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramId}).
 		PlaceholderFormat(sq.Dollar)
@@ -130,8 +133,9 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 		&customer.ExpireAt,
 		&customer.CreatedAt,
 		&customer.SubscriptionLink,
-					&customer.Language,
-			&customer.IsBlocked,
+		&customer.Language,
+		&customer.IsBlocked,
+		&customer.TrialUsed,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -151,7 +155,7 @@ func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Custom
 		INSERT INTO customer (telegram_id, expire_at, language)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = customer.telegram_id
-		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked, trial_used
 	`
 
 	row := cr.pool.QueryRow(ctx, query, customer.TelegramID, customer.ExpireAt, customer.Language)
@@ -164,6 +168,7 @@ func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Custom
 		&result.SubscriptionLink,
 		&result.Language,
 		&result.IsBlocked,
+		&result.TrialUsed,
 	); err != nil {
 		return nil, fmt.Errorf("failed to find or create customer: %w", err)
 	}
@@ -215,7 +220,7 @@ func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, update
 }
 
 func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs []int64) ([]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramIDs}).
 		PlaceholderFormat(sq.Dollar)
@@ -240,8 +245,9 @@ func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-						&customer.Language,
+			&customer.Language,
 			&customer.IsBlocked,
+			&customer.TrialUsed,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -398,7 +404,7 @@ func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) 
 }
 
 func (cr *CustomerRepository) FindAllWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
 		From("customer").
 		PlaceholderFormat(sq.Dollar)
 
@@ -426,8 +432,9 @@ func (cr *CustomerRepository) FindAllWithLanguage(ctx context.Context, language 
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-						&customer.Language,
+			&customer.Language,
 			&customer.IsBlocked,
+			&customer.TrialUsed,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -447,7 +454,7 @@ func (cr *CustomerRepository) FindNonExpired(ctx context.Context) (*[]Customer, 
 }
 
 func (cr *CustomerRepository) FindNonExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
 		From("customer").
 		Where(sq.Gt{"expire_at": time.Now()}).
 		PlaceholderFormat(sq.Dollar)
@@ -476,8 +483,9 @@ func (cr *CustomerRepository) FindNonExpiredWithLanguage(ctx context.Context, la
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-						&customer.Language,
+			&customer.Language,
 			&customer.IsBlocked,
+			&customer.TrialUsed,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
@@ -497,7 +505,7 @@ func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, err
 }
 
 func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
 		From("customer").
 		Where(sq.Or{
 			sq.LtOrEq{"expire_at": time.Now()},
@@ -529,8 +537,9 @@ func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, langu
 			&customer.ExpireAt,
 			&customer.CreatedAt,
 			&customer.SubscriptionLink,
-						&customer.Language,
+			&customer.Language,
 			&customer.IsBlocked,
+			&customer.TrialUsed,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
