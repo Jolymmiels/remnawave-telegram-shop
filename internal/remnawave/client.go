@@ -218,6 +218,10 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 		userUpdate.Tag = remapi.NewOptNilString(tag)
 	}
 
+	if plan != nil && plan.DeviceLimit != nil {
+		userUpdate.HwidDeviceLimit = remapi.NewOptNilInt(*plan.DeviceLimit)
+	}
+
 	var username string
 	if ctx.Value("username") != nil {
 		username = ctx.Value("username").(string)
