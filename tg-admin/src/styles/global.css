@@ -51,3 +51,13 @@ body {
 .mantine-AppShell-main {
   padding-top: calc(var(--tg-content-safe-area-inset-top, 56px) + 48px) !important;
 }
+
+/* Spinning animation for loading icon */
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}

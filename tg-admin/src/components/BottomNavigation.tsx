@@ -14,6 +14,11 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ onSelect }) => {
 
   const navigationItems = [
     {
+      path: '/purchases',
+      label: 'Статистика',
+      icon: IconChartBar
+    },
+    {
       path: '/users',
       label: 'Пользователи',
       icon: IconUsers
@@ -40,6 +45,7 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ onSelect }) => {
       justify="space-around" 
       h="100%" 
       px="xs"
+      wrap="nowrap"
       className="no-select"
       style={{
         backgroundColor: 'var(--mantine-color-dark-7)'
@@ -53,19 +59,19 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ onSelect }) => {
             key={path}
             onClick={() => handleNavigation(path)}
             style={{
-              padding: '8px 12px',
+              padding: '4px 6px',
               borderRadius: '8px',
               textAlign: 'center',
-              minWidth: '60px',
+              flex: 1,
               opacity: isActive ? 1 : 0.6,
               color: isActive 
                 ? 'var(--tg-theme-link-color, var(--mantine-color-blue-6))' 
                 : 'var(--tg-theme-text-color, var(--mantine-color-dark-7))'
             }}
           >
-            <Stack gap={4} align="center">
-              <Icon size={20} stroke={1.5} />
-              <Text size="xs" fw={isActive ? 600 : 400}>
+            <Stack gap={2} align="center">
+              <Icon size={18} stroke={1.5} />
+              <Text size="10px" fw={isActive ? 600 : 400} style={{ whiteSpace: 'nowrap' }}>
                 {label}
               </Text>
             </Stack>

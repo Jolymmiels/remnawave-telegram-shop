@@ -439,3 +439,138 @@ func (pr *PurchaseRepository) FindByCustomerID(ctx context.Context, customerID i
 
 	return purchases, nil
 }
+
+func (pr *PurchaseRepository) GetRevenueStats(ctx context.Context) (*stats.RevenueStats, error) {
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	
+	offset := int(time.Monday - now.Weekday())
+	if offset > 0 {
+		offset = -6
+	}
+	startOfWeek := startOfDay.AddDate(0, 0, offset)
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	query := `
+		SELECT 
+			COALESCE(SUM(amount) FILTER (WHERE paid_at >= $1), 0) as today,
+			COALESCE(SUM(amount) FILTER (WHERE paid_at >= $2), 0) as this_week,
+			COALESCE(SUM(amount) FILTER (WHERE paid_at >= $3), 0) as this_month,
+			COALESCE(SUM(amount), 0) as all_time,
+			COALESCE(AVG(amount), 0) as avg_check
+		FROM purchase
+		WHERE status = $4
+	`
+
+	var s stats.RevenueStats
+	err := pr.pool.QueryRow(ctx, query, startOfDay, startOfWeek, startOfMonth, PurchaseStatusPaid).Scan(
+		&s.Today, &s.ThisWeek, &s.ThisMonth, &s.AllTime, &s.AvgCheck,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get revenue stats: %w", err)
+	}
+
+	return &s, nil
+}
+
+func (pr *PurchaseRepository) GetPaymentStats(ctx context.Context) (*stats.PaymentStats, error) {
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	totalsQuery := `
+		SELECT 
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE paid_at >= $1) as today
+		FROM purchase
+		WHERE status = $2
+	`
+	var s stats.PaymentStats
+	err := pr.pool.QueryRow(ctx, totalsQuery, startOfDay, PurchaseStatusPaid).Scan(&s.TotalCount, &s.TodayCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get payment totals: %w", err)
+	}
+
+	currencyQuery := `
+		SELECT 
+			COALESCE(currency, 'unknown') as currency,
+			COUNT(*) as count,
+			COALESCE(SUM(amount), 0) as amount
+		FROM purchase
+		WHERE status = $1
+		GROUP BY currency
+		ORDER BY amount DESC
+	`
+	rows, err := pr.pool.Query(ctx, currencyQuery, PurchaseStatusPaid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query currency stats: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var item stats.CurrencyStat
+		if err := rows.Scan(&item.Currency, &item.Count, &item.Amount); err != nil {
+			return nil, fmt.Errorf("failed to scan currency stat: %w", err)
+		}
+		s.ByCurrency = append(s.ByCurrency, item)
+	}
+
+	typeQuery := `
+		SELECT 
+			COALESCE(invoice_type, 'unknown') as type,
+			COUNT(*) as count,
+			COALESCE(SUM(amount), 0) as amount
+		FROM purchase
+		WHERE status = $1
+		GROUP BY invoice_type
+		ORDER BY amount DESC
+	`
+	rows2, err := pr.pool.Query(ctx, typeQuery, PurchaseStatusPaid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query payment type stats: %w", err)
+	}
+	defer rows2.Close()
+
+	for rows2.Next() {
+		var item stats.PaymentTypeStat
+		if err := rows2.Scan(&item.Type, &item.Count, &item.Amount); err != nil {
+			return nil, fmt.Errorf("failed to scan payment type stat: %w", err)
+		}
+		s.ByPaymentType = append(s.ByPaymentType, item)
+	}
+
+	return &s, nil
+}
+
+func (pr *PurchaseRepository) GetDailyRevenue(ctx context.Context, days int) ([]stats.DailyRevenue, error) {
+	query := `
+		SELECT 
+			TO_CHAR(days.day, 'YYYY-MM-DD') as date,
+			COALESCE(SUM(p.amount), 0) as amount,
+			COUNT(p.id) as count
+		FROM generate_series(
+			DATE_TRUNC('day', NOW() - INTERVAL '1 day' * $1),
+			DATE_TRUNC('day', NOW()),
+			'1 day'
+		) AS days(day)
+		LEFT JOIN purchase p ON DATE_TRUNC('day', p.paid_at) = days.day AND p.status = $2
+		GROUP BY days.day
+		ORDER BY days.day
+	`
+
+	rows, err := pr.pool.Query(ctx, query, days, PurchaseStatusPaid)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query daily revenue: %w", err)
+	}
+	defer rows.Close()
+
+	var result []stats.DailyRevenue
+	for rows.Next() {
+		var item stats.DailyRevenue
+		if err := rows.Scan(&item.Date, &item.Amount, &item.Count); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		result = append(result, item)
+	}
+
+	return result, nil
+}

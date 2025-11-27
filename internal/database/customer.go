@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"remnawave-tg-shop-bot/internal/stats"
 	"remnawave-tg-shop-bot/utils"
 	"time"
 
@@ -492,7 +493,10 @@ func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, err
 func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
 	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked").
 		From("customer").
-		Where(sq.LtOrEq{"expire_at": time.Now()}).
+		Where(sq.Or{
+			sq.LtOrEq{"expire_at": time.Now()},
+			sq.Eq{"expire_at": nil},
+		}).
 		PlaceholderFormat(sq.Dollar)
 
 	if language != "" {
@@ -563,4 +567,72 @@ func (cr *CustomerRepository) GetDistinctLanguages(ctx context.Context) ([]strin
 	}
 
 	return languages, nil
+}
+
+func (cr *CustomerRepository) GetUserStats(ctx context.Context) (*stats.UserStats, error) {
+	now := time.Now()
+	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	
+	// Start of week (Monday)
+	offset := int(time.Monday - now.Weekday())
+	if offset > 0 {
+		offset = -6
+	}
+	startOfWeek := startOfDay.AddDate(0, 0, offset)
+	startOfMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+
+	query := `
+		SELECT 
+			COUNT(*) as total,
+			COUNT(*) FILTER (WHERE expire_at > NOW()) as active,
+			COUNT(*) FILTER (WHERE expire_at <= NOW() OR expire_at IS NULL) as expired,
+			COUNT(*) FILTER (WHERE is_blocked = true) as blocked,
+			COUNT(*) FILTER (WHERE created_at >= $1) as new_today,
+			COUNT(*) FILTER (WHERE created_at >= $2) as new_this_week,
+			COUNT(*) FILTER (WHERE created_at >= $3) as new_this_month
+		FROM customer
+	`
+
+	var s stats.UserStats
+	err := cr.pool.QueryRow(ctx, query, startOfDay, startOfWeek, startOfMonth).Scan(
+		&s.Total, &s.Active, &s.Expired, &s.Blocked, &s.NewToday, &s.NewThisWeek, &s.NewThisMonth,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user stats: %w", err)
+	}
+
+	return &s, nil
+}
+
+func (cr *CustomerRepository) GetDailyUserGrowth(ctx context.Context, days int) ([]stats.DailyGrowth, error) {
+	query := `
+		SELECT 
+			TO_CHAR(days.day, 'YYYY-MM-DD') as date,
+			COUNT(c.id) as count
+		FROM generate_series(
+			DATE_TRUNC('day', NOW() - INTERVAL '1 day' * $1),
+			DATE_TRUNC('day', NOW()),
+			'1 day'
+		) AS days(day)
+		LEFT JOIN customer c ON DATE_TRUNC('day', c.created_at) = days.day
+		GROUP BY days.day
+		ORDER BY days.day
+	`
+
+	rows, err := cr.pool.Query(ctx, query, days)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query daily growth: %w", err)
+	}
+	defer rows.Close()
+
+	var result []stats.DailyGrowth
+	for rows.Next() {
+		var item stats.DailyGrowth
+		if err := rows.Scan(&item.Date, &item.Count); err != nil {
+			return nil, fmt.Errorf("failed to scan row: %w", err)
+		}
+		result = append(result, item)
+	}
+
+	return result, nil
 }

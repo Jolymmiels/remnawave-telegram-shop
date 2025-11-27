@@ -126,12 +126,8 @@ func (sh *StatsHandler) GetUserByTelegramID(w http.ResponseWriter, r *http.Reque
 // GetUserGrowthStats обрабатывает запрос GET /api/users/stats/growth
 // Возвращает статистику роста пользователей.
 func (sh *StatsHandler) GetUserGrowthStats(w http.ResponseWriter, r *http.Request) {
-	// TODO: Добавить проверку авторизации администратора
-	// if !isAdmin(r) { http.Error(w, "Forbidden", http.StatusForbidden); return }
-
 	ctx := r.Context()
 
-	// Получаем статистику роста пользователей из репозитория
 	stats, err := sh.customerRepository.GetUserGrowthStats(ctx)
 	if err != nil {
 		slog.Error("Failed to get user growth stats", "error", err)
@@ -140,7 +136,6 @@ func (sh *StatsHandler) GetUserGrowthStats(w http.ResponseWriter, r *http.Reques
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	// data, err := json.MarshalIndent(stats, "", "  ")
 	data, err := json.Marshal(stats)
 	if err != nil {
 		slog.Error("Failed to marshal user growth stats", "error", err)
@@ -148,4 +143,80 @@ func (sh *StatsHandler) GetUserGrowthStats(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	w.Write(data)
+}
+
+func (sh *StatsHandler) GetStatsOverview(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	userStats, err := sh.customerRepository.GetUserStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get user stats", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	revenueStats, err := sh.purchaseRepository.GetRevenueStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get revenue stats", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	paymentStats, err := sh.purchaseRepository.GetPaymentStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get payment stats", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	overview := stats.StatsOverview{
+		Users:    *userStats,
+		Revenue:  *revenueStats,
+		Payments: *paymentStats,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(overview)
+}
+
+func (sh *StatsHandler) GetDailyUserGrowth(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	days := 30
+	if d := r.URL.Query().Get("days"); d != "" {
+		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 && parsed <= 365 {
+			days = parsed
+		}
+	}
+
+	growth, err := sh.customerRepository.GetDailyUserGrowth(ctx, days)
+	if err != nil {
+		slog.Error("Failed to get daily user growth", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(growth)
+}
+
+func (sh *StatsHandler) GetDailyRevenue(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	days := 30
+	if d := r.URL.Query().Get("days"); d != "" {
+		if parsed, err := strconv.Atoi(d); err == nil && parsed > 0 && parsed <= 365 {
+			days = parsed
+		}
+	}
+
+	revenue, err := sh.purchaseRepository.GetDailyRevenue(ctx, days)
+	if err != nil {
+		slog.Error("Failed to get daily revenue", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(revenue)
 }

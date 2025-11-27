@@ -7,6 +7,11 @@ interface Broadcast {
   Type: string
   Language: string
   CreatedAt: string
+  Status: string
+  TotalCount: number
+  SentCount: number
+  FailedCount: number
+  BlockedCount: number
 }
 
 interface BroadcastsState {
@@ -21,7 +26,9 @@ interface BroadcastsState {
     offset: number
   }
   load: (reset?: boolean) => Promise<void>
+  refreshActive: () => Promise<void>
   create: (payload: { content: string; type: string; language?: string }) => Promise<void>
+  remove: (id: number) => Promise<void>
   setFilter: (filter: Partial<BroadcastsState['filter']>) => void
 }
 
@@ -40,7 +47,6 @@ export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children
   })
 
   const load = async (reset = false) => {
-    // Prevent duplicate requests
     if (loading) return
     
     setLoading(true)
@@ -64,10 +70,28 @@ export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }
 
+  // Refresh broadcasts without showing loading state
+  const refreshActive = async () => {
+    try {
+      const q = new URLSearchParams({ 
+        ...filter as any, 
+        sort: '-created_at' 
+      }).toString()
+      const data = await http.get(`/api/broadcasts?${q}`)
+      setItems(Array.isArray(data) ? data : [])
+    } catch (e) {
+      // Silently fail for background refresh
+    }
+  }
+
   const create = async (payload: { content: string; type: string; language?: string }) => {
     const newBroadcast = await http.post('/api/broadcasts', payload)
-    // Add the new broadcast to the beginning of the array (since it's sorted by created_at desc)
     setItems(prev => [newBroadcast, ...prev])
+  }
+
+  const remove = async (id: number) => {
+    await http.delete(`/api/broadcasts/${id}`)
+    setItems(prev => prev.filter(item => item.ID !== id))
   }
 
   const setFilter = (newFilter: Partial<typeof filter>) => {
@@ -82,7 +106,9 @@ export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children
       initialized,
       filter,
       load,
+      refreshActive,
       create,
+      remove,
       setFilter
     }}>
       {children}

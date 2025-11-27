@@ -33,6 +33,7 @@ func (bh *BroadcastHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	typ := strings.TrimSpace(strings.ToLower(q.Get("type")))
 	lang := strings.TrimSpace(q.Get("language"))
+	status := strings.TrimSpace(strings.ToLower(q.Get("status")))
 
 	limit := 50
 	offset := 0
@@ -56,6 +57,7 @@ func (bh *BroadcastHandler) List(w http.ResponseWriter, r *http.Request) {
 	items, err := bh.broadcastService.List(ctx, database.BroadcastListParams{
 		Type:     typ,
 		Language: lang,
+		Status:   status,
 		Limit:    limit,
 		Offset:   offset,
 		SortBy:   "created_at",
@@ -96,6 +98,23 @@ func (bh *BroadcastHandler) List(w http.ResponseWriter, r *http.Request) {
 //
 //	writeJSON(w, http.StatusOK, br)
 //}
+
+func (bh *BroadcastHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	if err := bh.broadcastService.Delete(ctx, id); err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
 
 func (bh *BroadcastHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()

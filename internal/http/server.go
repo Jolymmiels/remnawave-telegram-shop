@@ -39,6 +39,9 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 	// Protected admin endpoints - require admin authentication
 	mux.HandleFunc("/api/stats/totals", authHandler.RequireAdmin(sh.GetStatsTotals))
 	mux.HandleFunc("/api/stats/growth", authHandler.RequireAdmin(sh.GetMonthlyGrowth))
+	mux.HandleFunc("/api/stats/overview", authHandler.RequireAdmin(sh.GetStatsOverview))
+	mux.HandleFunc("/api/stats/users/daily", authHandler.RequireAdmin(sh.GetDailyUserGrowth))
+	mux.HandleFunc("/api/stats/revenue/daily", authHandler.RequireAdmin(sh.GetDailyRevenue))
 
 	mux.HandleFunc("/api/users/stats/growth", authHandler.RequireAdmin(sh.GetUserGrowthStats))
 	mux.HandleFunc("/api/users/{telegramID}", authHandler.RequireAdmin(sh.GetUserByTelegramID))
@@ -85,6 +88,13 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 		case http.MethodPost:
 			brH.Create(w, r)
 		default:
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/broadcasts/{id}", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			brH.Delete(w, r)
+		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}))

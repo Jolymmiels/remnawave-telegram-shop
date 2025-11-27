@@ -93,6 +93,7 @@ func main() {
 	promoService := promo.NewService(database.NewPromoRepository(pool))
 	broadcastRepository := database.NewBroadcastRepository(pool)
 	broadcastService := broadcast.NewService(broadcastRepository, b, customerRepository)
+	broadcastService.SetAppContext(ctx)
 	statsHandler := httphandler.NewStatsHandler(purchaseRepository, customerRepository)
 	h := tghandler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, promoService)
 
