@@ -107,7 +107,7 @@ func (c *Client) newSubscriptionHandler(ctx context.Context, wh SubscriptionWebh
 	months := convertPeriodToMonths(wh.Payload.Period)
 
 	customer, err := c.customerRepository.FindByTelegramId(ctx, wh.Payload.TelegramUserID)
-	_, purchaseId, err := c.paymentService.CreatePurchase(ctx, float64(wh.Payload.Amount), months, customer, database.InvoiceTypeTribute)
+	_, purchaseId, err := c.paymentService.CreatePurchase(ctx, float64(wh.Payload.Amount), months, customer, database.InvoiceTypeTribute, nil)
 
 	if err != nil {
 		return err

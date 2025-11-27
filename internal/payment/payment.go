@@ -29,6 +29,7 @@ type PaymentService struct {
 	yookasaClient      *yookasa.Client
 	referralRepository *database.ReferralRepository
 	cache              *cache.Cache
+	planRepository     *database.PlanRepository
 }
 
 func NewPaymentService(
@@ -41,6 +42,7 @@ func NewPaymentService(
 	yookasaClient *yookasa.Client,
 	referralRepository *database.ReferralRepository,
 	cache *cache.Cache,
+	planRepository *database.PlanRepository,
 ) *PaymentService {
 	return &PaymentService{
 		purchaseRepository: purchaseRepository,
@@ -52,6 +54,7 @@ func NewPaymentService(
 		yookasaClient:      yookasaClient,
 		referralRepository: referralRepository,
 		cache:              cache,
+		planRepository:     planRepository,
 	}
 }
 
@@ -82,7 +85,21 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		}
 	}
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
+	// Get plan settings or use defaults
+	var plan *database.Plan
+	if purchase.PlanID != nil {
+		plan, _ = s.planRepository.FindById(ctx, *purchase.PlanID)
+	}
+	if plan == nil {
+		plan, _ = s.planRepository.FindDefault(ctx)
+	}
+
+	trafficLimit := config.TrafficLimit()
+	if plan != nil && plan.TrafficLimit > 0 {
+		trafficLimit = plan.TrafficLimit * 1024 * 1024 * 1024 // Convert GB to bytes
+	}
+
+	user, err := s.remnawaveClient.CreateOrUpdateUserWithPlan(ctx, customer.ID, customer.TelegramID, trafficLimit, purchase.Month*config.DaysInMonth(), false, plan)
 	if err != nil {
 		return err
 	}
@@ -179,16 +196,16 @@ func (s PaymentService) createConnectKeyboard(customer *database.Customer) [][]m
 	return inlineCustomerKeyboard
 }
 
-func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, months int, customer *database.Customer, invoiceType database.InvoiceType) (url string, purchaseId int64, err error) {
+func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, months int, customer *database.Customer, invoiceType database.InvoiceType, planID *int64) (url string, purchaseId int64, err error) {
 	switch invoiceType {
 	case database.InvoiceTypeCrypto:
-		return s.createCryptoInvoice(ctx, amount, months, customer)
+		return s.createCryptoInvoice(ctx, amount, months, customer, planID)
 	case database.InvoiceTypeYookasa:
-		return s.createYookasaInvoice(ctx, amount, months, customer)
+		return s.createYookasaInvoice(ctx, amount, months, customer, planID)
 	case database.InvoiceTypeTelegram:
-		return s.createTelegramInvoice(ctx, amount, months, customer)
+		return s.createTelegramInvoice(ctx, amount, months, customer, planID)
 	case database.InvoiceTypeTribute:
-		return s.createTributeInvoice(ctx, amount, months, customer)
+		return s.createTributeInvoice(ctx, amount, months, customer, planID)
 	default:
 		return "", 0, fmt.Errorf("unknown invoice type: %s", invoiceType)
 	}
@@ -240,7 +257,7 @@ func (s PaymentService) CancelTributePurchase(ctx context.Context, telegramId in
 	return nil
 }
 
-func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
+func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64, months int, customer *database.Customer, planID *int64) (url string, purchaseId int64, err error) {
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
 		InvoiceType: database.InvoiceTypeCrypto,
 		Status:      database.PurchaseStatusNew,
@@ -248,6 +265,7 @@ func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64,
 		Currency:    "RUB",
 		CustomerID:  customer.ID,
 		Month:       months,
+		PlanID:      planID,
 	})
 	if err != nil {
 		slog.Error("Error creating purchase", "error", err)
@@ -284,7 +302,7 @@ func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64,
 	return invoice.BotInvoiceUrl, purchaseId, nil
 }
 
-func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
+func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64, months int, customer *database.Customer, planID *int64) (url string, purchaseId int64, err error) {
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
 		InvoiceType: database.InvoiceTypeYookasa,
 		Status:      database.PurchaseStatusNew,
@@ -292,6 +310,7 @@ func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64
 		Currency:    "RUB",
 		CustomerID:  customer.ID,
 		Month:       months,
+		PlanID:      planID,
 	})
 	if err != nil {
 		slog.Error("Error creating purchase", "error", err)
@@ -319,7 +338,7 @@ func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64
 	return invoice.Confirmation.ConfirmationURL, purchaseId, nil
 }
 
-func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
+func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float64, months int, customer *database.Customer, planID *int64) (url string, purchaseId int64, err error) {
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
 		InvoiceType: database.InvoiceTypeTelegram,
 		Status:      database.PurchaseStatusNew,
@@ -327,6 +346,7 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 		Currency:    "STARS",
 		CustomerID:  customer.ID,
 		Month:       months,
+		PlanID:      planID,
 	})
 	if err != nil {
 		slog.Error("Error creating purchase", "error", err)
@@ -414,7 +434,7 @@ func (s PaymentService) CancelYookassaPayment(purchaseId int64) error {
 	return nil
 }
 
-func (s PaymentService) createTributeInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
+func (s PaymentService) createTributeInvoice(ctx context.Context, amount float64, months int, customer *database.Customer, planID *int64) (url string, purchaseId int64, err error) {
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
 		InvoiceType: database.InvoiceTypeTribute,
 		Status:      database.PurchaseStatusPending,
@@ -422,6 +442,7 @@ func (s PaymentService) createTributeInvoice(ctx context.Context, amount float64
 		Currency:    "RUB",
 		CustomerID:  customer.ID,
 		Month:       months,
+		PlanID:      planID,
 	})
 	if err != nil {
 		slog.Error("Error creating purchase", "error", err)

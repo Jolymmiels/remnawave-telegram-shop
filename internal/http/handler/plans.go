@@ -8,11 +8,15 @@ import (
 )
 
 type PlansHandler struct {
-	planRepository *database.PlanRepository
+	planRepository     *database.PlanRepository
+	purchaseRepository *database.PurchaseRepository
 }
 
-func NewPlansHandler(planRepository *database.PlanRepository) *PlansHandler {
-	return &PlansHandler{planRepository: planRepository}
+func NewPlansHandler(planRepository *database.PlanRepository, purchaseRepository *database.PurchaseRepository) *PlansHandler {
+	return &PlansHandler{
+		planRepository:     planRepository,
+		purchaseRepository: purchaseRepository,
+	}
 }
 
 type PlansResponse struct {
@@ -149,6 +153,25 @@ func (h *PlansHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetPurchaseCount returns the number of purchases for a plan
+func (h *PlansHandler) GetPurchaseCount(w http.ResponseWriter, r *http.Request) {
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid plan ID", http.StatusBadRequest)
+		return
+	}
+
+	count, err := h.purchaseRepository.CountByPlanID(r.Context(), id)
+	if err != nil {
+		http.Error(w, "Failed to count purchases", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]int64{"count": count})
 }
 
 // SetDefault sets a plan as default

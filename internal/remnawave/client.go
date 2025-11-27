@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/utils"
 	"strconv"
 	"strings"
@@ -126,6 +127,10 @@ func (r *Client) DecreaseSubscription(ctx context.Context, telegramId int64, tra
 }
 
 func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
+	return r.CreateOrUpdateUserWithPlan(ctx, customerId, telegramId, trafficLimit, days, isTrialUser, nil)
+}
+
+func (r *Client) CreateOrUpdateUserWithPlan(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
 	resp, err := r.client.UsersControllerGetUserByTelegramId(ctx, remapi.UsersControllerGetUserByTelegramIdParams{TelegramId: strconv.FormatInt(telegramId, 10)})
 	if err != nil {
 		return nil, err
@@ -134,7 +139,7 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 	switch v := resp.(type) {
 
 	case *remapi.UsersControllerGetUserByTelegramIdNotFound:
-		return r.createUser(ctx, customerId, telegramId, trafficLimit, days, isTrialUser)
+		return r.createUserWithPlan(ctx, customerId, telegramId, trafficLimit, days, isTrialUser, plan)
 	case *remapi.UsersResponse:
 		var existingUser *remapi.UsersResponseResponseItem
 		for _, panelUser := range v.GetResponse() {
@@ -145,14 +150,17 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 		if existingUser == nil {
 			existingUser = &v.GetResponse()[0]
 		}
-		return r.updateUser(ctx, existingUser, trafficLimit, days)
+		return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, plan)
 	default:
 		return nil, errors.New("unknown response type")
 	}
 }
 
 func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int) (*remapi.UserResponseResponse, error) {
+	return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, nil)
+}
 
+func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int, plan *database.Plan) (*remapi.UserResponseResponse, error) {
 	newExpire := getNewExpire(days, existingUser.ExpireAt)
 
 	resp, err := r.client.InternalSquadControllerGetInternalSquads(ctx)
@@ -162,7 +170,11 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UsersRespo
 
 	squads := resp.(*remapi.GetInternalSquadsResponseDto).GetResponse()
 
+	// Use plan squads if available, otherwise use config
 	selectedSquads := config.SquadUUIDs()
+	if plan != nil && plan.InternalSquads != "" {
+		selectedSquads = parseSquadUUIDs(plan.InternalSquads)
+	}
 
 	squadId := make([]uuid.UUID, 0, len(selectedSquads))
 	for _, squad := range squads.GetInternalSquads() {
@@ -186,12 +198,22 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UsersRespo
 		TrafficLimitStrategy: remapi.NewOptUpdateUserRequestDtoTrafficLimitStrategy(getUpdateStrategy(config.TrafficLimitResetStrategy())),
 	}
 
+	// Use plan external squad if available
 	externalSquad := config.ExternalSquadUUID()
+	if plan != nil && plan.ExternalSquadUUID != "" {
+		if parsed, err := uuid.Parse(plan.ExternalSquadUUID); err == nil {
+			externalSquad = parsed
+		}
+	}
 	if externalSquad != uuid.Nil {
 		userUpdate.ExternalSquadUuid = remapi.NewOptNilUUID(externalSquad)
 	}
 
+	// Use plan tag if available
 	tag := config.RemnawaveTag()
+	if plan != nil && plan.RemnawaveTag != "" {
+		tag = plan.RemnawaveTag
+	}
 	if tag != "" {
 		userUpdate.Tag = remapi.NewOptNilString(tag)
 	}
@@ -218,6 +240,10 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UsersRespo
 }
 
 func (r *Client) createUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
+	return r.createUserWithPlan(ctx, customerId, telegramId, trafficLimit, days, isTrialUser, nil)
+}
+
+func (r *Client) createUserWithPlan(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
 	expireAt := time.Now().UTC().AddDate(0, 0, days)
 	username := generateUsername(customerId, telegramId)
 
@@ -228,9 +254,12 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 
 	squads := resp.(*remapi.GetInternalSquadsResponseDto).GetResponse()
 
+	// Determine selected squads based on plan, trial, or config
 	selectedSquads := config.SquadUUIDs()
 	if isTrialUser {
 		selectedSquads = config.TrialInternalSquads()
+	} else if plan != nil && plan.InternalSquads != "" {
+		selectedSquads = parseSquadUUIDs(plan.InternalSquads)
 	}
 
 	squadId := make([]uuid.UUID, 0, len(selectedSquads))
@@ -246,9 +275,14 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		}
 	}
 
+	// Determine external squad
 	externalSquad := config.ExternalSquadUUID()
 	if isTrialUser {
 		externalSquad = config.TrialExternalSquadUUID()
+	} else if plan != nil && plan.ExternalSquadUUID != "" {
+		if parsed, err := uuid.Parse(plan.ExternalSquadUUID); err == nil {
+			externalSquad = parsed
+		}
 	}
 
 	strategy := config.TrafficLimitResetStrategy()
@@ -268,9 +302,13 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 	if externalSquad != uuid.Nil {
 		createUserRequestDto.ExternalSquadUuid = remapi.NewOptNilUUID(externalSquad)
 	}
+
+	// Determine tag
 	tag := config.RemnawaveTag()
 	if isTrialUser {
 		tag = config.TrialRemnawaveTag()
+	} else if plan != nil && plan.RemnawaveTag != "" {
+		tag = plan.RemnawaveTag
 	}
 	if tag != "" {
 		createUserRequestDto.Tag = remapi.NewOptNilString(tag)
@@ -290,6 +328,21 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 	}
 	slog.Info("created user", "telegramId", utils.MaskHalf(strconv.FormatInt(telegramId, 10)), "username", utils.MaskHalf(tgUsername), "days", days)
 	return &userCreate.(*remapi.UserResponse).Response, nil
+}
+
+// parseSquadUUIDs parses comma-separated UUID string into a map
+func parseSquadUUIDs(s string) map[uuid.UUID]uuid.UUID {
+	result := make(map[uuid.UUID]uuid.UUID)
+	if s == "" {
+		return result
+	}
+	for _, part := range strings.Split(s, ",") {
+		part = strings.TrimSpace(part)
+		if parsed, err := uuid.Parse(part); err == nil {
+			result[parsed] = parsed
+		}
+	}
+	return result
 }
 
 func generateUsername(customerId int64, telegramId int64) string {

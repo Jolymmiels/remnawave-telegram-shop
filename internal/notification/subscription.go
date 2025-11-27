@@ -17,11 +17,11 @@ type customerRepository interface {
 }
 
 type tributeRepository interface {
-	FindLatestActiveTributesByCustomerIDs(ctx context.Context, customerIDs []int64) (*[]database.Purchase, error)
+	FindLatestActiveTributesByCustomerIDs(ctx context.Context, customerIDs []int64) ([]database.Purchase, error)
 }
 
 type paymentProcessor interface {
-	CreatePurchase(ctx context.Context, amount float64, months int, customer *database.Customer, invoiceType database.InvoiceType) (string, int64, error)
+	CreatePurchase(ctx context.Context, amount float64, months int, customer *database.Customer, invoiceType database.InvoiceType, planID *int64) (string, int64, error)
 	ProcessPurchaseById(ctx context.Context, purchaseId int64) error
 }
 
@@ -68,13 +68,13 @@ func (s *SubscriptionService) ProcessSubscriptionExpiration() error {
 		return err
 	}
 
-	customerIdTributes := make(map[int64]*database.Purchase, len(*latestActiveTributes))
-	for i := range *latestActiveTributes {
-		p := &(*latestActiveTributes)[i]
+	customerIdTributes := make(map[int64]*database.Purchase, len(latestActiveTributes))
+	for i := range latestActiveTributes {
+		p := &latestActiveTributes[i]
 		customerIdTributes[p.CustomerID] = p
 	}
 
-	tributesProcessed := make(map[int64]bool, len(*latestActiveTributes))
+	tributesProcessed := make(map[int64]bool, len(latestActiveTributes))
 
 	for _, customer := range *customers {
 		daysUntilExpiration := s.getDaysUntilExpiration(now, *customer.ExpireAt)
@@ -83,7 +83,7 @@ func (s *SubscriptionService) ProcessSubscriptionExpiration() error {
 			if daysUntilExpiration != 1 {
 				continue
 			}
-			_, purchaseId, err := s.paymentService.CreatePurchase(ctx, p.Amount, p.Month, &customer, database.InvoiceTypeTribute)
+			_, purchaseId, err := s.paymentService.CreatePurchase(ctx, p.Amount, p.Month, &customer, database.InvoiceTypeTribute, p.PlanID)
 			if err != nil {
 				slog.Error("Failed to create tribute purchase", "error", err)
 				continue

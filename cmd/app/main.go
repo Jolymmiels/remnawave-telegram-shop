@@ -79,7 +79,7 @@ func main() {
 		panic(err)
 	}
 
-	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache)
+	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, planRepository)
 
 	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
 	if cronScheduler != nil {
@@ -269,11 +269,11 @@ func checkYookasaInvoice(
 		log.Printf("Error finding pending purchases: %v", err)
 		return
 	}
-	if len(*pendingPurchases) == 0 {
+	if len(pendingPurchases) == 0 {
 		return
 	}
 
-	for _, purchase := range *pendingPurchases {
+	for _, purchase := range pendingPurchases {
 
 		invoice, err := yookasaClient.GetPayment(ctx, *purchase.YookasaID)
 
@@ -324,13 +324,13 @@ func checkCryptoPayInvoice(
 		log.Printf("Error finding pending purchases: %v", err)
 		return
 	}
-	if len(*pendingPurchases) == 0 {
+	if len(pendingPurchases) == 0 {
 		return
 	}
 
 	var invoiceIDs []string
 
-	for _, purchase := range *pendingPurchases {
+	for _, purchase := range pendingPurchases {
 		if purchase.CryptoInvoiceID != nil {
 			invoiceIDs = append(invoiceIDs, fmt.Sprintf("%d", *purchase.CryptoInvoiceID))
 		}

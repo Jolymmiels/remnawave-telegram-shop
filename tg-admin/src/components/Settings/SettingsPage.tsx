@@ -190,7 +190,23 @@ const SettingsPage: React.FC = () => {
       return
     }
     
-    if (!confirm(`Удалить тариф "${plan.name}"?`)) return
+    // Check for associated purchases
+    try {
+      const res = await httpGet<{ count: number }>(`/api/plans/${plan.id}/purchases`)
+      if (res.count > 0) {
+        const confirmed = confirm(
+          `ВНИМАНИЕ! К тарифу "${plan.name}" привязано ${res.count} покупок.\n\n` +
+          `При удалении тарифа эти покупки потеряют связь с тарифом (plan_id станет NULL).\n\n` +
+          `Рекомендуется деактивировать тариф вместо удаления.\n\n` +
+          `Вы уверены, что хотите удалить тариф?`
+        )
+        if (!confirmed) return
+      } else {
+        if (!confirm(`Удалить тариф "${plan.name}"?`)) return
+      }
+    } catch {
+      if (!confirm(`Удалить тариф "${plan.name}"?`)) return
+    }
     
     try {
       await httpDelete(`/api/plans/${plan.id}`)

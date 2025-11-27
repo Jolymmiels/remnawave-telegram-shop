@@ -158,7 +158,7 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 	mux.HandleFunc("/api/squads", authHandler.RequireAdmin(settingsH.GetSquads))
 
 	// Plans endpoints - require admin privileges
-	plansH := handler.NewPlansHandler(planRepository)
+	plansH := handler.NewPlansHandler(planRepository, purchaseRepository)
 	mux.HandleFunc("/api/plans", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {
 		case http.MethodGet:
@@ -182,6 +182,13 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 	mux.HandleFunc("/api/plans/{id}/default", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			plansH.SetDefault(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/plans/{id}/purchases", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			plansH.GetPurchaseCount(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}

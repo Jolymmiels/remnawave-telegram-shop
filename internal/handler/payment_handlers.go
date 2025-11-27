@@ -271,7 +271,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	}
 
 	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
-	paymentURL, purchaseId, err := h.paymentService.CreatePurchase(ctxWithUsername, float64(price), month, customer, invoiceType)
+	paymentURL, purchaseId, err := h.paymentService.CreatePurchase(ctxWithUsername, float64(price), month, customer, invoiceType, &planId)
 	if err != nil {
 		slog.Error("Error creating payment", "error", err)
 		return
