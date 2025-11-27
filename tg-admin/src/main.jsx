@@ -11,8 +11,15 @@ import "./style.css";
 import { theme } from "@/theme";
 import { getTelegramSafeAreaMargins } from './lib/telegram-safe-area';
 const AppWrapper = () => (<MantineProvider defaultColorScheme="dark" theme={theme}> 
-    <Notifications position="top-right" styles={{
-        root: getTelegramSafeAreaMargins()
+    <Notifications position="bottom-right" styles={{
+        root: {
+            ...getTelegramSafeAreaMargins(),
+            bottom: 80,
+            pointerEvents: 'none'
+        },
+        notification: {
+            pointerEvents: 'auto'
+        }
     }}/>
     <RouterProvider router={router}/>
   </MantineProvider>);
