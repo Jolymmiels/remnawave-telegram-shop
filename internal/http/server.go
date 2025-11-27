@@ -47,9 +47,23 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 	mux.HandleFunc("/api/users/{telegramID}", authHandler.RequireAdmin(sh.GetUserByTelegramID))
 
 	// User management endpoints - all require admin privileges
-	usersHandler := handler.NewUsersHandler(customerRepository, purchaseRepository, referralRepository)
+	usersHandler := handler.NewUsersHandler(customerRepository, purchaseRepository, referralRepository, remnawaveClient)
 	mux.HandleFunc("/api/users/search", authHandler.RequireAdmin(usersHandler.SearchUsers))
 	mux.HandleFunc("/api/users/{telegramID}/payments", authHandler.RequireAdmin(usersHandler.GetUserPayments))
+	mux.HandleFunc("/api/users/{telegramID}/devices", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			usersHandler.GetUserDevices(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/users/{telegramID}/devices/{hwid}", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodDelete {
+			usersHandler.DeleteUserDevice(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
 	mux.HandleFunc("/api/users/{telegramID}/update", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == "PUT" {
 			usersHandler.UpdateUser(w, r)

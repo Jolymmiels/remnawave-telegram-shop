@@ -337,3 +337,128 @@ func getUpdateStrategy(s string) remapi.UpdateUserRequestDtoTrafficLimitStrategy
 		return remapi.UpdateUserRequestDtoTrafficLimitStrategyMONTH
 	}
 }
+
+type Device struct {
+	Hwid        string    `json:"hwid"`
+	UserUuid    string    `json:"user_uuid"`
+	Platform    string    `json:"platform"`
+	OsVersion   string    `json:"os_version"`
+	DeviceModel string    `json:"device_model"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+func (r *Client) GetUserUuidByTelegramId(ctx context.Context, telegramId int64) (string, error) {
+	resp, err := r.client.Users().GetUserByTelegramId(ctx, remapi.UsersControllerGetUserByTelegramIdParams{
+		TelegramId: strconv.FormatInt(telegramId, 10),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	switch v := resp.(type) {
+	case *remapi.UsersControllerGetUserByTelegramIdNotFound:
+		return "", errors.New("user not found")
+	case *remapi.UsersResponse:
+		users := v.GetResponse()
+		if len(users) == 0 {
+			return "", errors.New("user not found")
+		}
+		var targetUser *remapi.UsersResponseResponseItem
+		for _, user := range users {
+			if strings.Contains(user.Username, fmt.Sprintf("_%d", telegramId)) {
+				targetUser = &user
+				break
+			}
+		}
+		if targetUser == nil {
+			targetUser = &users[0]
+		}
+		return targetUser.UUID.String(), nil
+	default:
+		return "", errors.New("unknown response type")
+	}
+}
+
+func (r *Client) GetUserDevices(ctx context.Context, userUuid string) ([]Device, error) {
+	resp, err := r.client.HwidUserDevices().GetUserHwidDevices(ctx, remapi.HwidUserDevicesControllerGetUserHwidDevicesParams{
+		UserUuid: userUuid,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	switch v := resp.(type) {
+	case *remapi.HwidDevicesResponse:
+		devices := make([]Device, 0, len(v.Response.Devices))
+		for _, d := range v.Response.Devices {
+			platform, _ := d.Platform.Get()
+			osVersion, _ := d.OsVersion.Get()
+			deviceModel, _ := d.DeviceModel.Get()
+
+			devices = append(devices, Device{
+				Hwid:        d.Hwid,
+				UserUuid:    d.UserUuid.String(),
+				Platform:    platform,
+				OsVersion:   osVersion,
+				DeviceModel: deviceModel,
+				CreatedAt:   d.CreatedAt,
+				UpdatedAt:   d.UpdatedAt,
+			})
+		}
+		return devices, nil
+	default:
+		return nil, errors.New("failed to get user devices")
+	}
+}
+
+func (r *Client) DeleteUserDevice(ctx context.Context, userUuid, hwid string) error {
+	userUuidParsed, err := uuid.Parse(userUuid)
+	if err != nil {
+		return errors.New("invalid user uuid")
+	}
+
+	resp, err := r.client.HwidUserDevices().DeleteUserHwidDevice(ctx, &remapi.DeleteUserHwidDeviceRequestDto{
+		UserUuid: userUuidParsed,
+		Hwid:     hwid,
+	})
+	if err != nil {
+		return err
+	}
+
+	switch resp.(type) {
+	case *remapi.HwidDevicesResponse:
+		return nil
+	case *remapi.HwidUserDevicesControllerDeleteUserHwidDeviceBadRequest:
+		return errors.New("bad request")
+	case *remapi.HwidUserDevicesControllerDeleteUserHwidDeviceInternalServerError:
+		return errors.New("internal server error")
+	default:
+		return errors.New("failed to delete device")
+	}
+}
+
+func (r *Client) DeleteAllUserDevices(ctx context.Context, userUuid string) error {
+	userUuidParsed, err := uuid.Parse(userUuid)
+	if err != nil {
+		return errors.New("invalid user uuid")
+	}
+
+	resp, err := r.client.HwidUserDevices().DeleteAllUserHwidDevices(ctx, &remapi.DeleteAllUserHwidDevicesRequestDto{
+		UserUuid: userUuidParsed,
+	})
+	if err != nil {
+		return err
+	}
+
+	switch resp.(type) {
+	case *remapi.HwidDevicesResponse:
+		return nil
+	case *remapi.HwidUserDevicesControllerDeleteAllUserHwidDevicesBadRequest:
+		return errors.New("bad request")
+	case *remapi.HwidUserDevicesControllerDeleteAllUserHwidDevicesInternalServerError:
+		return errors.New("internal server error")
+	default:
+		return errors.New("failed to delete all devices")
+	}
+}

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/remnawave"
 	"strconv"
 	"strings"
 )
@@ -14,13 +15,15 @@ type UsersHandler struct {
 	customerRepository *database.CustomerRepository
 	purchaseRepository *database.PurchaseRepository
 	referralRepository *database.ReferralRepository
+	remnawaveClient    *remnawave.Client
 }
 
-func NewUsersHandler(customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository) *UsersHandler {
+func NewUsersHandler(customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, remnawaveClient *remnawave.Client) *UsersHandler {
 	return &UsersHandler{
 		customerRepository: customerRepository,
 		purchaseRepository: purchaseRepository,
 		referralRepository: referralRepository,
+		remnawaveClient:    remnawaveClient,
 	}
 }
 
@@ -437,4 +440,104 @@ func stringPtrIfNotEmpty(s string) *string {
 		return nil
 	}
 	return &s
+}
+
+// DeviceDTO represents a device in the API response
+type DeviceDTO struct {
+	Hwid        string `json:"hwid"`
+	UserUuid    string `json:"user_uuid"`
+	Platform    string `json:"platform"`
+	OsVersion   string `json:"os_version"`
+	DeviceModel string `json:"device_model"`
+	CreatedAt   string `json:"created_at"`
+	UpdatedAt   string `json:"updated_at"`
+}
+
+// GetUserDevices handles GET /api/users/{telegramID}/devices
+func (uh *UsersHandler) GetUserDevices(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	telegramIDStr := r.PathValue("telegramID")
+	telegramID, err := strconv.ParseInt(telegramIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid Telegram ID", http.StatusBadRequest)
+		return
+	}
+
+	if uh.remnawaveClient == nil {
+		http.Error(w, "Remnawave client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	userUuid, err := uh.remnawaveClient.GetUserUuidByTelegramId(ctx, telegramID)
+	if err != nil {
+		slog.Error("Failed to get user UUID", "error", err, "telegramID", telegramID)
+		http.Error(w, "User not found in Remnawave", http.StatusNotFound)
+		return
+	}
+
+	devices, err := uh.remnawaveClient.GetUserDevices(ctx, userUuid)
+	if err != nil {
+		slog.Error("Failed to get user devices", "error", err)
+		http.Error(w, "Failed to get devices", http.StatusInternalServerError)
+		return
+	}
+
+	deviceDTOs := make([]DeviceDTO, len(devices))
+	for i, d := range devices {
+		deviceDTOs[i] = DeviceDTO{
+			Hwid:        d.Hwid,
+			UserUuid:    d.UserUuid,
+			Platform:    d.Platform,
+			OsVersion:   d.OsVersion,
+			DeviceModel: d.DeviceModel,
+			CreatedAt:   d.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			UpdatedAt:   d.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(deviceDTOs); err != nil {
+		slog.Error("Failed to encode devices", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+// DeleteUserDevice handles DELETE /api/users/{telegramID}/devices/{hwid}
+func (uh *UsersHandler) DeleteUserDevice(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	telegramIDStr := r.PathValue("telegramID")
+	telegramID, err := strconv.ParseInt(telegramIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid Telegram ID", http.StatusBadRequest)
+		return
+	}
+
+	hwid := r.PathValue("hwid")
+	if hwid == "" {
+		http.Error(w, "HWID is required", http.StatusBadRequest)
+		return
+	}
+
+	if uh.remnawaveClient == nil {
+		http.Error(w, "Remnawave client not configured", http.StatusServiceUnavailable)
+		return
+	}
+
+	userUuid, err := uh.remnawaveClient.GetUserUuidByTelegramId(ctx, telegramID)
+	if err != nil {
+		slog.Error("Failed to get user UUID", "error", err, "telegramID", telegramID)
+		http.Error(w, "User not found in Remnawave", http.StatusNotFound)
+		return
+	}
+
+	if err := uh.remnawaveClient.DeleteUserDevice(ctx, userUuid, hwid); err != nil {
+		slog.Error("Failed to delete device", "error", err, "hwid", hwid)
+		http.Error(w, "Failed to delete device", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

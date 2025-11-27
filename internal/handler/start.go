@@ -176,6 +176,9 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 
 	if existingCustomer.SubscriptionLink != nil && existingCustomer.ExpireAt.After(time.Now()) {
 		inlineKeyboard = append(inlineKeyboard, h.resolveConnectButton(langCode))
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "my_devices_button"), CallbackData: CallbackDevices},
+		})
 	}
 
 	if config.GetReferralDays() > 0 {

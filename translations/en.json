@@ -44,5 +44,14 @@
   "tribute_button": "Tribute",
   "tribute_cancelled": "Tribute cancelled",
   "access_denied": "⚠️ Access denied. Please update your profile information.",
-  "admin_panel_button": "⚙️ Admin Panel"
+  "admin_panel_button": "⚙️ Admin Panel",
+  "my_devices_button": "📱 My Devices",
+  "devices_title": "📱 Your devices",
+  "devices_empty": "You have no connected devices",
+  "devices_error": "❌ Failed to load devices",
+  "device_delete_confirm": "⚠️ Delete device %s?",
+  "device_deleted": "✅ Device deleted",
+  "device_delete_error": "❌ Failed to delete device",
+  "yes": "Yes",
+  "no": "No"
 }

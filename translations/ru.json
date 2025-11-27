@@ -38,5 +38,14 @@
   "tribute_button" : "Tribute",
   "tribute_cancelled" : "Tribute cancelled",
   "access_denied": "⚠️ Доступ запрещён. Пожалуйста, обновите информацию профиля.",
-  "admin_panel_button": "⚙️ Админ панель"
+  "admin_panel_button": "⚙️ Админ панель",
+  "my_devices_button": "📱 Мои устройства",
+  "devices_title": "📱 Ваши устройства",
+  "devices_empty": "У вас нет подключенных устройств",
+  "devices_error": "❌ Не удалось загрузить устройства",
+  "device_delete_confirm": "⚠️ Удалить устройство %s?",
+  "device_deleted": "✅ Устройство удалено",
+  "device_delete_error": "❌ Не удалось удалить устройство",
+  "yes": "Да",
+  "no": "Нет"
 }

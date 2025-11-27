@@ -143,6 +143,11 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPromo, bot.MatchTypePrefix, h.PromoCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 
+	devicesHandler := tghandler.NewDevicesHandler(remnawaveClient, tm)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDevices, bot.MatchTypeExact, devicesHandler.DevicesCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceDelete, bot.MatchTypePrefix, devicesHandler.DeviceDeleteCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceConfirm, bot.MatchTypePrefix, devicesHandler.DeviceConfirmDeleteHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.PreCheckoutQuery != nil
 	}, h.PreCheckoutCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)

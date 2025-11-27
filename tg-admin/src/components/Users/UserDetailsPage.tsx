@@ -16,6 +16,8 @@ import {
   ActionIcon,
   Tooltip,
   ScrollArea,
+  Modal,
+  Button,
 } from '@mantine/core'
 import {
   IconArrowLeft,
@@ -24,9 +26,12 @@ import {
   IconCopy,
   IconCheck,
   IconExternalLink,
+  IconDeviceMobile,
+  IconTrash,
 } from '@tabler/icons-react'
 import { http } from '../../lib/http'
 import { backButton } from '@telegram-apps/sdk'
+import { notifications } from '@mantine/notifications'
 
 interface User {
   id: number
@@ -58,13 +63,28 @@ interface Payment {
   yookasa_id?: string | null
 }
 
+interface Device {
+  hwid: string
+  user_uuid: string
+  platform: string
+  os_version: string
+  device_model: string
+  created_at: string
+  updated_at: string
+}
+
 const UserDetailsPage: React.FC = () => {
   const { telegramId } = useParams<{ telegramId: string }>()
   const navigate = useNavigate()
   const [user, setUser] = useState<User | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
+  const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentsLoading, setPaymentsLoading] = useState(true)
+  const [devicesLoading, setDevicesLoading] = useState(true)
+  const [deleteModalOpened, setDeleteModalOpened] = useState(false)
+  const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const goBack = () => {
     navigate('/user-management')
@@ -113,10 +133,57 @@ const UserDetailsPage: React.FC = () => {
       } finally {
         setPaymentsLoading(false)
       }
+
+      try {
+        setDevicesLoading(true)
+        const devicesData: Device[] = await http.get(`/api/users/${telegramId}/devices`)
+        setDevices(devicesData)
+      } catch (error) {
+        console.error('Failed to fetch devices:', error)
+        setDevices([])
+      } finally {
+        setDevicesLoading(false)
+      }
     }
 
     fetchData()
   }, [telegramId])
+
+  const maskHwid = (hwid: string) => {
+    if (hwid.length <= 8) return hwid
+    return hwid.substring(0, 4) + '***' + hwid.substring(hwid.length - 4)
+  }
+
+  const handleDeleteDevice = async () => {
+    if (!deviceToDelete || !telegramId) return
+    
+    setDeleting(true)
+    try {
+      await http.delete(`/api/users/${telegramId}/devices/${deviceToDelete.hwid}`)
+      setDevices(devices.filter(d => d.hwid !== deviceToDelete.hwid))
+      notifications.show({
+        title: 'Успешно',
+        message: 'Устройство удалено',
+        color: 'green',
+      })
+    } catch (error) {
+      console.error('Failed to delete device:', error)
+      notifications.show({
+        title: 'Ошибка',
+        message: 'Не удалось удалить устройство',
+        color: 'red',
+      })
+    } finally {
+      setDeleting(false)
+      setDeleteModalOpened(false)
+      setDeviceToDelete(null)
+    }
+  }
+
+  const openDeleteModal = (device: Device) => {
+    setDeviceToDelete(device)
+    setDeleteModalOpened(true)
+  }
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return '-'
@@ -317,6 +384,105 @@ const UserDetailsPage: React.FC = () => {
           </ScrollArea>
         )}
       </Paper>
+
+      <Paper p="md" shadow="sm">
+        <Group gap="xs" mb="md">
+          <IconDeviceMobile size={20} />
+          <Text size="lg" fw={600}>Устройства</Text>
+        </Group>
+
+        {devicesLoading ? (
+          <Stack align="center" py="xl">
+            <Loader size="sm" />
+          </Stack>
+        ) : devices.length === 0 ? (
+          <Alert color="gray">Устройства не найдены</Alert>
+        ) : (
+          <ScrollArea>
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>HWID</Table.Th>
+                  <Table.Th>Устройство</Table.Th>
+                  <Table.Th>Платформа</Table.Th>
+                  <Table.Th>Добавлено</Table.Th>
+                  <Table.Th>Действия</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {devices.map((device) => (
+                  <Table.Tr key={device.hwid}>
+                    <Table.Td>
+                      <Group gap={4}>
+                        <Text size="xs" style={{ fontFamily: 'monospace' }}>
+                          {maskHwid(device.hwid)}
+                        </Text>
+                        <CopyButton value={device.hwid}>
+                          {({ copied, copy }) => (
+                            <Tooltip label={copied ? 'Скопировано' : 'Копировать HWID'}>
+                              <ActionIcon
+                                size="xs"
+                                variant="subtle"
+                                color={copied ? 'green' : 'gray'}
+                                onClick={copy}
+                              >
+                                {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                              </ActionIcon>
+                            </Tooltip>
+                          )}
+                        </CopyButton>
+                      </Group>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{device.device_model || '-'}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge variant="light" size="xs">
+                        {device.platform || 'Unknown'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="xs">{formatDate(device.created_at)}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Tooltip label="Удалить устройство">
+                        <ActionIcon
+                          size="sm"
+                          variant="subtle"
+                          color="red"
+                          onClick={() => openDeleteModal(device)}
+                        >
+                          <IconTrash size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        )}
+      </Paper>
+
+      <Modal
+        opened={deleteModalOpened}
+        onClose={() => setDeleteModalOpened(false)}
+        title="Подтверждение удаления"
+        centered
+      >
+        <Text mb="md">
+          Вы уверены, что хотите удалить устройство{' '}
+          <Text span fw={600}>{deviceToDelete ? maskHwid(deviceToDelete.hwid) : ''}</Text>?
+        </Text>
+        <Group justify="flex-end">
+          <Button variant="default" onClick={() => setDeleteModalOpened(false)}>
+            Отмена
+          </Button>
+          <Button color="red" onClick={handleDeleteDevice} loading={deleting}>
+            Удалить
+          </Button>
+        </Group>
+      </Modal>
     </Stack>
   )
 }
