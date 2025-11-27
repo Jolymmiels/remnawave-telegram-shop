@@ -14,6 +14,13 @@ interface Broadcast {
   BlockedCount: number
 }
 
+interface CreatePayload {
+  content: string
+  type: string
+  language?: string
+  media?: File
+}
+
 interface BroadcastsState {
   items: Broadcast[]
   loading: boolean
@@ -27,7 +34,7 @@ interface BroadcastsState {
   }
   load: (reset?: boolean) => Promise<void>
   refreshActive: () => Promise<void>
-  create: (payload: { content: string; type: string; language?: string }) => Promise<void>
+  create: (payload: CreatePayload) => Promise<void>
   remove: (id: number) => Promise<void>
   setFilter: (filter: Partial<BroadcastsState['filter']>) => void
 }
@@ -84,8 +91,28 @@ export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   }
 
-  const create = async (payload: { content: string; type: string; language?: string }) => {
-    const newBroadcast = await http.post('/api/broadcasts', payload)
+  const create = async (payload: CreatePayload) => {
+    let newBroadcast
+    
+    if (payload.media) {
+      // Use FormData for media uploads
+      const formData = new FormData()
+      formData.append('content', payload.content)
+      formData.append('type', payload.type)
+      if (payload.language) {
+        formData.append('language', payload.language)
+      }
+      formData.append('media', payload.media)
+      
+      newBroadcast = await http.postForm('/api/broadcasts', formData)
+    } else {
+      newBroadcast = await http.post('/api/broadcasts', {
+        content: payload.content,
+        type: payload.type,
+        language: payload.language
+      })
+    }
+    
     setItems(prev => [newBroadcast, ...prev])
   }
 

@@ -128,9 +128,33 @@ async function request(method: string, url: string, body?: any) {
   }
 }
 
+async function requestForm(method: string, url: string, formData: FormData) {
+  const initData = getInitData()
+  
+  const resp = await fetch(url, { 
+    method, 
+    headers: {
+      'Telegram-Init-Data': initData
+    },
+    body: formData
+  })
+  
+  const text = await resp.text()
+  if (!resp.ok) {
+    throw new Error(`HTTP ${resp.status}: ${text || 'failure'}`)
+  }
+  
+  try { 
+    return JSON.parse(text) 
+  } catch { 
+    return text 
+  }
+}
+
 export const http = { 
   get: (u: string) => request('GET', u), 
   post: (u: string, b: any) => request('POST', u, b),
+  postForm: (u: string, f: FormData) => requestForm('POST', u, f),
   put: (u: string, b: any) => request('PUT', u, b),
   delete: (u: string) => request('DELETE', u)
 }

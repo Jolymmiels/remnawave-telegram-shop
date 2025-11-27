@@ -1,6 +1,7 @@
 package broadcast
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"log/slog"
@@ -10,6 +11,7 @@ import (
 	"time"
 
 	"github.com/go-telegram/bot"
+	"github.com/go-telegram/bot/models"
 )
 
 const (
@@ -32,6 +34,11 @@ type BroadcastStats struct {
 	Blocked int `json:"blocked"`
 }
 
+type MediaInfo struct {
+	Data []byte
+	Type string // "image" or "video"
+}
+
 type Service struct {
 	repo      *database.BroadcastRepository
 	customers *database.CustomerRepository
@@ -48,7 +55,23 @@ func (s *Service) SetAppContext(ctx context.Context) {
 	s.appCtx = ctx
 }
 
+func (s *Service) CreateBroadcastWithMedia(ctx context.Context, content, broadcastType, language string, mediaData []byte, mediaType string) (*database.Broadcast, error) {
+	var media *MediaInfo
+	if len(mediaData) > 0 {
+		mediaKind := "image"
+		if strings.HasPrefix(mediaType, "video/") {
+			mediaKind = "video"
+		}
+		media = &MediaInfo{Data: mediaData, Type: mediaKind}
+	}
+	return s.createBroadcastInternal(ctx, content, broadcastType, language, media)
+}
+
 func (s *Service) CreateBroadcast(ctx context.Context, content, broadcastType, language string) (*database.Broadcast, error) {
+	return s.createBroadcastInternal(ctx, content, broadcastType, language, nil)
+}
+
+func (s *Service) createBroadcastInternal(ctx context.Context, content, broadcastType, language string, media *MediaInfo) (*database.Broadcast, error) {
 	br := &database.Broadcast{
 		Content:  content,
 		Type:     broadcastType,
@@ -94,17 +117,17 @@ func (s *Service) CreateBroadcast(ctx context.Context, content, broadcastType, l
 		if s.appCtx != nil {
 			broadcastCtx = s.appCtx
 		}
-		s.sendBroadcast(broadcastCtx, created.ID, *customers, content)
+		s.sendBroadcast(broadcastCtx, created.ID, *customers, content, media)
 	}()
 
 	return created, nil
 }
 
-func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customers []database.Customer, content string) {
+func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customers []database.Customer, content string, media *MediaInfo) {
 	stats := BroadcastStats{Total: len(customers)}
 	processed := 0
 
-	slog.Info("broadcast started", "broadcast_id", broadcastID, "total", stats.Total)
+	slog.Info("broadcast started", "broadcast_id", broadcastID, "total", stats.Total, "has_media", media != nil)
 
 	for _, customer := range customers {
 		select {
@@ -117,7 +140,12 @@ func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customer
 		default:
 		}
 
-		err := s.sendMessageWithRetry(ctx, customer.TelegramID, content)
+		var err error
+		if media != nil {
+			err = s.sendMediaWithRetry(ctx, customer.TelegramID, content, media)
+		} else {
+			err = s.sendMessageWithRetry(ctx, customer.TelegramID, content)
+		}
 		if err != nil {
 			if isBlockedError(err) {
 				stats.Blocked++
@@ -203,8 +231,9 @@ func (s *Service) sendMessageWithRetry(ctx context.Context, chatID int64, text s
 
 	for attempt := 0; attempt <= maxRetries; attempt++ {
 		_, err := s.tgBotApi.SendMessage(ctx, &bot.SendMessageParams{
-			ChatID: chatID,
-			Text:   text,
+			ChatID:    chatID,
+			Text:      text,
+			ParseMode: models.ParseModeHTML,
 		})
 
 		if err == nil {
@@ -244,6 +273,61 @@ func (s *Service) sendMessageWithRetry(ctx context.Context, chatID int64, text s
 				"attempt", attempt+1,
 			)
 
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(backoff):
+				continue
+			}
+		}
+	}
+
+	return lastErr
+}
+
+func (s *Service) sendMediaWithRetry(ctx context.Context, chatID int64, caption string, media *MediaInfo) error {
+	var lastErr error
+
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		var err error
+
+		if media.Type == "video" {
+			_, err = s.tgBotApi.SendVideo(ctx, &bot.SendVideoParams{
+				ChatID:    chatID,
+				Video:     &models.InputFileUpload{Filename: "video.mp4", Data: bytes.NewReader(media.Data)},
+				Caption:   caption,
+				ParseMode: models.ParseModeHTML,
+			})
+		} else {
+			_, err = s.tgBotApi.SendPhoto(ctx, &bot.SendPhotoParams{
+				ChatID:    chatID,
+				Photo:     &models.InputFileUpload{Filename: "photo.jpg", Data: bytes.NewReader(media.Data)},
+				Caption:   caption,
+				ParseMode: models.ParseModeHTML,
+			})
+		}
+
+		if err == nil {
+			return nil
+		}
+
+		lastErr = err
+
+		if isBlockedError(err) {
+			return err
+		}
+
+		if retryAfter := extractRetryAfter(err); retryAfter > 0 {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(retryAfter) * time.Second):
+				continue
+			}
+		}
+
+		if attempt < maxRetries {
+			backoff := baseRetryDelay * time.Duration(1<<attempt)
 			select {
 			case <-ctx.Done():
 				return ctx.Err()

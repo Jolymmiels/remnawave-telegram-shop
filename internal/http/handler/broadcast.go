@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/broadcast"
 	"remnawave-tg-shop-bot/internal/database"
@@ -119,34 +120,66 @@ func (bh *BroadcastHandler) Delete(w http.ResponseWriter, r *http.Request) {
 func (bh *BroadcastHandler) Create(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
-	var req struct {
-		Content  string `json:"content"`
-		Type     string `json:"type"`
-		Language string `json:"language"`
-	}
-	dec := json.NewDecoder(r.Body)
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&req); err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid json: "+err.Error())
-		return
+	var content, typ, language string
+	var mediaData []byte
+	var mediaType string
+
+	contentType := r.Header.Get("Content-Type")
+	
+	if strings.HasPrefix(contentType, "multipart/form-data") {
+		// Parse multipart form (max 50MB)
+		if err := r.ParseMultipartForm(50 << 20); err != nil {
+			writeErr(w, http.StatusBadRequest, "failed to parse form: "+err.Error())
+			return
+		}
+		
+		content = strings.TrimSpace(r.FormValue("content"))
+		typ = strings.ToLower(strings.TrimSpace(r.FormValue("type")))
+		language = strings.TrimSpace(r.FormValue("language"))
+		
+		// Handle media file
+		file, header, err := r.FormFile("media")
+		if err == nil {
+			defer file.Close()
+			
+			mediaData, err = io.ReadAll(file)
+			if err != nil {
+				writeErr(w, http.StatusBadRequest, "failed to read media file: "+err.Error())
+				return
+			}
+			mediaType = header.Header.Get("Content-Type")
+		}
+	} else {
+		// Parse JSON
+		var req struct {
+			Content  string `json:"content"`
+			Type     string `json:"type"`
+			Language string `json:"language"`
+		}
+		dec := json.NewDecoder(r.Body)
+		dec.DisallowUnknownFields()
+		if err := dec.Decode(&req); err != nil {
+			writeErr(w, http.StatusBadRequest, "invalid json: "+err.Error())
+			return
+		}
+		
+		content = strings.TrimSpace(req.Content)
+		typ = strings.ToLower(strings.TrimSpace(req.Type))
+		language = strings.TrimSpace(req.Language)
 	}
 
-	req.Content = strings.TrimSpace(req.Content)
-	req.Type = strings.ToLower(strings.TrimSpace(req.Type))
-	req.Language = strings.TrimSpace(req.Language)
-
-	if req.Content == "" {
-		writeErr(w, http.StatusBadRequest, "content is required")
+	if content == "" && len(mediaData) == 0 {
+		writeErr(w, http.StatusBadRequest, "content or media is required")
 		return
 	}
-	switch req.Type {
+	switch typ {
 	case database.BroadcastAll, database.BroadcastActive, database.BroadcastInactive:
 	default:
 		writeErr(w, http.StatusBadRequest, "type must be one of: all, active, inactive")
 		return
 	}
 
-	created, err := bh.broadcastService.CreateBroadcast(ctx, req.Content, req.Type, req.Language)
+	created, err := bh.broadcastService.CreateBroadcastWithMedia(ctx, content, typ, language, mediaData, mediaType)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
