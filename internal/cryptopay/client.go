@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"remnawave-tg-shop-bot/internal/config"
 )
 
 type CryptoPayApi interface {
@@ -15,16 +16,22 @@ type CryptoPayApi interface {
 
 type Client struct {
 	httpClient *http.Client
-	baseURL    string
-	token      string
 }
 
-func NewCryptoPayClient(url string, tokn string) *Client {
+func NewCryptoPayClient() *Client {
 	return &Client{
 		httpClient: &http.Client{},
-		baseURL:    url,
-		token:      tokn,
 	}
+}
+
+// getBaseURL returns current CryptoPay URL from settings
+func (c *Client) getBaseURL() string {
+	return config.CryptoPayUrl()
+}
+
+// getToken returns current CryptoPay token from settings
+func (c *Client) getToken() string {
+	return config.CryptoPayToken()
 }
 
 func (c *Client) CreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, error) {
@@ -33,14 +40,14 @@ func (c *Client) CreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, er
 		return nil, fmt.Errorf("error marshaling invoice: %w", err)
 	}
 
-	endpoint := fmt.Sprintf("%s/api/createInvoice", c.baseURL)
+	endpoint := fmt.Sprintf("%s/api/createInvoice", c.getBaseURL())
 	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(jsonData))
 	if err != nil {
 		return nil, fmt.Errorf("error while creating invoice req: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Crypto-Pay-API-Token", c.token)
+	req.Header.Set("Crypto-Pay-API-Token", c.getToken())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -70,7 +77,7 @@ func (c *Client) CreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, er
 }
 
 func (c *Client) GetInvoices(status, fiat, asset, invoiceIds string, offset, limit int) (*[]InvoiceResponse, error) {
-	endpoint := fmt.Sprintf("%s/api/getInvoices", c.baseURL)
+	endpoint := fmt.Sprintf("%s/api/getInvoices", c.getBaseURL())
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error while creating request: %w", err)
@@ -103,7 +110,7 @@ func (c *Client) GetInvoices(status, fiat, asset, invoiceIds string, offset, lim
 	}
 
 	req.URL.RawQuery = q.Encode()
-	req.Header.Set("Crypto-Pay-API-Token", c.token)
+	req.Header.Set("Crypto-Pay-API-Token", c.getToken())
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {

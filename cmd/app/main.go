@@ -73,9 +73,9 @@ func main() {
 	config.SetSettingsProvider(settingsRepository)
 	planRepository := database.NewPlanRepository(pool)
 
-	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
+	cryptoPayClient := cryptopay.NewCryptoPayClient()
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
-	yookasaClient := yookasa.NewClient(config.YookasaUrl(), config.YookasaShopId(), config.YookasaSecretKey())
+	yookasaClient := yookasa.NewClient()
 	b, err := bot.New(config.TelegramToken(), bot.WithWorkers(3))
 	if err != nil {
 		panic(err)

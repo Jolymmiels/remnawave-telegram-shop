@@ -23,19 +23,26 @@ type YookasaAPI interface {
 
 type Client struct {
 	httpClient *http.Client
-	baseURL    string
-	authHeader string
 }
 
-func NewClient(baseURL, shopID, secretKey string) *Client {
-	auth := fmt.Sprintf("%s:%s", shopID, secretKey)
-	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
-
+func NewClient() *Client {
 	return &Client{
 		httpClient: &http.Client{},
-		baseURL:    baseURL,
-		authHeader: fmt.Sprintf("Basic %s", encodedAuth),
 	}
+}
+
+// getBaseURL returns current YooKassa URL from settings
+func (c *Client) getBaseURL() string {
+	return config.YookasaUrl()
+}
+
+// getAuthHeader returns current auth header from settings
+func (c *Client) getAuthHeader() string {
+	shopID := config.YookasaShopId()
+	secretKey := config.YookasaSecretKey()
+	auth := fmt.Sprintf("%s:%s", shopID, secretKey)
+	encodedAuth := base64.StdEncoding.EncodeToString([]byte(auth))
+	return fmt.Sprintf("Basic %s", encodedAuth)
 }
 
 func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, customerId int64, purchaseId int64, returnURL string) (*Payment, error) {
@@ -96,7 +103,7 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 }
 
 func (c *Client) CreatePayment(ctx context.Context, request PaymentRequest, idempotencyKey string) (*Payment, error) {
-	paymentURL := fmt.Sprintf("%s/payments", c.baseURL)
+	paymentURL := fmt.Sprintf("%s/payments", c.getBaseURL())
 
 	reqBody, err := json.Marshal(request)
 	if err != nil {
@@ -109,7 +116,7 @@ func (c *Client) CreatePayment(ctx context.Context, request PaymentRequest, idem
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", c.authHeader)
+	req.Header.Set("Authorization", c.getAuthHeader())
 	req.Header.Set("Idempotence-Key", idempotencyKey)
 
 	resp, err := c.httpClient.Do(req)
@@ -135,7 +142,7 @@ func (c *Client) CreatePayment(ctx context.Context, request PaymentRequest, idem
 }
 
 func (c *Client) GetPayment(ctx context.Context, paymentID uuid.UUID) (*Payment, error) {
-	paymentURL := fmt.Sprintf("%s/payments/%s", c.baseURL, paymentID)
+	paymentURL := fmt.Sprintf("%s/payments/%s", c.getBaseURL(), paymentID)
 
 	var payment *Payment
 
@@ -148,7 +155,7 @@ func (c *Client) GetPayment(ctx context.Context, paymentID uuid.UUID) (*Payment,
 			return nil, fmt.Errorf("failed to create request: %w", err)
 		}
 
-		req.Header.Set("Authorization", c.authHeader)
+		req.Header.Set("Authorization", c.getAuthHeader())
 
 		resp, err := c.httpClient.Do(req)
 		if err != nil {
