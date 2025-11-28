@@ -499,18 +499,18 @@ func InitConfig() {
 		conf.externalSquadUUID = uuid.Nil
 	}
 
-	conf.trialTrafficLimit = mustEnvInt("TRIAL_TRAFFIC_LIMIT")
+	conf.trialTrafficLimit = envIntDefault("TRIAL_TRAFFIC_LIMIT", 0)
 
 	conf.healthCheckPort = envIntDefault("HEALTH_CHECK_PORT", 8080)
 
-	conf.trialDays = mustEnvInt("TRIAL_DAYS")
+	conf.trialDays = envIntDefault("TRIAL_DAYS", 0)
 
 	conf.enableAutoPayment = envBool("ENABLE_AUTO_PAYMENT")
 
-	conf.price1 = mustEnvInt("PRICE_1")
-	conf.price3 = mustEnvInt("PRICE_3")
-	conf.price6 = mustEnvInt("PRICE_6")
-	conf.price12 = mustEnvInt("PRICE_12")
+	conf.price1 = envIntDefault("PRICE_1", 0)
+	conf.price3 = envIntDefault("PRICE_3", 0)
+	conf.price6 = envIntDefault("PRICE_6", 0)
+	conf.price12 = envIntDefault("PRICE_12", 0)
 
 	conf.isTelegramStarsEnabled = envBool("TELEGRAM_STARS_ENABLED")
 	if conf.isTelegramStarsEnabled {
@@ -543,21 +543,17 @@ func InitConfig() {
 	conf.databaseURL = mustEnv("DATABASE_URL")
 
 	conf.isCryptoEnabled = envBool("CRYPTO_PAY_ENABLED")
-	if conf.isCryptoEnabled {
-		conf.cryptoPayURL = mustEnv("CRYPTO_PAY_URL")
-		conf.cryptoPayToken = mustEnv("CRYPTO_PAY_TOKEN")
-	}
+	conf.cryptoPayURL = envStringDefault("CRYPTO_PAY_URL", "")
+	conf.cryptoPayToken = envStringDefault("CRYPTO_PAY_TOKEN", "")
 
 	conf.isYookasaEnabled = envBool("YOOKASA_ENABLED")
-	if conf.isYookasaEnabled {
-		conf.yookasaURL = mustEnv("YOOKASA_URL")
-		conf.yookasaShopId = mustEnv("YOOKASA_SHOP_ID")
-		conf.yookasaSecretKey = mustEnv("YOOKASA_SECRET_KEY")
-		conf.yookasaEmail = mustEnv("YOOKASA_EMAIL")
-	}
+	conf.yookasaURL = envStringDefault("YOOKASA_URL", "")
+	conf.yookasaShopId = envStringDefault("YOOKASA_SHOP_ID", "")
+	conf.yookasaSecretKey = envStringDefault("YOOKASA_SECRET_KEY", "")
+	conf.yookasaEmail = envStringDefault("YOOKASA_EMAIL", "")
 
-	conf.trafficLimit = mustEnvInt("TRAFFIC_LIMIT")
-	conf.referralDays = mustEnvInt("REFERRAL_DAYS")
+	conf.trafficLimit = envIntDefault("TRAFFIC_LIMIT", 0)
+	conf.referralDays = envIntDefault("REFERRAL_DAYS", 0)
 
 	conf.serverStatusURL = os.Getenv("SERVER_STATUS_URL")
 	conf.supportURL = os.Getenv("SUPPORT_URL")
@@ -585,11 +581,9 @@ func InitConfig() {
 		}
 	}()
 
-	conf.tributeWebhookUrl = os.Getenv("TRIBUTE_WEBHOOK_URL")
-	if conf.tributeWebhookUrl != "" {
-		conf.tributeAPIKey = mustEnv("TRIBUTE_API_KEY")
-		conf.tributePaymentUrl = mustEnv("TRIBUTE_PAYMENT_URL")
-	}
+	conf.tributeWebhookUrl = envStringDefault("TRIBUTE_WEBHOOK_URL", "")
+	conf.tributeAPIKey = envStringDefault("TRIBUTE_API_KEY", "")
+	conf.tributePaymentUrl = envStringDefault("TRIBUTE_PAYMENT_URL", "")
 
 	conf.blockedTelegramIds = func() map[int64]bool {
 		v := os.Getenv("BLOCKED_TELEGRAM_IDS")
