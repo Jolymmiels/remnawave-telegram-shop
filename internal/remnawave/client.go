@@ -150,17 +150,17 @@ func (r *Client) CreateOrUpdateUserWithPlan(ctx context.Context, customerId int6
 		if existingUser == nil {
 			existingUser = &v.GetResponse()[0]
 		}
-		return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, plan)
+		return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, isTrialUser, plan)
 	default:
 		return nil, errors.New("unknown response type")
 	}
 }
 
 func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int) (*remapi.UserResponseResponse, error) {
-	return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, nil)
+	return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, false, nil)
 }
 
-func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int, plan *database.Plan) (*remapi.UserResponseResponse, error) {
+func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
 	newExpire := getNewExpire(days, existingUser.ExpireAt)
 
 	resp, err := r.client.InternalSquadControllerGetInternalSquads(ctx)
@@ -170,9 +170,11 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 
 	squads := resp.(*remapi.GetInternalSquadsResponseDto).GetResponse()
 
-	// Use plan squads if available, otherwise use config
+	// Determine selected squads based on plan, trial, or config
 	selectedSquads := config.SquadUUIDs()
-	if plan != nil && plan.InternalSquads != "" {
+	if isTrialUser {
+		selectedSquads = config.TrialInternalSquads()
+	} else if plan != nil && plan.InternalSquads != "" {
 		selectedSquads = parseSquadUUIDs(plan.InternalSquads)
 	}
 
@@ -189,18 +191,26 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 		}
 	}
 
+	// Determine traffic limit strategy
+	strategy := config.TrafficLimitResetStrategy()
+	if isTrialUser {
+		strategy = config.TrialTrafficLimitResetStrategy()
+	}
+
 	userUpdate := &remapi.UpdateUserRequestDto{
 		UUID:                 remapi.NewOptUUID(existingUser.UUID),
 		ExpireAt:             remapi.NewOptDateTime(newExpire),
 		Status:               remapi.NewOptUpdateUserRequestDtoStatus(remapi.UpdateUserRequestDtoStatusACTIVE),
 		TrafficLimitBytes:    remapi.NewOptInt(trafficLimit),
 		ActiveInternalSquads: squadId,
-		TrafficLimitStrategy: remapi.NewOptUpdateUserRequestDtoTrafficLimitStrategy(getUpdateStrategy(config.TrafficLimitResetStrategy())),
+		TrafficLimitStrategy: remapi.NewOptUpdateUserRequestDtoTrafficLimitStrategy(getUpdateStrategy(strategy)),
 	}
 
-	// Use plan external squad if available
+	// Determine external squad based on plan, trial, or config
 	externalSquad := config.ExternalSquadUUID()
-	if plan != nil && plan.ExternalSquadUUID != "" {
+	if isTrialUser {
+		externalSquad = config.TrialExternalSquadUUID()
+	} else if plan != nil && plan.ExternalSquadUUID != "" {
 		if parsed, err := uuid.Parse(plan.ExternalSquadUUID); err == nil {
 			externalSquad = parsed
 		}
@@ -209,9 +219,11 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 		userUpdate.ExternalSquadUuid = remapi.NewOptNilUUID(externalSquad)
 	}
 
-	// Use plan tag if available
+	// Determine tag based on plan, trial, or config
 	tag := config.RemnawaveTag()
-	if plan != nil && plan.RemnawaveTag != "" {
+	if isTrialUser {
+		tag = config.TrialRemnawaveTag()
+	} else if plan != nil && plan.RemnawaveTag != "" {
 		tag = plan.RemnawaveTag
 	}
 	if tag != "" {
