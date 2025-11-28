@@ -389,6 +389,10 @@ func RequirePaidPurchaseForStars() bool {
 	return getBoolSettingWithDeprecation("require_paid_purchase_for_stars", conf.requirePaidPurchaseForStars, "REQUIRE_PAID_PURCHASE_FOR_STARS")
 }
 
+func IsTributeEnabled() bool {
+	return getBoolSettingWithDeprecation("tribute_enabled", conf.tributeWebhookUrl != "", "TRIBUTE_WEBHOOK_URL")
+}
+
 func GetAdminTelegramId() int64 {
 	return conf.adminTelegramId
 }

@@ -554,7 +554,14 @@ const SettingsPage: React.FC = () => {
 
               {/* Tribute */}
               <Paper p="xs" withBorder>
-                <Text fw={600} size="sm" mb="xs">Tribute</Text>
+                <Group justify="space-between" mb="xs">
+                  <Text fw={600} size="sm">Tribute</Text>
+                  <Switch
+                    size="xs"
+                    checked={settings.tribute_enabled === 'true'}
+                    onChange={e => updateSetting('tribute_enabled', e.currentTarget.checked)}
+                  />
+                </Group>
                 <Stack gap="xs">
                   <TextInput
                     label="Webhook URL"

@@ -195,7 +195,7 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 		}
 	}
 
-	if config.GetTributeWebHookUrl() != "" {
+	if config.IsTributeEnabled() {
 		keyboard = append(keyboard, []models.InlineKeyboardButton{
 			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
 		})
