@@ -69,6 +69,8 @@ func main() {
 	if err := settingsRepository.LoadAll(ctx); err != nil {
 		slog.Warn("Failed to load settings from database, using env defaults", "error", err)
 	}
+	// Set settings provider for config to use DB settings with env fallback
+	config.SetSettingsProvider(settingsRepository)
 	planRepository := database.NewPlanRepository(pool)
 
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
