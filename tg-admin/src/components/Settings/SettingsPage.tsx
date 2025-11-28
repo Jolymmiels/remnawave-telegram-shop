@@ -394,6 +394,12 @@ const SettingsPage: React.FC = () => {
           <Accordion.Control>Триал</Accordion.Control>
           <Accordion.Panel>
             <Stack gap="sm">
+              <Switch
+                label="Включить триал"
+                size="xs"
+                checked={settings.trial_enabled === 'true'}
+                onChange={e => updateSetting('trial_enabled', e.currentTarget.checked)}
+              />
               <SimpleGrid cols={{ base: 2 }} spacing="xs">
                 <NumberInput
                   label="Дни триала"

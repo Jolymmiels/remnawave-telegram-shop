@@ -405,7 +405,7 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 }
 
 func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (string, error) {
-	if config.TrialDays() == 0 {
+	if !config.IsTrialEnabled() {
 		return "", nil
 	}
 	customer, err := s.customerRepository.FindByTelegramId(ctx, telegramId)

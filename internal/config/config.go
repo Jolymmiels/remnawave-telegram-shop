@@ -249,6 +249,17 @@ func TrialTrafficLimit() int {
 	return getIntSettingWithDeprecation("trial_traffic_limit", conf.trialTrafficLimit, "TRIAL_TRAFFIC_LIMIT") * bytesInGigabyte
 }
 
+func IsTrialEnabled() bool {
+	// Check DB setting first, then check if trial_days > 0 as fallback
+	if settingsProvider != nil {
+		if val := settingsProvider.Get("trial_enabled"); val != "" {
+			return val == "true"
+		}
+	}
+	// Fallback: trial is enabled if trial_days > 0
+	return conf.trialDays > 0
+}
+
 func TrialDays() int {
 	return getIntSettingWithDeprecation("trial_days", conf.trialDays, "TRIAL_DAYS")
 }

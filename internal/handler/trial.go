@@ -12,7 +12,7 @@ import (
 )
 
 func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	if config.TrialDays() == 0 {
+	if !config.IsTrialEnabled() {
 		return
 	}
 	c, err := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
@@ -45,7 +45,7 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 }
 
 func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	if config.TrialDays() == 0 {
+	if !config.IsTrialEnabled() {
 		return
 	}
 	c, err := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
