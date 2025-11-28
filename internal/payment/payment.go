@@ -20,16 +20,17 @@ import (
 )
 
 type PaymentService struct {
-	purchaseRepository *database.PurchaseRepository
-	remnawaveClient    *remnawave.Client
-	customerRepository *database.CustomerRepository
-	telegramBot        *bot.Bot
-	translation        *translation.Manager
-	cryptoPayClient    *cryptopay.Client
-	yookasaClient      *yookasa.Client
-	referralRepository *database.ReferralRepository
-	cache              *cache.Cache
-	planRepository     *database.PlanRepository
+	purchaseRepository  *database.PurchaseRepository
+	remnawaveClient     *remnawave.Client
+	customerRepository  *database.CustomerRepository
+	telegramBot         *bot.Bot
+	translation         *translation.Manager
+	cryptoPayClient     *cryptopay.Client
+	yookasaClient       *yookasa.Client
+	referralRepository  *database.ReferralRepository
+	cache               *cache.Cache
+	planRepository      *database.PlanRepository
+	settingsRepository  *database.SettingsRepository
 }
 
 func NewPaymentService(
@@ -43,18 +44,20 @@ func NewPaymentService(
 	referralRepository *database.ReferralRepository,
 	cache *cache.Cache,
 	planRepository *database.PlanRepository,
+	settingsRepository *database.SettingsRepository,
 ) *PaymentService {
 	return &PaymentService{
-		purchaseRepository: purchaseRepository,
-		remnawaveClient:    remnawaveClient,
-		customerRepository: customerRepository,
-		telegramBot:        telegramBot,
-		translation:        translation,
-		cryptoPayClient:    cryptoPayClient,
-		yookasaClient:      yookasaClient,
-		referralRepository: referralRepository,
-		cache:              cache,
-		planRepository:     planRepository,
+		purchaseRepository:  purchaseRepository,
+		remnawaveClient:     remnawaveClient,
+		customerRepository:  customerRepository,
+		telegramBot:         telegramBot,
+		translation:         translation,
+		cryptoPayClient:     cryptoPayClient,
+		yookasaClient:       yookasaClient,
+		referralRepository:  referralRepository,
+		cache:               cache,
+		planRepository:      planRepository,
+		settingsRepository:  settingsRepository,
 	}
 }
 
@@ -269,6 +272,16 @@ func (s PaymentService) CancelTributePurchase(ctx context.Context, telegramId in
 	return nil
 }
 
+// getPaymentReturnURL returns the payment return URL from settings or falls back to config.BotURL()
+func (s PaymentService) getPaymentReturnURL() string {
+	if s.settingsRepository != nil {
+		if url := s.settingsRepository.Get("payment_return_url"); url != "" {
+			return url
+		}
+	}
+	return config.BotURL()
+}
+
 func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64, months int, customer *database.Customer, planID *int64) (url string, purchaseId int64, err error) {
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
 		InvoiceType: database.InvoiceTypeCrypto,
@@ -292,7 +305,7 @@ func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64,
 		Payload:        fmt.Sprintf("purchaseId=%d&username=%s", purchaseId, ctx.Value("username")),
 		Description:    fmt.Sprintf("Subscription on %d month", months),
 		PaidBtnName:    "callback",
-		PaidBtnUrl:     config.BotURL(),
+		PaidBtnUrl:     s.getPaymentReturnURL(),
 	})
 	if err != nil {
 		slog.Error("Error creating invoice", "error", err)
@@ -329,7 +342,7 @@ func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64
 		return "", 0, err
 	}
 
-	invoice, err := s.yookasaClient.CreateInvoice(ctx, int(amount), months, customer.ID, purchaseId)
+	invoice, err := s.yookasaClient.CreateInvoice(ctx, int(amount), months, customer.ID, purchaseId, s.getPaymentReturnURL())
 	if err != nil {
 		slog.Error("Error creating invoice", "error", err)
 		return "", 0, err

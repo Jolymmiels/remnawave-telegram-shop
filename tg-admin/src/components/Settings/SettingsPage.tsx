@@ -452,57 +452,20 @@ const SettingsPage: React.FC = () => {
           </Accordion.Panel>
         </Accordion.Item>
 
-        {/* Squads Section */}
-        <Accordion.Item value="squads">
-          <Accordion.Control>Squads (покупатели)</Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="sm">
-              <TextInput
-                label="Тег в Remnawave"
-                size="xs"
-                value={settings.remnawave_tag || ''}
-                onChange={e => updateSetting('remnawave_tag', e.target.value)}
-              />
-
-              <Box>
-                <FieldLabel>Internal Squads</FieldLabel>
-                <Stack gap={4}>
-                  {internalSquadOptions.map(opt => (
-                    <Switch
-                      key={opt.value}
-                      label={opt.label}
-                      size="xs"
-                      checked={getSelectedSquads('squad_uuids').includes(opt.value)}
-                      onChange={e => {
-                        const current = getSelectedSquads('squad_uuids')
-                        if (e.currentTarget.checked) {
-                          setSelectedSquads('squad_uuids', [...current, opt.value])
-                        } else {
-                          setSelectedSquads('squad_uuids', current.filter(v => v !== opt.value))
-                        }
-                      }}
-                    />
-                  ))}
-                </Stack>
-              </Box>
-
-              <Select
-                label="External Squad"
-                size="xs"
-                data={externalSquadOptions}
-                value={settings.external_squad_uuid || ''}
-                onChange={v => updateSetting('external_squad_uuid', v || '')}
-                clearable
-              />
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-
         {/* Payments Section */}
         <Accordion.Item value="payments">
           <Accordion.Control>Платежи</Accordion.Control>
           <Accordion.Panel>
             <Stack gap="md">
+              {/* General Payment Settings */}
+              <TextInput
+                label="URL возврата после оплаты"
+                description="Ссылка на бота, куда пользователь вернется после оплаты (например: https://t.me/your_bot)"
+                size="xs"
+                value={settings.payment_return_url || ''}
+                onChange={e => updateSetting('payment_return_url', e.target.value)}
+                placeholder="https://t.me/your_bot"
+              />
               {/* Telegram Stars */}
               <Paper p="xs" withBorder>
                 <Group justify="space-between" mb="xs">
