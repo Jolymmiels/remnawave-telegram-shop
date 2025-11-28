@@ -625,19 +625,12 @@ const SettingsPage: React.FC = () => {
           <Accordion.Control>Прочее</Accordion.Control>
           <Accordion.Panel>
             <Stack gap="xs">
-              <SimpleGrid cols={{ base: 2, sm: 3 }} spacing="xs">
+              <SimpleGrid cols={2} spacing="xs">
                 <NumberInput
                   label="Реферальные дни"
                   size="xs"
                   value={Number(settings.referral_days) || 0}
                   onChange={v => updateSetting('referral_days', v || 0)}
-                  min={0}
-                />
-                <NumberInput
-                  label="Лимит трафика (ГБ)"
-                  size="xs"
-                  value={Number(settings.traffic_limit) || 0}
-                  onChange={v => updateSetting('traffic_limit', v || 0)}
                   min={0}
                 />
                 <NumberInput
