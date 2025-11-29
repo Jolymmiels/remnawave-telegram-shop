@@ -3,14 +3,41 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+
+	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/promo"
+	"remnawave-tg-shop-bot/internal/translation"
 )
 
-func (h *Handler) PromoCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+type PromoHandler struct {
+	customerRepository *database.CustomerRepository
+	promo              *promo.Service
+	paymentService     *payment.PaymentService
+	translation        *translation.Manager
+}
+
+func NewPromoHandler(
+	customerRepository *database.CustomerRepository,
+	promo *promo.Service,
+	paymentService *payment.PaymentService,
+	translation *translation.Manager,
+) *PromoHandler {
+	return &PromoHandler{
+		customerRepository: customerRepository,
+		promo:              promo,
+		paymentService:     paymentService,
+		translation:        translation,
+	}
+}
+
+func (h *PromoHandler) PromoCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
@@ -35,7 +62,6 @@ func (h *Handler) PromoCommandHandler(ctx context.Context, b *bot.Bot, update *m
 
 	promoCode := strings.TrimSpace(messageParts[1])
 
-	// Validate promo code
 	validation, err := h.promo.ValidatePromoCode(ctx, promoCode, customer.ID)
 	if err != nil {
 		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
@@ -53,7 +79,6 @@ func (h *Handler) PromoCommandHandler(ctx context.Context, b *bot.Bot, update *m
 		return
 	}
 
-	// Show promo confirmation
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
@@ -78,7 +103,7 @@ func (h *Handler) PromoCommandHandler(ctx context.Context, b *bot.Bot, update *m
 	})
 }
 
-func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *PromoHandler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if update.CallbackQuery == nil {
 		return
 	}
@@ -93,7 +118,6 @@ func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 		return
 	}
 
-	// Extract promo ID from callback data
 	parts := strings.Split(update.CallbackQuery.Data, "_")
 	if len(parts) != 2 {
 		_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
@@ -114,9 +138,9 @@ func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 		return
 	}
 
-	// Apply the promo code
 	err = h.promo.ApplyPromoCode(ctx, promoID, customer.ID)
 	if err != nil {
+		slog.Error("Error applying promo code", "error", err)
 		_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
 			Text:            h.translation.GetText(customer.Language, "error_applying_promo"),
@@ -125,8 +149,7 @@ func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 		return
 	}
 
-	// Update customer expiry date with bonus days
-	promo, err := h.promo.GetPromoByID(ctx, promoID)
+	promoInfo, err := h.promo.GetPromoByID(ctx, promoID)
 	if err != nil {
 		_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
@@ -136,8 +159,7 @@ func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 		return
 	}
 
-	// Extend subscription with bonus days
-	err = h.paymentService.ExtendSubscription(ctx, customer.ID, promo.BonusDays)
+	err = h.paymentService.ExtendSubscription(ctx, customer.ID, promoInfo.BonusDays)
 	if err != nil {
 		_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 			CallbackQueryID: update.CallbackQuery.ID,
@@ -149,14 +171,13 @@ func (h *Handler) PromoCallbackHandler(ctx context.Context, b *bot.Bot, update *
 
 	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
 		CallbackQueryID: update.CallbackQuery.ID,
-		Text:            fmt.Sprintf(h.translation.GetText(customer.Language, "promo_applied_success"), promo.BonusDays),
+		Text:            fmt.Sprintf(h.translation.GetText(customer.Language, "promo_applied_success"), promoInfo.BonusDays),
 		ShowAlert:       true,
 	})
 
-	// Edit message to show success
 	_, _ = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    update.CallbackQuery.Message.Message.Chat.ID,
 		MessageID: update.CallbackQuery.Message.Message.ID,
-		Text:      fmt.Sprintf(h.translation.GetText(customer.Language, "promo_applied_success"), promo.BonusDays),
+		Text:      fmt.Sprintf(h.translation.GetText(customer.Language, "promo_applied_success"), promoInfo.BonusDays),
 	})
 }

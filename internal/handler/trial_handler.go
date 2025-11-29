@@ -2,16 +2,37 @@ package handler
 
 import (
 	"context"
+	"log/slog"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/utils"
 )
 
-func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+type TrialHandler struct {
+	customerRepository *database.CustomerRepository
+	paymentService     *payment.PaymentService
+	translation        *translation.Manager
+}
+
+func NewTrialHandler(
+	customerRepository *database.CustomerRepository,
+	paymentService *payment.PaymentService,
+	translation *translation.Manager,
+) *TrialHandler {
+	return &TrialHandler{
+		customerRepository: customerRepository,
+		paymentService:     paymentService,
+		translation:        translation,
+	}
+}
+
+func (h *TrialHandler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if !config.IsTrialEnabled() {
 		return
 	}
@@ -44,7 +65,7 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	}
 }
 
-func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *TrialHandler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if !config.IsTrialEnabled() {
 		return
 	}
@@ -79,12 +100,28 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 	}
 }
 
-func (h Handler) createConnectKeyboard(lang string) [][]models.InlineKeyboardButton {
+func (h *TrialHandler) createConnectKeyboard(lang string) [][]models.InlineKeyboardButton {
 	var inlineCustomerKeyboard [][]models.InlineKeyboardButton
 	inlineCustomerKeyboard = append(inlineCustomerKeyboard, h.resolveConnectButton(lang))
-
 	inlineCustomerKeyboard = append(inlineCustomerKeyboard, []models.InlineKeyboardButton{
 		{Text: h.translation.GetText(lang, "back_button"), CallbackData: CallbackStart},
 	})
 	return inlineCustomerKeyboard
+}
+
+func (h *TrialHandler) resolveConnectButton(lang string) []models.InlineKeyboardButton {
+	var inlineKeyboard []models.InlineKeyboardButton
+
+	if config.GetMiniAppURL() != "" {
+		inlineKeyboard = []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(lang, "connect_button"), WebApp: &models.WebAppInfo{
+				URL: config.GetMiniAppURL(),
+			}},
+		}
+	} else {
+		inlineKeyboard = []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(lang, "connect_button"), CallbackData: CallbackConnect},
+		}
+	}
+	return inlineKeyboard
 }

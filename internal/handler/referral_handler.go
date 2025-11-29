@@ -3,13 +3,34 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
+
+	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/translation"
 )
 
-func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+type ReferralHandler struct {
+	customerRepository *database.CustomerRepository
+	referralRepository *database.ReferralRepository
+	translation        *translation.Manager
+}
+
+func NewReferralHandler(
+	customerRepository *database.CustomerRepository,
+	referralRepository *database.ReferralRepository,
+	translation *translation.Manager,
+) *ReferralHandler {
+	return &ReferralHandler{
+		customerRepository: customerRepository,
+		referralRepository: referralRepository,
+		translation:        translation,
+	}
+}
+
+func (h *ReferralHandler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	langCode := update.CallbackQuery.From.LanguageCode
 	refCode := customer.TelegramID

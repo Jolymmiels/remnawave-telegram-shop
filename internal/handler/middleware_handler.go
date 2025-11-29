@@ -2,7 +2,6 @@ package handler
 
 import (
 	"context"
-
 	"log/slog"
 
 	"github.com/go-telegram/bot"
@@ -10,10 +9,26 @@ import (
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/utils"
 )
 
-func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
+type MiddlewareHandler struct {
+	customerRepository *database.CustomerRepository
+	translation        *translation.Manager
+}
+
+func NewMiddlewareHandler(
+	customerRepository *database.CustomerRepository,
+	translation *translation.Manager,
+) *MiddlewareHandler {
+	return &MiddlewareHandler{
+		customerRepository: customerRepository,
+		translation:        translation,
+	}
+}
+
+func (h *MiddlewareHandler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
 		var telegramId int64
 		var langCode string
@@ -31,7 +46,7 @@ func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.Ha
 		}
 
 		if existingCustomer == nil {
-			existingCustomer, err = h.customerRepository.Create(ctx, &database.Customer{
+			_, err = h.customerRepository.Create(ctx, &database.Customer{
 				TelegramID: telegramId,
 				Language:   langCode,
 			})
@@ -55,7 +70,7 @@ func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.Ha
 	}
 }
 
-func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
+func (h *MiddlewareHandler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
 		var username, firstName, lastName *string
 		var userID int64
@@ -81,11 +96,9 @@ func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.Handle
 			return
 		}
 
-		// Check if user is blocked in database
 		customer, err := h.customerRepository.FindByTelegramId(ctx, userID)
 		if err != nil {
 			slog.Error("Failed to check if user is blocked", "error", err)
-			// Continue on error - don't block legitimate requests due to DB issues
 		} else if customer != nil && customer.IsBlocked {
 			slog.Warn("blocked user by is_blocked flag", "userId", utils.MaskHalfInt64(userID))
 			_, err := b.SendMessage(ctx, &bot.SendMessageParams{

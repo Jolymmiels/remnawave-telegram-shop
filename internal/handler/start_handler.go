@@ -3,20 +3,43 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/promo"
+	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/utils"
 )
 
-func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+type StartHandler struct {
+	customerRepository *database.CustomerRepository
+	referralRepository *database.ReferralRepository
+	promo              *promo.Service
+	translation        *translation.Manager
+}
+
+func NewStartHandler(
+	customerRepository *database.CustomerRepository,
+	referralRepository *database.ReferralRepository,
+	promo *promo.Service,
+	translation *translation.Manager,
+) *StartHandler {
+	return &StartHandler{
+		customerRepository: customerRepository,
+		referralRepository: referralRepository,
+		promo:              promo,
+		translation:        translation,
+	}
+}
+
+func (h *StartHandler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	langCode := update.Message.From.LanguageCode
@@ -68,7 +91,6 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		}
 	}
 
-	// Handle promo code from deep link (start=promo=CODE)
 	if strings.Contains(update.Message.Text, "promo=") {
 		parts := strings.Split(update.Message.Text, " ")
 		if len(parts) > 1 {
@@ -81,7 +103,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		}
 	}
 
-	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
+	inlineKeyboard := h.BuildStartKeyboard(existingCustomer, langCode)
 
 	m, err := b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
@@ -119,7 +141,7 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 }
 
-func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *StartHandler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
@@ -132,7 +154,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 		return
 	}
 
-	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
+	inlineKeyboard := h.BuildStartKeyboard(existingCustomer, langCode)
 
 	_, err = b.EditMessageText(ctxWithTime, &bot.EditMessageTextParams{
 		ChatID:    callback.Message.Message.Chat.ID,
@@ -148,7 +170,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	}
 }
 
-func (h Handler) resolveConnectButton(lang string) []models.InlineKeyboardButton {
+func (h *StartHandler) ResolveConnectButton(lang string) []models.InlineKeyboardButton {
 	var inlineKeyboard []models.InlineKeyboardButton
 
 	if config.GetMiniAppURL() != "" {
@@ -165,7 +187,7 @@ func (h Handler) resolveConnectButton(lang string) []models.InlineKeyboardButton
 	return inlineKeyboard
 }
 
-func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCode string) [][]models.InlineKeyboardButton {
+func (h *StartHandler) BuildStartKeyboard(existingCustomer *database.Customer, langCode string) [][]models.InlineKeyboardButton {
 	var inlineKeyboard [][]models.InlineKeyboardButton
 
 	if existingCustomer.SubscriptionLink == nil && !existingCustomer.TrialUsed && config.IsTrialEnabled() {
@@ -175,7 +197,7 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: CallbackBuy}}}...)
 
 	if existingCustomer.SubscriptionLink != nil && existingCustomer.ExpireAt.After(time.Now()) {
-		inlineKeyboard = append(inlineKeyboard, h.resolveConnectButton(langCode))
+		inlineKeyboard = append(inlineKeyboard, h.ResolveConnectButton(langCode))
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{
 			{Text: h.translation.GetText(langCode, "my_devices_button"), CallbackData: CallbackDevices},
 		})
@@ -185,7 +207,6 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: CallbackReferral}})
 	}
 
-	// Build link buttons based on order from settings
 	buttonConfigs := map[string]struct {
 		url  string
 		text string
@@ -208,7 +229,6 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 		}
 	}
 
-	// Add link buttons based on layout setting
 	if len(linkButtons) > 0 {
 		layout := config.LinkButtonsLayout()
 		switch layout {
@@ -222,7 +242,7 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 			}
 		case "1x4":
 			inlineKeyboard = append(inlineKeyboard, linkButtons)
-		default: // "4x1" or empty - each button in separate row
+		default:
 			for _, btn := range linkButtons {
 				inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{btn})
 			}
@@ -233,7 +253,6 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()}})
 	}
 
-	// Add admin panel button if user is admin
 	if existingCustomer.TelegramID == config.GetAdminTelegramId() && config.BotAdminURL() != "" {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "admin_panel_button"), WebApp: &models.WebAppInfo{
 			URL: config.BotAdminURL(),
@@ -243,10 +262,9 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	return inlineKeyboard
 }
 
-func (h Handler) handlePromoFromStart(ctx context.Context, b *bot.Bot, update *models.Update, customer *database.Customer, promoCode string) {
+func (h *StartHandler) handlePromoFromStart(ctx context.Context, b *bot.Bot, update *models.Update, customer *database.Customer, promoCode string) {
 	langCode := customer.Language
 
-	// Validate promo code
 	validation, err := h.promo.ValidatePromoCode(ctx, promoCode, customer.ID)
 	if err != nil {
 		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
@@ -264,7 +282,6 @@ func (h Handler) handlePromoFromStart(ctx context.Context, b *bot.Bot, update *m
 		return
 	}
 
-	// Show promo confirmation
 	keyboard := &models.InlineKeyboardMarkup{
 		InlineKeyboard: [][]models.InlineKeyboardButton{
 			{

@@ -3,23 +3,55 @@ package handler
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
+	"remnawave-tg-shop-bot/internal/cache"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/translation"
 )
 
-func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+type PaymentHandler struct {
+	customerRepository *database.CustomerRepository
+	purchaseRepository *database.PurchaseRepository
+	planRepository     *database.PlanRepository
+	settingsRepository *database.SettingsRepository
+	paymentService     *payment.PaymentService
+	translation        *translation.Manager
+	cache              *cache.Cache
+}
+
+func NewPaymentHandler(
+	customerRepository *database.CustomerRepository,
+	purchaseRepository *database.PurchaseRepository,
+	planRepository *database.PlanRepository,
+	settingsRepository *database.SettingsRepository,
+	paymentService *payment.PaymentService,
+	translation *translation.Manager,
+	cache *cache.Cache,
+) *PaymentHandler {
+	return &PaymentHandler{
+		customerRepository: customerRepository,
+		purchaseRepository: purchaseRepository,
+		planRepository:     planRepository,
+		settingsRepository: settingsRepository,
+		paymentService:     paymentService,
+		translation:        translation,
+		cache:              cache,
+	}
+}
+
+func (h *PaymentHandler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 	langCode := update.CallbackQuery.From.LanguageCode
 
-	// Get active plans from database
 	plans, err := h.planRepository.FindActive(ctx)
 	if err != nil {
 		slog.Error("Error fetching plans", "error", err)
@@ -33,11 +65,9 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 
 	var keyboard [][]models.InlineKeyboardButton
 
-	// If there's only one plan, go directly to period selection
 	if len(plans) == 1 {
 		keyboard = h.buildPeriodSelectionKeyboard(plans[0], langCode)
 	} else {
-		// Show plan selection
 		for _, plan := range plans {
 			keyboard = append(keyboard, []models.InlineKeyboardButton{
 				{Text: plan.Name, CallbackData: fmt.Sprintf("%s?planId=%d", CallbackPlan, plan.ID)},
@@ -64,8 +94,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	}
 }
 
-// PlanCallbackHandler handles plan selection when multiple plans exist
-func (h Handler) PlanCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *PaymentHandler) PlanCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -103,7 +132,7 @@ func (h Handler) PlanCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 }
 
-func (h Handler) buildPeriodSelectionKeyboard(plan database.Plan, langCode string) [][]models.InlineKeyboardButton {
+func (h *PaymentHandler) buildPeriodSelectionKeyboard(plan database.Plan, langCode string) [][]models.InlineKeyboardButton {
 	var priceButtons []models.InlineKeyboardButton
 
 	if plan.Price1 > 0 {
@@ -145,7 +174,7 @@ func (h Handler) buildPeriodSelectionKeyboard(plan database.Plan, langCode strin
 	return keyboard
 }
 
-func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *PaymentHandler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -196,7 +225,6 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 
 	if config.IsTributeEnabled() {
-		// Get plan to check for tribute_url
 		planIdInt, _ := strconv.ParseInt(planId, 10, 64)
 		plan, _ := h.planRepository.FindById(ctx, planIdInt)
 		if plan != nil && plan.TributeURL != "" {
@@ -223,7 +251,7 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 }
 
-func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *PaymentHandler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	month, err := strconv.Atoi(callbackQuery["month"])
@@ -256,7 +284,6 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 
 	var price int
 	if invoiceType == database.InvoiceTypeTelegram {
-		// Calculate stars price using exchange rate from settings
 		exchangeRate := h.settingsRepository.GetFloat("stars_exchange_rate", 1.5)
 		price = plan.GetStarsPrice(month, exchangeRate)
 	} else {
@@ -303,7 +330,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	h.cache.Set(purchaseId, message.ID)
 }
 
-func (h Handler) PreCheckoutCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *PaymentHandler) PreCheckoutCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	_, err := b.AnswerPreCheckoutQuery(ctx, &bot.AnswerPreCheckoutQueryParams{
 		PreCheckoutQueryID: update.PreCheckoutQuery.ID,
 		OK:                 true,
@@ -313,7 +340,7 @@ func (h Handler) PreCheckoutCallbackHandler(ctx context.Context, b *bot.Bot, upd
 	}
 }
 
-func (h Handler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *PaymentHandler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	payload := strings.Split(update.Message.SuccessfulPayment.InvoicePayload, "&")
 	purchaseId, err := strconv.Atoi(payload[0])
 	username := payload[1]
@@ -327,23 +354,4 @@ func (h Handler) SuccessPaymentHandler(ctx context.Context, b *bot.Bot, update *
 	if err != nil {
 		slog.Error("Error processing purchase", "error", err)
 	}
-}
-
-func parseCallbackData(data string) map[string]string {
-	result := make(map[string]string)
-
-	parts := strings.Split(data, "?")
-	if len(parts) < 2 {
-		return result
-	}
-
-	params := strings.Split(parts[1], "&")
-	for _, param := range params {
-		kv := strings.SplitN(param, "=", 2)
-		if len(kv) == 2 {
-			result[kv[0]] = kv[1]
-		}
-	}
-
-	return result
 }

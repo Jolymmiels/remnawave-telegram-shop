@@ -3,20 +3,35 @@ package handler
 import (
 	"context"
 	"fmt"
-	"remnawave-tg-shop-bot/internal/config"
+	"log/slog"
 	"strings"
 	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
+	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/utils"
 )
 
-func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+type ConnectHandler struct {
+	customerRepository *database.CustomerRepository
+	translation        *translation.Manager
+}
+
+func NewConnectHandler(
+	customerRepository *database.CustomerRepository,
+	translation *translation.Manager,
+) *ConnectHandler {
+	return &ConnectHandler{
+		customerRepository: customerRepository,
+		translation:        translation,
+	}
+}
+
+func (h *ConnectHandler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	customer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", "error", err)
@@ -32,7 +47,7 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 	isDisabled := true
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
-		Text:      buildConnectText(customer, langCode),
+		Text:      h.buildConnectText(customer, langCode),
 		ParseMode: models.ParseModeHTML,
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &isDisabled,
@@ -49,7 +64,7 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 	}
 }
 
-func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *ConnectHandler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	callback := update.CallbackQuery.Message.Message
 
 	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
@@ -80,7 +95,7 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
 		ParseMode: models.ParseModeHTML,
-		Text:      buildConnectText(customer, langCode),
+		Text:      h.buildConnectText(customer, langCode),
 		LinkPreviewOptions: &models.LinkPreviewOptions{
 			IsDisabled: &isDisabled,
 		},
@@ -94,10 +109,8 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	}
 }
 
-func buildConnectText(customer *database.Customer, langCode string) string {
+func (h *ConnectHandler) buildConnectText(customer *database.Customer, langCode string) string {
 	var info strings.Builder
-
-	tm := translation.GetInstance()
 
 	if customer.ExpireAt != nil {
 		currentTime := time.Now()
@@ -105,22 +118,21 @@ func buildConnectText(customer *database.Customer, langCode string) string {
 		if currentTime.Before(*customer.ExpireAt) {
 			formattedDate := customer.ExpireAt.Format("02.01.2006 15:04")
 
-			subscriptionActiveText := tm.GetText(langCode, "subscription_active")
+			subscriptionActiveText := h.translation.GetText(langCode, "subscription_active")
 			info.WriteString(fmt.Sprintf(subscriptionActiveText, formattedDate))
 
 			if customer.SubscriptionLink != nil && *customer.SubscriptionLink != "" {
-				if config.IsWepAppLinkEnabled() {
-				} else {
-					subscriptionLinkText := tm.GetText(langCode, "subscription_link")
+				if !config.IsWepAppLinkEnabled() {
+					subscriptionLinkText := h.translation.GetText(langCode, "subscription_link")
 					info.WriteString(fmt.Sprintf(subscriptionLinkText, *customer.SubscriptionLink))
 				}
 			}
 		} else {
-			noSubscriptionText := tm.GetText(langCode, "no_subscription")
+			noSubscriptionText := h.translation.GetText(langCode, "no_subscription")
 			info.WriteString(noSubscriptionText)
 		}
 	} else {
-		noSubscriptionText := tm.GetText(langCode, "no_subscription")
+		noSubscriptionText := h.translation.GetText(langCode, "no_subscription")
 		info.WriteString(noSubscriptionText)
 	}
 
