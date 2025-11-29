@@ -49,6 +49,7 @@ interface Plan {
   internal_squads: string
   external_squad_uuid: string
   remnawave_tag: string
+  tribute_url: string
   is_active: boolean
   is_default: boolean
 }
@@ -68,6 +69,7 @@ const defaultPlan: Omit<Plan, 'id' | 'is_default'> = {
   internal_squads: '',
   external_squad_uuid: '',
   remnawave_tag: '',
+  tribute_url: '',
   is_active: true,
 }
 
@@ -156,6 +158,7 @@ const SettingsPage: React.FC = () => {
       internal_squads: plan.internal_squads || '',
       external_squad_uuid: plan.external_squad_uuid || '',
       remnawave_tag: plan.remnawave_tag || '',
+      tribute_url: plan.tribute_url || '',
       is_active: plan.is_active,
     })
     setPlanModalOpen(true)
@@ -582,12 +585,6 @@ const SettingsPage: React.FC = () => {
                     onChange={e => updateSetting('tribute_api_key', e.target.value)}
                     type="password"
                   />
-                  <TextInput
-                    label="Payment URL"
-                    size="xs"
-                    value={settings.tribute_payment_url || ''}
-                    onChange={e => updateSetting('tribute_payment_url', e.target.value)}
-                  />
                 </Stack>
               </Paper>
             </Stack>
@@ -787,6 +784,17 @@ const SettingsPage: React.FC = () => {
             value={planForm.external_squad_uuid}
             onChange={v => setPlanForm(prev => ({ ...prev, external_squad_uuid: v || '' }))}
             clearable
+          />
+
+          <Divider label="Tribute" labelPosition="center" />
+
+          <TextInput
+            label="Tribute URL"
+            description="Ссылка на подписку в Tribute для этого тарифа"
+            size="xs"
+            value={planForm.tribute_url}
+            onChange={e => setPlanForm(prev => ({ ...prev, tribute_url: e.target.value }))}
+            placeholder="https://tribute.tg/..."
           />
 
           <Divider />

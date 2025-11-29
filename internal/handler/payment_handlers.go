@@ -196,9 +196,14 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 
 	if config.IsTributeEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "tribute_button"), URL: config.GetTributePaymentUrl()},
-		})
+		// Get plan to check for tribute_url
+		planIdInt, _ := strconv.ParseInt(planId, 10, 64)
+		plan, _ := h.planRepository.FindById(ctx, planIdInt)
+		if plan != nil && plan.TributeURL != "" {
+			keyboard = append(keyboard, []models.InlineKeyboardButton{
+				{Text: h.translation.GetText(langCode, "tribute_button"), URL: plan.TributeURL},
+			})
+		}
 	}
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{

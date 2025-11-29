@@ -1,0 +1,1 @@
+ALTER TABLE plan DROP COLUMN IF EXISTS tribute_url;

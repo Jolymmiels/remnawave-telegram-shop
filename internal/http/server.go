@@ -223,7 +223,7 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 	})
 
 	if config.GetTributeWebHookUrl() != "" {
-		tributeHandler := tribute.NewClient(paymentService, customerRepository)
+		tributeHandler := tribute.NewClient(paymentService, customerRepository, planRepository)
 		mux.Handle(config.GetTributeWebHookUrl(), tributeHandler.WebHookHandler())
 	}
 

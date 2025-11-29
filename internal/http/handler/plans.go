@@ -34,6 +34,7 @@ type PlanRequest struct {
 	InternalSquads    string `json:"internal_squads"`
 	ExternalSquadUUID string `json:"external_squad_uuid"`
 	RemnawaveTag      string `json:"remnawave_tag"`
+	TributeURL        string `json:"tribute_url"`
 	IsActive          bool   `json:"is_active"`
 }
 
@@ -73,6 +74,7 @@ func (h *PlansHandler) Create(w http.ResponseWriter, r *http.Request) {
 		InternalSquads:    req.InternalSquads,
 		ExternalSquadUUID: req.ExternalSquadUUID,
 		RemnawaveTag:      req.RemnawaveTag,
+		TributeURL:        req.TributeURL,
 		IsActive:          req.IsActive,
 		IsDefault:         false,
 	}
@@ -120,6 +122,7 @@ func (h *PlansHandler) Update(w http.ResponseWriter, r *http.Request) {
 		InternalSquads:    req.InternalSquads,
 		ExternalSquadUUID: req.ExternalSquadUUID,
 		RemnawaveTag:      req.RemnawaveTag,
+		TributeURL:        req.TributeURL,
 		IsActive:          req.IsActive,
 	}
 

@@ -21,6 +21,7 @@ import (
 type Client struct {
 	paymentService     *payment.PaymentService
 	customerRepository *database.CustomerRepository
+	planRepository     *database.PlanRepository
 }
 
 const (
@@ -29,10 +30,11 @@ const (
 	TestHook              = ""
 )
 
-func NewClient(paymentService *payment.PaymentService, customerRepository *database.CustomerRepository) *Client {
+func NewClient(paymentService *payment.PaymentService, customerRepository *database.CustomerRepository, planRepository *database.PlanRepository) *Client {
 	return &Client{
 		paymentService:     paymentService,
 		customerRepository: customerRepository,
+		planRepository:     planRepository,
 	}
 }
 
@@ -107,8 +109,26 @@ func (c *Client) newSubscriptionHandler(ctx context.Context, wh SubscriptionWebh
 	months := convertPeriodToMonths(wh.Payload.Period)
 
 	customer, err := c.customerRepository.FindByTelegramId(ctx, wh.Payload.TelegramUserID)
-	_, purchaseId, err := c.paymentService.CreatePurchase(ctx, float64(wh.Payload.Amount), months, customer, database.InvoiceTypeTribute, nil)
+	if err != nil {
+		return err
+	}
 
+	// Find plan by subscription name
+	var planID *int64
+	if wh.Payload.SubscriptionName != "" {
+		plan, err := c.planRepository.FindByName(ctx, wh.Payload.SubscriptionName)
+		if err != nil {
+			slog.Warn("Failed to find plan by subscription name", "name", wh.Payload.SubscriptionName, "error", err)
+		}
+		if plan != nil {
+			planID = &plan.ID
+			slog.Info("Found plan for tribute subscription", "planName", plan.Name, "planId", plan.ID, "subscriptionName", wh.Payload.SubscriptionName)
+		} else {
+			slog.Warn("No plan found for subscription name, using default", "subscriptionName", wh.Payload.SubscriptionName)
+		}
+	}
+
+	_, purchaseId, err := c.paymentService.CreatePurchase(ctx, float64(wh.Payload.Amount), months, customer, database.InvoiceTypeTribute, planID)
 	if err != nil {
 		return err
 	}
