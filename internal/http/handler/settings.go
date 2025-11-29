@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/remnawave"
+	"strings"
 )
 
 type SettingsHandler struct {
@@ -56,6 +57,11 @@ func (h *SettingsHandler) UpdateSettings(w http.ResponseWriter, r *http.Request)
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
+	}
+
+	// Ensure trial_remnawave_tag is uppercase
+	if val, ok := req.Settings["trial_remnawave_tag"]; ok {
+		req.Settings["trial_remnawave_tag"] = strings.ToUpper(val)
 	}
 
 	if err := h.settingsRepository.SetMultiple(r.Context(), req.Settings); err != nil {

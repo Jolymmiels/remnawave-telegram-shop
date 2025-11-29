@@ -424,7 +424,7 @@ const SettingsPage: React.FC = () => {
                 label="Тег в Remnawave"
                 size="xs"
                 value={settings.trial_remnawave_tag || ''}
-                onChange={e => updateSetting('trial_remnawave_tag', e.target.value)}
+                onChange={e => updateSetting('trial_remnawave_tag', e.target.value.toUpperCase())}
               />
 
               <Box>
@@ -749,7 +749,7 @@ const SettingsPage: React.FC = () => {
             label="Тег в Remnawave"
             size="xs"
             value={planForm.remnawave_tag}
-            onChange={e => setPlanForm(prev => ({ ...prev, remnawave_tag: e.target.value }))}
+            onChange={e => setPlanForm(prev => ({ ...prev, remnawave_tag: e.target.value.toUpperCase() }))}
           />
 
           <Box>

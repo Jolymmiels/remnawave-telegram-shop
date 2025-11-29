@@ -46,20 +46,20 @@ type UserWithDetails struct {
 }
 
 type PaymentDTO struct {
-	ID              int64   `json:"id"`
-	Amount          float64 `json:"amount"`
-	CustomerID      int64   `json:"customer_id"`
-	CreatedAt       string  `json:"created_at"`
-	Month           int     `json:"month"`
-	PaidAt          *string `json:"paid_at"`
-	Currency        string  `json:"currency"`
-	ExpireAt        *string `json:"expire_at"`
-	Status          string  `json:"status"`
-	InvoiceType     string  `json:"invoice_type"`
-	CryptoInvoiceID *int64  `json:"crypto_invoice_id"`
+	ID                int64   `json:"id"`
+	Amount            float64 `json:"amount"`
+	CustomerID        int64   `json:"customer_id"`
+	CreatedAt         string  `json:"created_at"`
+	Month             int     `json:"month"`
+	PaidAt            *string `json:"paid_at"`
+	Currency          string  `json:"currency"`
+	ExpireAt          *string `json:"expire_at"`
+	Status            string  `json:"status"`
+	InvoiceType       string  `json:"invoice_type"`
+	CryptoInvoiceID   *int64  `json:"crypto_invoice_id"`
 	CryptoInvoiceLink *string `json:"crypto_invoice_link"`
-	YookasaURL      *string `json:"yookasa_url"`
-	YookasaID       *string `json:"yookasa_id"`
+	YookasaURL        *string `json:"yookasa_url"`
+	YookasaID         *string `json:"yookasa_id"`
 }
 
 // SearchUsers handles GET /api/users/search?q=query&limit=20&offset=0
@@ -132,7 +132,7 @@ func (uh *UsersHandler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 		if customer.ExpireAt != nil {
 			expireAtStr = stringPtr(customer.ExpireAt.Format("2006-01-02T15:04:05Z07:00"))
 		}
-		
+
 		userDetails := UserWithDetails{
 			ID:               customer.ID,
 			TelegramID:       customer.TelegramID,
@@ -225,27 +225,27 @@ func (uh *UsersHandler) GetUserPayments(w http.ResponseWriter, r *http.Request) 
 		if p.ExpireAt != nil {
 			expireAtStr = p.ExpireAt.Format("2006-01-02T15:04:05Z07:00")
 		}
-		
+
 		yookasaIDStr := ""
 		if p.YookasaID != nil {
 			yookasaIDStr = p.YookasaID.String()
 		}
-		
+
 		paymentDTOs[i] = PaymentDTO{
-			ID:              p.ID,
-			Amount:          p.Amount,
-			CustomerID:      p.CustomerID,
-			CreatedAt:       p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Month:           p.Month,
-			PaidAt:          stringPtrIfNotEmpty(paidAtStr),
-			Currency:        p.Currency,
-			ExpireAt:        stringPtrIfNotEmpty(expireAtStr),
-			Status:          string(p.Status),
-			InvoiceType:     string(p.InvoiceType),
-			CryptoInvoiceID: p.CryptoInvoiceID,
+			ID:                p.ID,
+			Amount:            p.Amount,
+			CustomerID:        p.CustomerID,
+			CreatedAt:         p.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			Month:             p.Month,
+			PaidAt:            stringPtrIfNotEmpty(paidAtStr),
+			Currency:          p.Currency,
+			ExpireAt:          stringPtrIfNotEmpty(expireAtStr),
+			Status:            string(p.Status),
+			InvoiceType:       string(p.InvoiceType),
+			CryptoInvoiceID:   p.CryptoInvoiceID,
 			CryptoInvoiceLink: p.CryptoInvoiceLink,
-			YookasaURL:      p.YookasaURL,
-			YookasaID:       stringPtrIfNotEmpty(yookasaIDStr),
+			YookasaURL:        p.YookasaURL,
+			YookasaID:         stringPtrIfNotEmpty(yookasaIDStr),
 		}
 	}
 
@@ -565,22 +565,26 @@ func (uh *UsersHandler) RevokeSubscription(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	if err := uh.remnawaveClient.RevokeUserSubscription(ctx, userUuid); err != nil {
+	newSubscriptionLink, err := uh.remnawaveClient.RevokeUserSubscription(ctx, userUuid)
+	if err != nil {
 		slog.Error("Failed to revoke subscription", "error", err, "telegramID", telegramID)
 		http.Error(w, "Failed to revoke subscription", http.StatusInternalServerError)
 		return
 	}
 
-	// Also update local database - clear expire_at and subscription_link
+	// Update local database - clear expire_at and set new subscription_link
 	customer, err := uh.customerRepository.FindByTelegramId(ctx, telegramID)
 	if err == nil && customer != nil {
 		updates := map[string]interface{}{
-			"expire_at":         nil,
-			"subscription_link": nil,
+			"subscription_link": newSubscriptionLink,
 		}
 		_ = uh.customerRepository.UpdateFields(ctx, customer.ID, updates)
 	}
 
-	slog.Info("Subscription revoked", "telegramID", telegramID)
-	w.WriteHeader(http.StatusNoContent)
+	slog.Info("Subscription revoked", "telegramID", telegramID, "newSubscriptionLink", newSubscriptionLink)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"subscription_link": newSubscriptionLink,
+	})
 }

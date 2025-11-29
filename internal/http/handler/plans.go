@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"remnawave-tg-shop-bot/internal/database"
 	"strconv"
+	"strings"
 )
 
 type PlansHandler struct {
@@ -73,7 +74,7 @@ func (h *PlansHandler) Create(w http.ResponseWriter, r *http.Request) {
 		DeviceLimit:       req.DeviceLimit,
 		InternalSquads:    req.InternalSquads,
 		ExternalSquadUUID: req.ExternalSquadUUID,
-		RemnawaveTag:      req.RemnawaveTag,
+		RemnawaveTag:      strings.ToUpper(req.RemnawaveTag),
 		TributeURL:        req.TributeURL,
 		IsActive:          req.IsActive,
 		IsDefault:         false,
@@ -121,7 +122,7 @@ func (h *PlansHandler) Update(w http.ResponseWriter, r *http.Request) {
 		DeviceLimit:       req.DeviceLimit,
 		InternalSquads:    req.InternalSquads,
 		ExternalSquadUUID: req.ExternalSquadUUID,
-		RemnawaveTag:      req.RemnawaveTag,
+		RemnawaveTag:      strings.ToUpper(req.RemnawaveTag),
 		TributeURL:        req.TributeURL,
 		IsActive:          req.IsActive,
 	}

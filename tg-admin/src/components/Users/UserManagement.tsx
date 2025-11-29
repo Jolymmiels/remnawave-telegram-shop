@@ -24,7 +24,6 @@ import { useMediaQuery } from '@mantine/hooks'
 import {
   IconSearch,
   IconDots,
-  IconEdit,
   IconTrash,
   IconBan,
   IconCheck,
@@ -36,7 +35,6 @@ import {
 import { http } from '../../lib/http'
 import { useDisclosure } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
-import UserEditModal from './UserEditModal'
 import { getTelegramSafeAreaStyles, getTelegramSafeAreaDropdownStyles } from '../../lib/telegram-safe-area'
 
 interface User {
@@ -68,7 +66,6 @@ const UserManagement: React.FC = () => {
   const [totalUsers, setTotalUsers] = useState(0)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   
-  const [editOpened, { open: openEdit, close: closeEdit }] = useDisclosure(false)
   const [deleteOpened, { open: openDelete, close: closeDelete }] = useDisclosure(false)
   const [deleteLoading, setDeleteLoading] = useState(false)
   const [syncLoading, setSyncLoading] = useState(false)
@@ -230,15 +227,6 @@ const UserManagement: React.FC = () => {
               onClick={() => openUserDetails(user)}
             >
               Подробно
-            </Menu.Item>
-            <Menu.Item
-              leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
-              onClick={() => {
-                setSelectedUser(user)
-                openEdit()
-              }}
-            >
-              Редактировать
             </Menu.Item>
             <Menu.Divider />
             <Menu.Item
@@ -430,15 +418,6 @@ const UserManagement: React.FC = () => {
                           >
                             Подробно
                           </Menu.Item>
-                          <Menu.Item
-                            leftSection={<IconEdit style={{ width: rem(14), height: rem(14) }} />}
-                            onClick={() => {
-                              setSelectedUser(user)
-                              openEdit()
-                            }}
-                          >
-                            Редактировать
-                          </Menu.Item>
                           <Menu.Divider />
                           <Menu.Item
                             leftSection={<IconBan style={{ width: rem(14), height: rem(14) }} />}
@@ -519,14 +498,6 @@ const UserManagement: React.FC = () => {
           </Stack>
         )}
       </Modal>
-
-      {/* Edit User Modal */}
-      <UserEditModal
-        user={selectedUser}
-        opened={editOpened}
-        onClose={closeEdit}
-        onUserUpdated={() => fetchUsers(currentPage, searchQuery)}
-      />
     </Stack>
   )
 }

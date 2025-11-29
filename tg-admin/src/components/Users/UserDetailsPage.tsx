@@ -193,8 +193,8 @@ const UserDetailsPage: React.FC = () => {
     
     setRevoking(true)
     try {
-      await http.post(`/api/users/${telegramId}/revoke-subscription`, {})
-      setUser(prev => prev ? { ...prev, expire_at: null, subscription_link: null } : null)
+      const response = await http.post(`/api/users/${telegramId}/revoke-subscription`, {}) as { subscription_link: string }
+      setUser(prev => prev ? { ...prev, expire_at: null, subscription_link: response.subscription_link } : null)
       notifications.show({
         title: 'Успешно',
         message: 'Подписка отозвана',
