@@ -168,7 +168,14 @@ func GetTributePaymentUrl() string {
 }
 
 func GetReferralDays() int {
-	return conf.referralDays
+	return getIntSettingWithDeprecation("referral_bonus_days", conf.referralDays, "REFERRAL_DAYS")
+}
+
+func IsReferralEnabled() bool {
+	if settingsProvider != nil {
+		return settingsProvider.GetBool("referral_enabled", true)
+	}
+	return conf.referralDays > 0
 }
 
 func GetMiniAppURL() string {

@@ -750,18 +750,16 @@ const SettingsPage: React.FC = () => {
               {/* Base bonuses */}
               <Paper p="xs" withBorder>
                 <Text fw={600} size="sm" mb="xs">Базовые бонусы</Text>
-                <SimpleGrid cols={2} spacing="xs">
+                <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
                   <NumberInput
-                    label="Бонус рефереру (дни)"
-                    description="Дни подписки за приглашение"
+                    label="Рефереру (дни)"
                     size="xs"
                     value={Number(settings.referral_bonus_days) || 3}
                     onChange={v => updateSetting('referral_bonus_days', v || 0)}
                     min={0}
                   />
                   <NumberInput
-                    label="Бонус приглашенному (дни)"
-                    description="Дни для нового пользователя"
+                    label="Приглашенному (дни)"
                     size="xs"
                     value={Number(settings.referral_referee_bonus_days) || 0}
                     onChange={v => updateSetting('referral_referee_bonus_days', v || 0)}
@@ -783,62 +781,56 @@ const SettingsPage: React.FC = () => {
                 <Text size="xs" c="dimmed" mb="xs">
                   Увеличивайте бонус в зависимости от количества приглашенных
                 </Text>
-                <Stack gap="xs">
-                  <SimpleGrid cols={2} spacing="xs">
-                    <NumberInput
-                      label="Уровень 1: от рефералов"
-                      size="xs"
-                      value={Number(settings.referral_tier1_threshold) || 5}
-                      onChange={v => updateSetting('referral_tier1_threshold', v || 5)}
-                      min={1}
-                      disabled={settings.referral_tiers_enabled !== 'true'}
-                    />
-                    <NumberInput
-                      label="Бонус (дни)"
-                      size="xs"
-                      value={Number(settings.referral_tier1_bonus) || 3}
-                      onChange={v => updateSetting('referral_tier1_bonus', v || 3)}
-                      min={0}
-                      disabled={settings.referral_tiers_enabled !== 'true'}
-                    />
-                  </SimpleGrid>
-                  <SimpleGrid cols={2} spacing="xs">
-                    <NumberInput
-                      label="Уровень 2: от рефералов"
-                      size="xs"
-                      value={Number(settings.referral_tier2_threshold) || 15}
-                      onChange={v => updateSetting('referral_tier2_threshold', v || 15)}
-                      min={1}
-                      disabled={settings.referral_tiers_enabled !== 'true'}
-                    />
-                    <NumberInput
-                      label="Бонус (дни)"
-                      size="xs"
-                      value={Number(settings.referral_tier2_bonus) || 5}
-                      onChange={v => updateSetting('referral_tier2_bonus', v || 5)}
-                      min={0}
-                      disabled={settings.referral_tiers_enabled !== 'true'}
-                    />
-                  </SimpleGrid>
-                  <SimpleGrid cols={2} spacing="xs">
-                    <NumberInput
-                      label="Уровень 3: от рефералов"
-                      size="xs"
-                      value={Number(settings.referral_tier3_threshold) || 30}
-                      onChange={v => updateSetting('referral_tier3_threshold', v || 30)}
-                      min={1}
-                      disabled={settings.referral_tiers_enabled !== 'true'}
-                    />
-                    <NumberInput
-                      label="Бонус (дни)"
-                      size="xs"
-                      value={Number(settings.referral_tier3_bonus) || 7}
-                      onChange={v => updateSetting('referral_tier3_bonus', v || 7)}
-                      min={0}
-                      disabled={settings.referral_tiers_enabled !== 'true'}
-                    />
-                  </SimpleGrid>
-                </Stack>
+                <SimpleGrid cols={2} spacing="xs" verticalSpacing="xs">
+                  <NumberInput
+                    label="Ур. 1: от рефералов"
+                    size="xs"
+                    value={Number(settings.referral_tier1_threshold) || 5}
+                    onChange={v => updateSetting('referral_tier1_threshold', v || 5)}
+                    min={1}
+                    disabled={settings.referral_tiers_enabled !== 'true'}
+                  />
+                  <NumberInput
+                    label="Бонус (дни)"
+                    size="xs"
+                    value={Number(settings.referral_tier1_bonus) || 3}
+                    onChange={v => updateSetting('referral_tier1_bonus', v || 3)}
+                    min={0}
+                    disabled={settings.referral_tiers_enabled !== 'true'}
+                  />
+                  <NumberInput
+                    label="Ур. 2: от рефералов"
+                    size="xs"
+                    value={Number(settings.referral_tier2_threshold) || 15}
+                    onChange={v => updateSetting('referral_tier2_threshold', v || 15)}
+                    min={1}
+                    disabled={settings.referral_tiers_enabled !== 'true'}
+                  />
+                  <NumberInput
+                    label="Бонус (дни)"
+                    size="xs"
+                    value={Number(settings.referral_tier2_bonus) || 5}
+                    onChange={v => updateSetting('referral_tier2_bonus', v || 5)}
+                    min={0}
+                    disabled={settings.referral_tiers_enabled !== 'true'}
+                  />
+                  <NumberInput
+                    label="Ур. 3: от рефералов"
+                    size="xs"
+                    value={Number(settings.referral_tier3_threshold) || 30}
+                    onChange={v => updateSetting('referral_tier3_threshold', v || 30)}
+                    min={1}
+                    disabled={settings.referral_tiers_enabled !== 'true'}
+                  />
+                  <NumberInput
+                    label="Бонус (дни)"
+                    size="xs"
+                    value={Number(settings.referral_tier3_bonus) || 7}
+                    onChange={v => updateSetting('referral_tier3_bonus', v || 7)}
+                    min={0}
+                    disabled={settings.referral_tiers_enabled !== 'true'}
+                  />
+                </SimpleGrid>
               </Paper>
 
               {/* Recurring bonuses */}

@@ -203,7 +203,7 @@ func (h *StartHandler) BuildStartKeyboard(existingCustomer *database.Customer, l
 		})
 	}
 
-	if config.GetReferralDays() > 0 {
+	if config.IsReferralEnabled() {
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: CallbackReferral}})
 	}
 
