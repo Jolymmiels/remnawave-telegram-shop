@@ -49,6 +49,10 @@ func NewPaymentHandler(
 }
 
 func (h *PaymentHandler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	callback := update.CallbackQuery.Message.Message
 	langCode := update.CallbackQuery.From.LanguageCode
 
@@ -95,6 +99,10 @@ func (h *PaymentHandler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, upd
 }
 
 func (h *PaymentHandler) PlanCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -175,6 +183,10 @@ func (h *PaymentHandler) buildPeriodSelectionKeyboard(plan database.Plan, langCo
 }
 
 func (h *PaymentHandler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	langCode := update.CallbackQuery.From.LanguageCode
@@ -252,6 +264,10 @@ func (h *PaymentHandler) SellCallbackHandler(ctx context.Context, b *bot.Bot, up
 }
 
 func (h *PaymentHandler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	month, err := strconv.Atoi(callbackQuery["month"])

@@ -51,6 +51,10 @@ func maskHwid(hwid string) string {
 }
 
 func (dh *DevicesHandler) DevicesCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	callback := update.CallbackQuery
 	langCode := callback.From.LanguageCode
 	telegramId := callback.From.ID
@@ -157,6 +161,10 @@ func (dh *DevicesHandler) DevicesCallbackHandler(ctx context.Context, b *bot.Bot
 }
 
 func (dh *DevicesHandler) DeviceDeleteCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	callback := update.CallbackQuery
 	langCode := callback.From.LanguageCode
 

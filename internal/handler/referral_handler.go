@@ -31,6 +31,10 @@ func NewReferralHandler(
 }
 
 func (h *ReferralHandler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	langCode := update.CallbackQuery.From.LanguageCode
 	refCode := customer.TelegramID

@@ -33,6 +33,10 @@ func NewTrialHandler(
 }
 
 func (h *TrialHandler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	if !config.IsTrialEnabled() {
 		return
 	}
@@ -66,6 +70,10 @@ func (h *TrialHandler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, upd
 }
 
 func (h *TrialHandler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	if !config.IsTrialEnabled() {
 		return
 	}

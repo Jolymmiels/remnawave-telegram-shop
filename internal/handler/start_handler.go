@@ -142,6 +142,10 @@ func (h *StartHandler) StartCommandHandler(ctx context.Context, b *bot.Bot, upda
 }
 
 func (h *StartHandler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 

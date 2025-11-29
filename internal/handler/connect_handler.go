@@ -65,6 +65,10 @@ func (h *ConnectHandler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, 
 }
 
 func (h *ConnectHandler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+		CallbackQueryID: update.CallbackQuery.ID,
+	})
+
 	callback := update.CallbackQuery.Message.Message
 
 	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
