@@ -502,7 +502,7 @@ func envBool(key string) bool {
 	return os.Getenv(key) == "true"
 }
 
-func InitConfig() {
+func InitConfig() error {
 	if os.Getenv("DISABLE_ENV_FILE") != "true" {
 		if err := godotenv.Load(".env"); err != nil {
 			log.Println("No .env loaded:", err)
@@ -511,7 +511,7 @@ func InitConfig() {
 	var err error
 	conf.adminTelegramId, err = strconv.ParseInt(os.Getenv("ADMIN_TELEGRAM_ID"), 10, 64)
 	if err != nil {
-		panic("ADMIN_TELEGRAM_ID .env variable not set")
+		return fmt.Errorf("ADMIN_TELEGRAM_ID: %w", err)
 	}
 
 	conf.telegramToken = mustEnv("TELEGRAM_TOKEN")
@@ -538,7 +538,7 @@ func InitConfig() {
 	if externalSquadUUIDStr != "" {
 		parsedUUID, err := uuid.Parse(externalSquadUUIDStr)
 		if err != nil {
-			panic(fmt.Sprintf("invalid EXTERNAL_SQUAD_UUID format: %v", err))
+			return fmt.Errorf("invalid EXTERNAL_SQUAD_UUID format: %w", err)
 		}
 		conf.externalSquadUUID = parsedUUID
 	} else {
@@ -571,18 +571,12 @@ func InitConfig() {
 
 	conf.remnawaveUrl = mustEnv("REMNAWAVE_URL")
 
-	conf.remnawaveMode = func() string {
-		v := os.Getenv("REMNAWAVE_MODE")
-		if v != "" {
-			if v != "remote" && v != "local" {
-				panic("REMNAWAVE_MODE .env variable must be either 'remote' or 'local'")
-			} else {
-				return v
-			}
-		} else {
-			return "remote"
-		}
-	}()
+	conf.remnawaveMode = os.Getenv("REMNAWAVE_MODE")
+	if conf.remnawaveMode == "" {
+		conf.remnawaveMode = "remote"
+	} else if conf.remnawaveMode != "remote" && conf.remnawaveMode != "local" {
+		return fmt.Errorf("REMNAWAVE_MODE must be either 'remote' or 'local', got: %s", conf.remnawaveMode)
+	}
 
 	conf.remnawaveToken = mustEnv("REMNAWAVE_TOKEN")
 
@@ -607,95 +601,79 @@ func InitConfig() {
 	conf.channelURL = os.Getenv("CHANNEL_URL")
 	conf.tosURL = os.Getenv("TOS_URL")
 
-	conf.squadUUIDs = func() map[uuid.UUID]uuid.UUID {
-		v := os.Getenv("SQUAD_UUIDS")
-		if v != "" {
-			uuids := strings.Split(v, ",")
-			var inboundsMap = make(map[uuid.UUID]uuid.UUID)
-			for _, value := range uuids {
-				uuid, err := uuid.Parse(value)
-				if err != nil {
-					panic(err)
-				}
-				inboundsMap[uuid] = uuid
+	if v := os.Getenv("SQUAD_UUIDS"); v != "" {
+		uuids := strings.Split(v, ",")
+		conf.squadUUIDs = make(map[uuid.UUID]uuid.UUID)
+		for _, value := range uuids {
+			parsedUUID, err := uuid.Parse(strings.TrimSpace(value))
+			if err != nil {
+				return fmt.Errorf("invalid UUID in SQUAD_UUIDS: %w", err)
 			}
-			slog.Info("Loaded squad UUIDs", "uuids", uuids)
-			return inboundsMap
-		} else {
-			slog.Info("No squad UUIDs specified, all will be used")
-			return map[uuid.UUID]uuid.UUID{}
+			conf.squadUUIDs[parsedUUID] = parsedUUID
 		}
-	}()
+		slog.Info("Loaded squad UUIDs", "uuids", uuids)
+	} else {
+		slog.Info("No squad UUIDs specified, all will be used")
+		conf.squadUUIDs = map[uuid.UUID]uuid.UUID{}
+	}
 
 	conf.tributeWebhookUrl = envStringDefault("TRIBUTE_WEBHOOK_URL", "")
 	conf.tributeAPIKey = envStringDefault("TRIBUTE_API_KEY", "")
 	conf.tributePaymentUrl = envStringDefault("TRIBUTE_PAYMENT_URL", "")
 
-	conf.blockedTelegramIds = func() map[int64]bool {
-		v := os.Getenv("BLOCKED_TELEGRAM_IDS")
-		if v != "" {
-			ids := strings.Split(v, ",")
-			var blockedMap = make(map[int64]bool)
-			for _, idStr := range ids {
-				id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
-				if err != nil {
-					panic(fmt.Sprintf("invalid telegram ID in BLOCKED_TELEGRAM_IDS: %v", err))
-				}
-				blockedMap[id] = true
+	if v := os.Getenv("BLOCKED_TELEGRAM_IDS"); v != "" {
+		ids := strings.Split(v, ",")
+		conf.blockedTelegramIds = make(map[int64]bool)
+		for _, idStr := range ids {
+			id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid telegram ID in BLOCKED_TELEGRAM_IDS: %w", err)
 			}
-			slog.Info("Loaded blocked telegram IDs", "count", len(blockedMap))
-			return blockedMap
-		} else {
-			slog.Info("No blocked telegram IDs specified")
-			return map[int64]bool{}
+			conf.blockedTelegramIds[id] = true
 		}
-	}()
+		slog.Info("Loaded blocked telegram IDs", "count", len(conf.blockedTelegramIds))
+	} else {
+		slog.Info("No blocked telegram IDs specified")
+		conf.blockedTelegramIds = map[int64]bool{}
+	}
 
-	conf.whitelistedTelegramIds = func() map[int64]bool {
-		v := os.Getenv("WHITELISTED_TELEGRAM_IDS")
-		if v != "" {
-			ids := strings.Split(v, ",")
-			var whitelistedMap = make(map[int64]bool)
-			for _, idStr := range ids {
-				id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
-				if err != nil {
-					panic(fmt.Sprintf("invalid telegram ID in WHITELISTED_TELEGRAM_IDS: %v", err))
-				}
-				whitelistedMap[id] = true
+	if v := os.Getenv("WHITELISTED_TELEGRAM_IDS"); v != "" {
+		ids := strings.Split(v, ",")
+		conf.whitelistedTelegramIds = make(map[int64]bool)
+		for _, idStr := range ids {
+			id, err := strconv.ParseInt(strings.TrimSpace(idStr), 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid telegram ID in WHITELISTED_TELEGRAM_IDS: %w", err)
 			}
-			slog.Info("Loaded whitelisted telegram IDs", "count", len(whitelistedMap))
-			return whitelistedMap
-		} else {
-			slog.Info("No whitelisted telegram IDs specified")
-			return map[int64]bool{}
+			conf.whitelistedTelegramIds[id] = true
 		}
-	}()
+		slog.Info("Loaded whitelisted telegram IDs", "count", len(conf.whitelistedTelegramIds))
+	} else {
+		slog.Info("No whitelisted telegram IDs specified")
+		conf.whitelistedTelegramIds = map[int64]bool{}
+	}
 
-	conf.trialInternalSquads = func() map[uuid.UUID]uuid.UUID {
-		v := os.Getenv("TRIAL_INTERNAL_SQUADS")
-		if v != "" {
-			uuids := strings.Split(v, ",")
-			var trialSquadsMap = make(map[uuid.UUID]uuid.UUID)
-			for _, value := range uuids {
-				parsedUUID, err := uuid.Parse(strings.TrimSpace(value))
-				if err != nil {
-					panic(fmt.Sprintf("invalid UUID in TRIAL_INTERNAL_SQUADS: %v", err))
-				}
-				trialSquadsMap[parsedUUID] = parsedUUID
+	if v := os.Getenv("TRIAL_INTERNAL_SQUADS"); v != "" {
+		uuids := strings.Split(v, ",")
+		conf.trialInternalSquads = make(map[uuid.UUID]uuid.UUID)
+		for _, value := range uuids {
+			parsedUUID, err := uuid.Parse(strings.TrimSpace(value))
+			if err != nil {
+				return fmt.Errorf("invalid UUID in TRIAL_INTERNAL_SQUADS: %w", err)
 			}
-			slog.Info("Loaded trial internal squad UUIDs", "uuids", uuids)
-			return trialSquadsMap
-		} else {
-			slog.Info("No trial internal squads specified, will use regular SQUAD_UUIDS for trial users")
-			return map[uuid.UUID]uuid.UUID{}
+			conf.trialInternalSquads[parsedUUID] = parsedUUID
 		}
-	}()
+		slog.Info("Loaded trial internal squad UUIDs", "uuids", uuids)
+	} else {
+		slog.Info("No trial internal squads specified, will use regular SQUAD_UUIDS for trial users")
+		conf.trialInternalSquads = map[uuid.UUID]uuid.UUID{}
+	}
 
 	trialExternalSquadUUIDStr := os.Getenv("TRIAL_EXTERNAL_SQUAD_UUID")
 	if trialExternalSquadUUIDStr != "" {
 		parsedUUID, err := uuid.Parse(trialExternalSquadUUIDStr)
 		if err != nil {
-			panic(fmt.Sprintf("invalid TRIAL_EXTERNAL_SQUAD_UUID format: %v", err))
+			return fmt.Errorf("invalid TRIAL_EXTERNAL_SQUAD_UUID format: %w", err)
 		}
 		conf.trialExternalSquadUUID = parsedUUID
 		slog.Info("Loaded trial external squad UUID", "uuid", trialExternalSquadUUIDStr)
@@ -706,7 +684,7 @@ func InitConfig() {
 
 	conf.botAdminURL = os.Getenv("BOT_ADMIN_URL")
 	if conf.botAdminURL == "" {
-		panic(fmt.Sprintf("BOT_ADMIN_URL environment variable not set"))
+		return fmt.Errorf("BOT_ADMIN_URL environment variable not set")
 	}
 
 	conf.remnawaveHeaders = func() map[string]string {
@@ -731,4 +709,6 @@ func InitConfig() {
 		}
 		return map[string]string{}
 	}()
+
+	return nil
 }

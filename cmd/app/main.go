@@ -43,7 +43,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	config.InitConfig()
+	if err := config.InitConfig(); err != nil {
+		log.Fatal("Failed to initialize config: ", err)
+	}
 	slog.Info("Application starting", "version", Version, "commit", Commit, "buildDate", BuildDate)
 
 	tm := translation.GetInstance()
@@ -74,11 +76,14 @@ func main() {
 	planRepository := database.NewPlanRepository(pool)
 
 	cryptoPayClient := cryptopay.NewCryptoPayClient()
-	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
+	remnawaveClient, err := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
+	if err != nil {
+		log.Fatal("Failed to create remnawave client: ", err)
+	}
 	yookasaClient := yookasa.NewClient()
 	b, err := bot.New(config.TelegramToken(), bot.WithWorkers(3))
 	if err != nil {
-		panic(err)
+		log.Fatal("Failed to create telegram bot: ", err)
 	}
 
 	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, planRepository, settingsRepository)
