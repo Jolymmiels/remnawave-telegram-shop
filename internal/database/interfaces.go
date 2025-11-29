@@ -73,7 +73,7 @@ type SettingsRepo interface {
 	LoadAll(ctx context.Context) error
 	Get(key string) string
 	GetInt(key string, defaultValue int) int
-	GetBool(key string) bool
+	GetBool(key string, defaultValue ...bool) bool
 	GetFloat(key string, defaultValue float64) float64
 	GetAll() map[string]string
 	GetAllFromDB(ctx context.Context) ([]Setting, error)

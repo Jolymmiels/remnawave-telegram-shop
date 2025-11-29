@@ -145,45 +145,10 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return err
 	}
 
-	referee, err := s.referralRepository.FindByReferee(ctx, customer.TelegramID)
-	if referee == nil {
-		return nil
+	// Process referral bonus (uses settings from DB)
+	if err := s.processReferralBonus(ctx, customer, purchase.Month); err != nil {
+		slog.Error("Error processing referral bonus", "error", err)
 	}
-	if referee.BonusGranted {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	refereeCustomer, err := s.customerRepository.FindByTelegramId(ctx, referee.ReferrerID)
-	if err != nil {
-		return err
-	}
-	refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays(), false)
-	if err != nil {
-		return err
-	}
-	refereeUserFilesToUpdate := map[string]interface{}{
-		"subscription_link": refereeUser.GetSubscriptionUrl(),
-		"expire_at":         refereeUser.GetExpireAt(),
-	}
-	err = s.customerRepository.UpdateFields(ctx, refereeCustomer.ID, refereeUserFilesToUpdate)
-	if err != nil {
-		return err
-	}
-	err = s.referralRepository.MarkBonusGranted(ctx, referee.ID)
-	if err != nil {
-		return err
-	}
-	slog.Info("Granted referral bonus", "customer_id", utils.MaskHalfInt64(refereeCustomer.ID))
-	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    refereeCustomer.TelegramID,
-		ParseMode: models.ParseModeHTML,
-		Text:      s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
-		},
-	})
 	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
 
 	return nil
@@ -499,6 +464,139 @@ func (s *PaymentService) ExtendSubscription(ctx context.Context, customerID int6
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
 	if err != nil {
 		return err
+	}
+
+	return nil
+}
+
+// getReferralBonusDays calculates the referral bonus days based on settings and tiers
+func (s *PaymentService) getReferralBonusDays(ctx context.Context, referrerTelegramID int64) int {
+	if !s.settingsRepository.GetBool("referral_enabled", true) {
+		return 0
+	}
+
+	baseBonusDays := s.settingsRepository.GetInt("referral_bonus_days", config.GetReferralDays())
+
+	if !s.settingsRepository.GetBool("referral_tiers_enabled", false) {
+		return baseBonusDays
+	}
+
+	referralCount, err := s.referralRepository.CountByReferrer(ctx, referrerTelegramID)
+	if err != nil {
+		slog.Error("Error counting referrals for tier", "error", err)
+		return baseBonusDays
+	}
+
+	tier3Threshold := s.settingsRepository.GetInt("referral_tier3_threshold", 30)
+	tier2Threshold := s.settingsRepository.GetInt("referral_tier2_threshold", 15)
+	tier1Threshold := s.settingsRepository.GetInt("referral_tier1_threshold", 5)
+
+	if referralCount >= tier3Threshold {
+		return s.settingsRepository.GetInt("referral_tier3_bonus", 7)
+	}
+	if referralCount >= tier2Threshold {
+		return s.settingsRepository.GetInt("referral_tier2_bonus", 5)
+	}
+	if referralCount >= tier1Threshold {
+		return s.settingsRepository.GetInt("referral_tier1_bonus", 3)
+	}
+
+	return baseBonusDays
+}
+
+// getRefereeBonusDays returns the bonus days for the invited user (referee)
+func (s *PaymentService) getRefereeBonusDays() int {
+	if !s.settingsRepository.GetBool("referral_enabled", true) {
+		return 0
+	}
+	return s.settingsRepository.GetInt("referral_referee_bonus_days", 0)
+}
+
+// isRecurringReferralEnabled checks if recurring referral bonuses are enabled
+func (s *PaymentService) isRecurringReferralEnabled() bool {
+	return s.settingsRepository.GetBool("referral_recurring_enabled", false)
+}
+
+// getRecurringReferralPercent returns the percentage of subscription days to grant as recurring bonus
+func (s *PaymentService) getRecurringReferralPercent() int {
+	return s.settingsRepository.GetInt("referral_recurring_percent", 10)
+}
+
+// processReferralBonus handles the referral bonus logic for a purchase
+func (s *PaymentService) processReferralBonus(ctx context.Context, customer *database.Customer, purchaseMonths int) error {
+	if !s.settingsRepository.GetBool("referral_enabled", true) {
+		return nil
+	}
+
+	referee, err := s.referralRepository.FindByReferee(ctx, customer.TelegramID)
+	if err != nil {
+		return err
+	}
+	if referee == nil {
+		return nil
+	}
+
+	isFirstBonus := !referee.BonusGranted
+	recurringEnabled := s.isRecurringReferralEnabled()
+
+	if !isFirstBonus && !recurringEnabled {
+		return nil
+	}
+
+	referrerCustomer, err := s.customerRepository.FindByTelegramId(ctx, referee.ReferrerID)
+	if err != nil {
+		return err
+	}
+	if referrerCustomer == nil {
+		return nil
+	}
+
+	var bonusDays int
+	if isFirstBonus {
+		bonusDays = s.getReferralBonusDays(ctx, referrerCustomer.TelegramID)
+	} else if recurringEnabled {
+		purchaseDays := purchaseMonths * config.DaysInMonth()
+		bonusDays = (purchaseDays * s.getRecurringReferralPercent()) / 100
+		if bonusDays < 1 {
+			bonusDays = 1
+		}
+	}
+
+	if bonusDays > 0 {
+		referrerUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, referrerCustomer.ID, referrerCustomer.TelegramID, config.TrafficLimit(), bonusDays, false)
+		if err != nil {
+			return err
+		}
+
+		referrerFieldsToUpdate := map[string]interface{}{
+			"subscription_link": referrerUser.GetSubscriptionUrl(),
+			"expire_at":         referrerUser.GetExpireAt(),
+		}
+		err = s.customerRepository.UpdateFields(ctx, referrerCustomer.ID, referrerFieldsToUpdate)
+		if err != nil {
+			return err
+		}
+
+		if isFirstBonus {
+			err = s.referralRepository.MarkBonusGranted(ctx, referee.ID)
+			if err != nil {
+				return err
+			}
+		}
+
+		slog.Info("Granted referral bonus", "referrer_id", utils.MaskHalfInt64(referrerCustomer.ID), "bonus_days", bonusDays, "is_first", isFirstBonus)
+
+		_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    referrerCustomer.TelegramID,
+			ParseMode: models.ParseModeHTML,
+			Text:      s.translation.GetText(referrerCustomer.Language, "referral_bonus_granted"),
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: s.createConnectKeyboard(referrerCustomer),
+			},
+		})
+		if err != nil {
+			slog.Error("Error sending referral bonus message", "error", err)
+		}
 	}
 
 	return nil

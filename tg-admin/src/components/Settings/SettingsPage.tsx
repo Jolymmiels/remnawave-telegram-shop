@@ -735,28 +735,153 @@ const SettingsPage: React.FC = () => {
           </Accordion.Panel>
         </Accordion.Item>
 
+        {/* Referral Section */}
+        <Accordion.Item value="referral">
+          <Accordion.Control>Реферальная программа</Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap="md">
+              <Switch
+                label="Включить реферальную программу"
+                size="xs"
+                checked={settings.referral_enabled === 'true'}
+                onChange={e => updateSetting('referral_enabled', e.currentTarget.checked)}
+              />
+
+              {/* Base bonuses */}
+              <Paper p="xs" withBorder>
+                <Text fw={600} size="sm" mb="xs">Базовые бонусы</Text>
+                <SimpleGrid cols={2} spacing="xs">
+                  <NumberInput
+                    label="Бонус рефереру (дни)"
+                    description="Дни подписки за приглашение"
+                    size="xs"
+                    value={Number(settings.referral_bonus_days) || 3}
+                    onChange={v => updateSetting('referral_bonus_days', v || 0)}
+                    min={0}
+                  />
+                  <NumberInput
+                    label="Бонус приглашенному (дни)"
+                    description="Дни для нового пользователя"
+                    size="xs"
+                    value={Number(settings.referral_referee_bonus_days) || 0}
+                    onChange={v => updateSetting('referral_referee_bonus_days', v || 0)}
+                    min={0}
+                  />
+                </SimpleGrid>
+              </Paper>
+
+              {/* Tiers */}
+              <Paper p="xs" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text fw={600} size="sm">Уровневая система</Text>
+                  <Switch
+                    size="xs"
+                    checked={settings.referral_tiers_enabled === 'true'}
+                    onChange={e => updateSetting('referral_tiers_enabled', e.currentTarget.checked)}
+                  />
+                </Group>
+                <Text size="xs" c="dimmed" mb="xs">
+                  Увеличивайте бонус в зависимости от количества приглашенных
+                </Text>
+                <Stack gap="xs">
+                  <SimpleGrid cols={2} spacing="xs">
+                    <NumberInput
+                      label="Уровень 1: от рефералов"
+                      size="xs"
+                      value={Number(settings.referral_tier1_threshold) || 5}
+                      onChange={v => updateSetting('referral_tier1_threshold', v || 5)}
+                      min={1}
+                      disabled={settings.referral_tiers_enabled !== 'true'}
+                    />
+                    <NumberInput
+                      label="Бонус (дни)"
+                      size="xs"
+                      value={Number(settings.referral_tier1_bonus) || 3}
+                      onChange={v => updateSetting('referral_tier1_bonus', v || 3)}
+                      min={0}
+                      disabled={settings.referral_tiers_enabled !== 'true'}
+                    />
+                  </SimpleGrid>
+                  <SimpleGrid cols={2} spacing="xs">
+                    <NumberInput
+                      label="Уровень 2: от рефералов"
+                      size="xs"
+                      value={Number(settings.referral_tier2_threshold) || 15}
+                      onChange={v => updateSetting('referral_tier2_threshold', v || 15)}
+                      min={1}
+                      disabled={settings.referral_tiers_enabled !== 'true'}
+                    />
+                    <NumberInput
+                      label="Бонус (дни)"
+                      size="xs"
+                      value={Number(settings.referral_tier2_bonus) || 5}
+                      onChange={v => updateSetting('referral_tier2_bonus', v || 5)}
+                      min={0}
+                      disabled={settings.referral_tiers_enabled !== 'true'}
+                    />
+                  </SimpleGrid>
+                  <SimpleGrid cols={2} spacing="xs">
+                    <NumberInput
+                      label="Уровень 3: от рефералов"
+                      size="xs"
+                      value={Number(settings.referral_tier3_threshold) || 30}
+                      onChange={v => updateSetting('referral_tier3_threshold', v || 30)}
+                      min={1}
+                      disabled={settings.referral_tiers_enabled !== 'true'}
+                    />
+                    <NumberInput
+                      label="Бонус (дни)"
+                      size="xs"
+                      value={Number(settings.referral_tier3_bonus) || 7}
+                      onChange={v => updateSetting('referral_tier3_bonus', v || 7)}
+                      min={0}
+                      disabled={settings.referral_tiers_enabled !== 'true'}
+                    />
+                  </SimpleGrid>
+                </Stack>
+              </Paper>
+
+              {/* Recurring bonuses */}
+              <Paper p="xs" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text fw={600} size="sm">Повторяющиеся бонусы</Text>
+                  <Switch
+                    size="xs"
+                    checked={settings.referral_recurring_enabled === 'true'}
+                    onChange={e => updateSetting('referral_recurring_enabled', e.currentTarget.checked)}
+                  />
+                </Group>
+                <Text size="xs" c="dimmed" mb="xs">
+                  Получайте бонус при каждой покупке приглашенного пользователя
+                </Text>
+                <NumberInput
+                  label="Процент от покупки (%)"
+                  description="% от дней купленной подписки"
+                  size="xs"
+                  value={Number(settings.referral_recurring_percent) || 10}
+                  onChange={v => updateSetting('referral_recurring_percent', v || 10)}
+                  min={1}
+                  max={100}
+                  disabled={settings.referral_recurring_enabled !== 'true'}
+                />
+              </Paper>
+            </Stack>
+          </Accordion.Panel>
+        </Accordion.Item>
+
         {/* Other Section */}
         <Accordion.Item value="other">
           <Accordion.Control>Прочее</Accordion.Control>
           <Accordion.Panel>
             <Stack gap="xs">
-              <SimpleGrid cols={2} spacing="xs">
-                <NumberInput
-                  label="Реферальные дни"
-                  size="xs"
-                  value={Number(settings.referral_days) || 0}
-                  onChange={v => updateSetting('referral_days', v || 0)}
-                  min={0}
-                />
-                <NumberInput
-                  label="Дней в месяце"
-                  size="xs"
-                  value={Number(settings.days_in_month) || 31}
-                  onChange={v => updateSetting('days_in_month', v || 31)}
-                  min={28}
-                  max={31}
-                />
-              </SimpleGrid>
+              <NumberInput
+                label="Дней в месяце"
+                size="xs"
+                value={Number(settings.days_in_month) || 31}
+                onChange={v => updateSetting('days_in_month', v || 31)}
+                min={28}
+                max={31}
+              />
               
               <Switch
                 label="WebApp Link"

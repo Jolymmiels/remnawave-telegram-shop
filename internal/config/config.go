@@ -60,7 +60,7 @@ var conf config
 // SettingsProvider interface for database settings
 type SettingsProvider interface {
 	Get(key string) string
-	GetBool(key string) bool
+	GetBool(key string, defaultValue ...bool) bool
 	GetInt(key string, defaultValue int) int
 	GetFloat(key string, defaultValue float64) float64
 }

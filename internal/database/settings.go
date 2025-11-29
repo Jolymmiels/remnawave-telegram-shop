@@ -81,11 +81,18 @@ func (sr *SettingsRepository) GetInt(key string, defaultValue int) int {
 	return defaultValue
 }
 
-// GetBool returns a setting value as bool
-func (sr *SettingsRepository) GetBool(key string) bool {
+// GetBool returns a setting value as bool with a default value
+func (sr *SettingsRepository) GetBool(key string, defaultValue ...bool) bool {
 	sr.mu.RLock()
 	defer sr.mu.RUnlock()
-	return sr.cache[key] == "true"
+	
+	if val, ok := sr.cache[key]; ok {
+		return val == "true"
+	}
+	if len(defaultValue) > 0 {
+		return defaultValue[0]
+	}
+	return false
 }
 
 // GetFloat returns a setting value as float64
