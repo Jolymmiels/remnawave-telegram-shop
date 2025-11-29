@@ -185,20 +185,48 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "referral_button"), CallbackData: CallbackReferral}})
 	}
 
-	if config.ServerStatusURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "server_status_button"), URL: config.ServerStatusURL()}})
+	// Build link buttons based on order from settings
+	buttonConfigs := map[string]struct {
+		url  string
+		text string
+	}{
+		"server_status": {config.ServerStatusURL(), h.translation.GetText(langCode, "server_status_button")},
+		"support":       {config.SupportURL(), h.translation.GetText(langCode, "support_button")},
+		"feedback":      {config.FeedbackURL(), h.translation.GetText(langCode, "feedback_button")},
+		"channel":       {config.ChannelURL(), h.translation.GetText(langCode, "channel_button")},
 	}
 
-	if config.SupportURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "support_button"), URL: config.SupportURL()}})
+	buttonOrder := config.LinkButtonsOrder()
+	if len(buttonOrder) == 0 {
+		buttonOrder = []string{"server_status", "support", "feedback", "channel"}
 	}
 
-	if config.FeedbackURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "feedback_button"), URL: config.FeedbackURL()}})
+	var linkButtons []models.InlineKeyboardButton
+	for _, id := range buttonOrder {
+		if cfg, ok := buttonConfigs[id]; ok && cfg.url != "" {
+			linkButtons = append(linkButtons, models.InlineKeyboardButton{Text: cfg.text, URL: cfg.url})
+		}
 	}
 
-	if config.ChannelURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "channel_button"), URL: config.ChannelURL()}})
+	// Add link buttons based on layout setting
+	if len(linkButtons) > 0 {
+		layout := config.LinkButtonsLayout()
+		switch layout {
+		case "2x2":
+			for i := 0; i < len(linkButtons); i += 2 {
+				if i+1 < len(linkButtons) {
+					inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{linkButtons[i], linkButtons[i+1]})
+				} else {
+					inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{linkButtons[i]})
+				}
+			}
+		case "1x4":
+			inlineKeyboard = append(inlineKeyboard, linkButtons)
+		default: // "4x1" or empty - each button in separate row
+			for _, btn := range linkButtons {
+				inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{btn})
+			}
+		}
 	}
 
 	if config.TosURL() != "" {

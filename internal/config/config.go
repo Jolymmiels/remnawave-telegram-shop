@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"log/slog"
@@ -293,6 +294,25 @@ func SupportURL() string {
 
 func TosURL() string {
 	return conf.tosURL
+}
+
+func LinkButtonsLayout() string {
+	if settingsProvider != nil {
+		return settingsProvider.Get("link_buttons_layout")
+	}
+	return ""
+}
+
+func LinkButtonsOrder() []string {
+	if settingsProvider != nil {
+		if val := settingsProvider.Get("link_buttons_order"); val != "" {
+			var order []string
+			if err := json.Unmarshal([]byte(val), &order); err == nil {
+				return order
+			}
+		}
+	}
+	return nil
 }
 
 func YookasaEmail() string {

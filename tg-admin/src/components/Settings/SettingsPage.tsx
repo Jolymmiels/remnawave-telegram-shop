@@ -1,4 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
+import { DndContext, closestCenter, DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, useSortable, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   Stack,
   Title,
@@ -18,6 +21,7 @@ import {
   Badge,
   Modal,
   Divider,
+  SegmentedControl,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconPlus, IconTrash, IconStar, IconEdit } from '@tabler/icons-react'
@@ -56,6 +60,42 @@ interface Plan {
 
 interface PlansResponse {
   plans: Plan[]
+}
+
+interface LinkButton {
+  id: string
+  label: string
+  urlKey: string
+}
+
+const LINK_BUTTONS: LinkButton[] = [
+  { id: 'server_status', label: 'Status', urlKey: 'server_status_url' },
+  { id: 'support', label: 'Support', urlKey: 'support_url' },
+  { id: 'feedback', label: 'Feedback', urlKey: 'feedback_url' },
+  { id: 'channel', label: 'Channel', urlKey: 'channel_url' },
+]
+
+function SortableButton({ id, label, disabled }: { id: string; label: string; disabled: boolean }) {
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: disabled ? 0.4 : 1,
+  }
+  return (
+    <Button
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      size="compact-xs"
+      variant="light"
+      fullWidth
+      disabled={disabled}
+    >
+      {label}
+    </Button>
+  )
 }
 
 const defaultPlan: Omit<Plan, 'id' | 'is_default'> = {
@@ -403,23 +443,23 @@ const SettingsPage: React.FC = () => {
                 checked={settings.trial_enabled === 'true'}
                 onChange={e => updateSetting('trial_enabled', e.currentTarget.checked)}
               />
-              <SimpleGrid cols={{ base: 3 }} spacing="xs">
+              <SimpleGrid cols={3} spacing="xs">
                 <NumberInput
-                  label="Дни триала"
+                  label="Дни"
                   size="xs"
                   value={Number(settings.trial_days) || 0}
                   onChange={v => updateSetting('trial_days', v || 0)}
                   min={0}
                 />
                 <NumberInput
-                  label="Лимит трафика (ГБ)"
+                  label="Трафик (ГБ)"
                   size="xs"
                   value={Number(settings.trial_traffic_limit) || 0}
                   onChange={v => updateSetting('trial_traffic_limit', v || 0)}
                   min={0}
                 />
                 <NumberInput
-                  label="Лимит устройств"
+                  label="Устройства"
                   size="xs"
                   value={Number(settings.trial_device_limit) || 0}
                   onChange={v => updateSetting('trial_device_limit', v || 0)}
@@ -633,6 +673,64 @@ const SettingsPage: React.FC = () => {
                 value={settings.channel_url || ''}
                 onChange={e => updateSetting('channel_url', e.target.value)}
               />
+              <Box>
+                <Text size="xs" fw={500} mb={4}>Расположение кнопок (перетащите для изменения порядка)</Text>
+                <SegmentedControl
+                  size="xs"
+                  fullWidth
+                  data={[
+                    { value: '4x1', label: '4x1' },
+                    { value: '2x2', label: '2x2' },
+                    { value: '1x4', label: '1x4' },
+                  ]}
+                  value={settings.link_buttons_layout || '4x1'}
+                  onChange={v => updateSetting('link_buttons_layout', v)}
+                />
+                <DndContext
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event: DragEndEvent) => {
+                    const { active, over } = event
+                    if (over && active.id !== over.id) {
+                      const order = settings.link_buttons_order 
+                        ? JSON.parse(settings.link_buttons_order) 
+                        : LINK_BUTTONS.map(b => b.id)
+                      const oldIndex = order.indexOf(active.id)
+                      const newIndex = order.indexOf(over.id)
+                      const newOrder = arrayMove(order, oldIndex, newIndex)
+                      updateSetting('link_buttons_order', JSON.stringify(newOrder))
+                    }
+                  }}
+                >
+                  <SortableContext
+                    items={settings.link_buttons_order 
+                      ? JSON.parse(settings.link_buttons_order) 
+                      : LINK_BUTTONS.map(b => b.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <SimpleGrid 
+                      cols={settings.link_buttons_layout === '1x4' ? 4 : settings.link_buttons_layout === '2x2' ? 2 : 1} 
+                      spacing={4} 
+                      mt="xs"
+                    >
+                      {(settings.link_buttons_order 
+                        ? JSON.parse(settings.link_buttons_order) 
+                        : LINK_BUTTONS.map(b => b.id)
+                      ).map((id: string) => {
+                        const btn = LINK_BUTTONS.find(b => b.id === id)
+                        if (!btn) return null
+                        return (
+                          <SortableButton
+                            key={btn.id}
+                            id={btn.id}
+                            label={btn.label}
+                            disabled={!settings[btn.urlKey]}
+                          />
+                        )
+                      })}
+                    </SimpleGrid>
+                  </SortableContext>
+                </DndContext>
+              </Box>
             </Stack>
           </Accordion.Panel>
         </Accordion.Item>
