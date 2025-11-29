@@ -43,9 +43,8 @@ func NewSubscriptionService(customerRepository customerRepository,
 	svc.notify = svc.sendNotification
 	return svc
 }
-func (s *SubscriptionService) ProcessSubscriptionExpiration() error {
-	ctx := context.Background()
-	customers, err := s.getCustomersWithExpiringSubscriptions()
+func (s *SubscriptionService) ProcessSubscriptionExpiration(ctx context.Context) error {
+	customers, err := s.getCustomersWithExpiringSubscriptions(ctx)
 	if err != nil {
 		slog.Error("Failed to get customers with expiring subscriptions", "error", err)
 		return err
@@ -125,11 +124,11 @@ func (s *SubscriptionService) ProcessSubscriptionExpiration() error {
 	return nil
 }
 
-func (s *SubscriptionService) getCustomersWithExpiringSubscriptions() (*[]database.Customer, error) {
+func (s *SubscriptionService) getCustomersWithExpiringSubscriptions(ctx context.Context) (*[]database.Customer, error) {
 	now := time.Now()
 	endDate := now.AddDate(0, 0, 3)
 
-	dbCustomers, err := s.customerRepository.FindByExpirationRange(context.Background(), now, endDate)
+	dbCustomers, err := s.customerRepository.FindByExpirationRange(ctx, now, endDate)
 	if err != nil {
 		return nil, err
 	}

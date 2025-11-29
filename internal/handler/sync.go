@@ -9,7 +9,7 @@ import (
 )
 
 func (h Handler) SyncUsersCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	h.syncService.Sync()
+	h.syncService.Sync(ctx)
 	_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
 		Text:   "Users synced",

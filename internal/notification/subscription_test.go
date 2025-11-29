@@ -18,12 +18,12 @@ func (m *customerRepoMock) FindByExpirationRange(ctx context.Context, startDate,
 }
 
 type purchaseRepoMock struct {
-	tributes    *[]database.Purchase
+	tributes    []database.Purchase
 	err         error
 	receivedIDs []int64
 }
 
-func (m *purchaseRepoMock) FindLatestActiveTributesByCustomerIDs(ctx context.Context, customerIDs []int64) (*[]database.Purchase, error) {
+func (m *purchaseRepoMock) FindLatestActiveTributesByCustomerIDs(ctx context.Context, customerIDs []int64) ([]database.Purchase, error) {
 	m.receivedIDs = append([]int64(nil), customerIDs...)
 	return m.tributes, m.err
 }
@@ -40,7 +40,7 @@ type paymentServiceMock struct {
 	purchaseIDToReturn int64
 }
 
-func (m *paymentServiceMock) CreatePurchase(ctx context.Context, amount float64, months int, customer *database.Customer, invoiceType database.InvoiceType) (string, int64, error) {
+func (m *paymentServiceMock) CreatePurchase(ctx context.Context, amount float64, months int, customer *database.Customer, invoiceType database.InvoiceType, planID *int64) (string, int64, error) {
 	m.createCalls++
 	m.amounts = append(m.amounts, amount)
 	m.months = append(m.months, months)
@@ -65,7 +65,7 @@ func TestSubscriptionService_ProcessSubscriptionExpiration_ProcessesTribute(t *t
 	tributes := []database.Purchase{{CustomerID: 1, Amount: 10.5, Month: 2}}
 
 	cRepo := &customerRepoMock{customers: &customers}
-	pRepo := &purchaseRepoMock{tributes: &tributes}
+	pRepo := &purchaseRepoMock{tributes: tributes}
 	payMock := &paymentServiceMock{purchaseIDToReturn: 77}
 
 	svc := NewSubscriptionService(cRepo, pRepo, payMock, nil, nil)
@@ -74,7 +74,7 @@ func TestSubscriptionService_ProcessSubscriptionExpiration_ProcessesTribute(t *t
 		return nil
 	}
 
-	if err := svc.ProcessSubscriptionExpiration(); err != nil {
+	if err := svc.ProcessSubscriptionExpiration(context.Background()); err != nil {
 		t.Fatalf("ProcessSubscriptionExpiration returned error: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func TestSubscriptionService_ProcessSubscriptionExpiration_SkipsAutoRenewWhenNot
 	tributes := []database.Purchase{{CustomerID: 5, Amount: 20, Month: 1}}
 
 	cRepo := &customerRepoMock{customers: &customers}
-	pRepo := &purchaseRepoMock{tributes: &tributes}
+	pRepo := &purchaseRepoMock{tributes: tributes}
 	payMock := &paymentServiceMock{purchaseIDToReturn: 101}
 
 	svc := NewSubscriptionService(cRepo, pRepo, payMock, nil, nil)
@@ -113,7 +113,7 @@ func TestSubscriptionService_ProcessSubscriptionExpiration_SkipsAutoRenewWhenNot
 		return nil
 	}
 
-	if err := svc.ProcessSubscriptionExpiration(); err != nil {
+	if err := svc.ProcessSubscriptionExpiration(context.Background()); err != nil {
 		t.Fatalf("ProcessSubscriptionExpiration returned error: %v", err)
 	}
 
@@ -134,7 +134,7 @@ func TestSubscriptionService_ProcessSubscriptionExpiration_SkipsAutoRenewWhenLas
 	tributes := []database.Purchase{}
 
 	cRepo := &customerRepoMock{customers: &customers}
-	pRepo := &purchaseRepoMock{tributes: &tributes}
+	pRepo := &purchaseRepoMock{tributes: tributes}
 	payMock := &paymentServiceMock{}
 	notifyCalls := 0
 
@@ -144,7 +144,7 @@ func TestSubscriptionService_ProcessSubscriptionExpiration_SkipsAutoRenewWhenLas
 		return nil
 	}
 
-	if err := svc.ProcessSubscriptionExpiration(); err != nil {
+	if err := svc.ProcessSubscriptionExpiration(context.Background()); err != nil {
 		t.Fatalf("ProcessSubscriptionExpiration returned error: %v", err)
 	}
 

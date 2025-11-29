@@ -145,8 +145,7 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return err
 	}
 
-	ctxReferee := context.Background()
-	referee, err := s.referralRepository.FindByReferee(ctxReferee, customer.TelegramID)
+	referee, err := s.referralRepository.FindByReferee(ctx, customer.TelegramID)
 	if referee == nil {
 		return nil
 	}
@@ -156,11 +155,11 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	if err != nil {
 		return err
 	}
-	refereeCustomer, err := s.customerRepository.FindByTelegramId(ctxReferee, referee.ReferrerID)
+	refereeCustomer, err := s.customerRepository.FindByTelegramId(ctx, referee.ReferrerID)
 	if err != nil {
 		return err
 	}
-	refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctxReferee, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays(), false)
+	refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays(), false)
 	if err != nil {
 		return err
 	}
@@ -168,16 +167,16 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		"subscription_link": refereeUser.GetSubscriptionUrl(),
 		"expire_at":         refereeUser.GetExpireAt(),
 	}
-	err = s.customerRepository.UpdateFields(ctxReferee, refereeCustomer.ID, refereeUserFilesToUpdate)
+	err = s.customerRepository.UpdateFields(ctx, refereeCustomer.ID, refereeUserFilesToUpdate)
 	if err != nil {
 		return err
 	}
-	err = s.referralRepository.MarkBonusGranted(ctxReferee, referee.ID)
+	err = s.referralRepository.MarkBonusGranted(ctx, referee.ID)
 	if err != nil {
 		return err
 	}
 	slog.Info("Granted referral bonus", "customer_id", utils.MaskHalfInt64(refereeCustomer.ID))
-	_, err = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
+	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    refereeCustomer.TelegramID,
 		ParseMode: models.ParseModeHTML,
 		Text:      s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),

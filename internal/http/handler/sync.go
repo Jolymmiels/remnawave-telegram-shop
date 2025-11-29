@@ -1,8 +1,10 @@
 package handler
 
 import (
+	"context"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/sync"
+	"time"
 )
 
 type SyncHandler struct {
@@ -19,7 +21,11 @@ func (h *SyncHandler) Sync(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go h.syncService.Sync()
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+		h.syncService.Sync(ctx)
+	}()
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte(`{"status":"sync started"}`))

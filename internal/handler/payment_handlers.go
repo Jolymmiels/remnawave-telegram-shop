@@ -263,9 +263,9 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		price = amount
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, time.Second*10)
 	defer cancel()
-	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
+	customer, err := h.customerRepository.FindByTelegramId(ctxWithTimeout, callback.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", "error", err)
 		return
@@ -275,7 +275,7 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		return
 	}
 
-	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
+	ctxWithUsername := context.WithValue(ctxWithTimeout, "username", update.CallbackQuery.From.Username)
 	paymentURL, purchaseId, err := h.paymentService.CreatePurchase(ctxWithUsername, float64(price), month, customer, invoiceType, &planId)
 	if err != nil {
 		slog.Error("Error creating payment", "error", err)
