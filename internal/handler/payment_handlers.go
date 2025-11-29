@@ -108,28 +108,28 @@ func (h Handler) buildPeriodSelectionKeyboard(plan database.Plan, langCode strin
 
 	if plan.Price1 > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         h.translation.GetText(langCode, "month_1"),
+			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_1"), plan.Price1),
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 1, plan.Price1, plan.ID),
 		})
 	}
 
 	if plan.Price3 > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         h.translation.GetText(langCode, "month_3"),
+			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_3"), plan.Price3),
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 3, plan.Price3, plan.ID),
 		})
 	}
 
 	if plan.Price6 > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         h.translation.GetText(langCode, "month_6"),
+			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_6"), plan.Price6),
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 6, plan.Price6, plan.ID),
 		})
 	}
 
 	if plan.Price12 > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         h.translation.GetText(langCode, "month_12"),
+			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_12"), plan.Price12),
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 12, plan.Price12, plan.ID),
 		})
 	}

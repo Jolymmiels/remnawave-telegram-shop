@@ -9,23 +9,37 @@ import (
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 
+	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/utils"
 )
 
 type DevicesHandler struct {
-	remnawaveClient *remnawave.Client
-	translation     interface {
+	remnawaveClient    *remnawave.Client
+	customerRepository *database.CustomerRepository
+	purchaseRepository *database.PurchaseRepository
+	planRepository     *database.PlanRepository
+	translation        interface {
 		GetText(lang string, key string) string
 	}
 }
 
-func NewDevicesHandler(remnawaveClient *remnawave.Client, translation interface {
-	GetText(lang string, key string) string
-}) *DevicesHandler {
+func NewDevicesHandler(
+	remnawaveClient *remnawave.Client,
+	customerRepository *database.CustomerRepository,
+	purchaseRepository *database.PurchaseRepository,
+	planRepository *database.PlanRepository,
+	translation interface {
+		GetText(lang string, key string) string
+	},
+) *DevicesHandler {
 	return &DevicesHandler{
-		remnawaveClient: remnawaveClient,
-		translation:     translation,
+		remnawaveClient:    remnawaveClient,
+		customerRepository: customerRepository,
+		purchaseRepository: purchaseRepository,
+		planRepository:     planRepository,
+		translation:        translation,
 	}
 }
 
@@ -73,8 +87,30 @@ func (dh *DevicesHandler) DevicesCallbackHandler(ctx context.Context, b *bot.Bot
 		return
 	}
 
+	// Get device limit from customer's plan or trial settings
+	var deviceLimit *int
+	customer, err := dh.customerRepository.FindByTelegramId(ctx, telegramId)
+	if err == nil && customer != nil {
+		lastPurchase, _ := dh.purchaseRepository.FindLastPaidPurchaseWithPlan(ctx, customer.ID)
+		if lastPurchase != nil && lastPurchase.PlanID != nil {
+			plan, _ := dh.planRepository.FindById(ctx, *lastPurchase.PlanID)
+			if plan != nil {
+				deviceLimit = plan.DeviceLimit
+			}
+		} else if customer.TrialUsed {
+			// Use trial device limit if user is on trial
+			trialLimit := config.TrialDeviceLimit()
+			if trialLimit > 0 {
+				deviceLimit = &trialLimit
+			}
+		}
+	}
+
 	var text strings.Builder
 	text.WriteString(dh.translation.GetText(langCode, "devices_title"))
+	if deviceLimit != nil {
+		text.WriteString(fmt.Sprintf(" (%d/%d)", len(devices), *deviceLimit))
+	}
 	text.WriteString("\n\n")
 
 	var keyboard [][]models.InlineKeyboardButton

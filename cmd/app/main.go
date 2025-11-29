@@ -151,7 +151,7 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPromo, bot.MatchTypePrefix, h.PromoCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 
-	devicesHandler := tghandler.NewDevicesHandler(remnawaveClient, tm)
+	devicesHandler := tghandler.NewDevicesHandler(remnawaveClient, customerRepository, purchaseRepository, planRepository, tm)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDevices, bot.MatchTypeExact, devicesHandler.DevicesCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceDelete, bot.MatchTypePrefix, devicesHandler.DeviceDeleteCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceConfirm, bot.MatchTypePrefix, devicesHandler.DeviceConfirmDeleteHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)

@@ -230,8 +230,14 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 		userUpdate.Tag = remapi.NewOptNilString(tag)
 	}
 
+	// Determine device limit based on plan or trial
 	if plan != nil && plan.DeviceLimit != nil {
 		userUpdate.HwidDeviceLimit = remapi.NewOptNilInt(*plan.DeviceLimit)
+	} else if isTrialUser {
+		trialDeviceLimit := config.TrialDeviceLimit()
+		if trialDeviceLimit > 0 {
+			userUpdate.HwidDeviceLimit = remapi.NewOptNilInt(trialDeviceLimit)
+		}
 	}
 
 	var username string
@@ -328,6 +334,16 @@ func (r *Client) createUserWithPlan(ctx context.Context, customerId int64, teleg
 	}
 	if tag != "" {
 		createUserRequestDto.Tag = remapi.NewOptNilString(tag)
+	}
+
+	// Determine device limit based on plan or trial
+	if plan != nil && plan.DeviceLimit != nil {
+		createUserRequestDto.HwidDeviceLimit = remapi.NewOptInt(*plan.DeviceLimit)
+	} else if isTrialUser {
+		trialDeviceLimit := config.TrialDeviceLimit()
+		if trialDeviceLimit > 0 {
+			createUserRequestDto.HwidDeviceLimit = remapi.NewOptInt(trialDeviceLimit)
+		}
 	}
 
 	var tgUsername string

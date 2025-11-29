@@ -403,7 +403,7 @@ const SettingsPage: React.FC = () => {
                 checked={settings.trial_enabled === 'true'}
                 onChange={e => updateSetting('trial_enabled', e.currentTarget.checked)}
               />
-              <SimpleGrid cols={{ base: 2 }} spacing="xs">
+              <SimpleGrid cols={{ base: 3 }} spacing="xs">
                 <NumberInput
                   label="Дни триала"
                   size="xs"
@@ -416,6 +416,13 @@ const SettingsPage: React.FC = () => {
                   size="xs"
                   value={Number(settings.trial_traffic_limit) || 0}
                   onChange={v => updateSetting('trial_traffic_limit', v || 0)}
+                  min={0}
+                />
+                <NumberInput
+                  label="Лимит устройств"
+                  size="xs"
+                  value={Number(settings.trial_device_limit) || 0}
+                  onChange={v => updateSetting('trial_device_limit', v || 0)}
                   min={0}
                 />
               </SimpleGrid>

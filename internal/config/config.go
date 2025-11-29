@@ -249,6 +249,17 @@ func TrialTrafficLimit() int {
 	return getIntSettingWithDeprecation("trial_traffic_limit", conf.trialTrafficLimit, "TRIAL_TRAFFIC_LIMIT") * bytesInGigabyte
 }
 
+func TrialDeviceLimit() int {
+	if settingsProvider != nil {
+		if val := settingsProvider.Get("trial_device_limit"); val != "" {
+			if intVal, err := strconv.Atoi(val); err == nil {
+				return intVal
+			}
+		}
+	}
+	return 0
+}
+
 func IsTrialEnabled() bool {
 	// Check DB setting first, then check if trial_days > 0 as fallback
 	if settingsProvider != nil {
@@ -413,7 +424,7 @@ func GetHealthCheckPort() int {
 }
 
 func IsWepAppLinkEnabled() bool {
-	return conf.isWebAppLinkEnabled
+	return getBoolSettingWithDeprecation("is_web_app_link", conf.isWebAppLinkEnabled, "IS_WEB_APP_LINK")
 }
 
 func RemnawaveHeaders() map[string]string {

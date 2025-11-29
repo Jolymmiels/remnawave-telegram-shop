@@ -212,6 +212,25 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 	return scanPurchase(pr.pool.QueryRow(ctx, sql, args...))
 }
 
+func (pr *PurchaseRepository) FindLastPaidPurchaseWithPlan(ctx context.Context, customerID int64) (*Purchase, error) {
+	query := sq.Select(purchaseColumns...).
+		From("purchase").
+		Where(sq.And{
+			sq.Eq{"customer_id": customerID},
+			sq.Eq{"status": PurchaseStatusPaid},
+			sq.NotEq{"plan_id": nil},
+		}).
+		OrderBy("paid_at DESC").
+		Limit(1).
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build query: %w", err)
+	}
+	return scanPurchase(pr.pool.QueryRow(ctx, sql, args...))
+}
+
 func (pr *PurchaseRepository) FindLatestActiveTributesByCustomerIDs(ctx context.Context, customerIDs []int64) ([]Purchase, error) {
 	if len(customerIDs) == 0 {
 		return []Purchase{}, nil
