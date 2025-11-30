@@ -6,7 +6,7 @@
 *.dylib
 *.test
 *.out
-app
+/app
 /bin/
 
 # Go
