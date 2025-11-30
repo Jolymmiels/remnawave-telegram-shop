@@ -24,30 +24,31 @@ func NewCustomerRepository(poll *pgxpool.Pool) *CustomerRepository {
 }
 
 type Customer struct {
-	ID               int64      `db:"id" json:"id"`
-	TelegramID       int64      `db:"telegram_id" json:"telegram_id"`
-	ExpireAt         *time.Time `db:"expire_at" json:"expire_at"`
-	CreatedAt        time.Time  `db:"created_at" json:"created_at"`
-	SubscriptionLink *string    `db:"subscription_link" json:"subscription_link"`
-	Language         string     `db:"language" json:"language"`
-	IsBlocked        bool       `db:"is_blocked" json:"is_blocked"`
-	TrialUsed        bool       `db:"trial_used" json:"trial_used"`
-	PaymentMethodID  *string    `db:"payment_method_id" json:"payment_method_id"`
-	AutopayEnabled   bool       `db:"autopay_enabled" json:"autopay_enabled"`
-	AutopayPlanID    *int64     `db:"autopay_plan_id" json:"autopay_plan_id"`
-	AutopayMonths    int        `db:"autopay_months" json:"autopay_months"`
+	ID                    int64      `db:"id" json:"id"`
+	TelegramID            int64      `db:"telegram_id" json:"telegram_id"`
+	ExpireAt              *time.Time `db:"expire_at" json:"expire_at"`
+	CreatedAt             time.Time  `db:"created_at" json:"created_at"`
+	SubscriptionLink      *string    `db:"subscription_link" json:"subscription_link"`
+	Language              string     `db:"language" json:"language"`
+	IsBlocked             bool       `db:"is_blocked" json:"is_blocked"`
+	TrialUsed             bool       `db:"trial_used" json:"trial_used"`
+	PaymentMethodID       *string    `db:"payment_method_id" json:"payment_method_id"`
+	AutopayEnabled        bool       `db:"autopay_enabled" json:"autopay_enabled"`
+	AutopayPlanID         *int64     `db:"autopay_plan_id" json:"autopay_plan_id"`
+	AutopayMonths         int        `db:"autopay_months" json:"autopay_months"`
+	AutopayFailedAttempts int        `db:"autopay_failed_attempts" json:"autopay_failed_attempts"`
 }
 
 var customerColumns = []string{
 	"id", "telegram_id", "expire_at", "created_at", "subscription_link",
-	"language", "is_blocked", "trial_used", "payment_method_id", "autopay_enabled", "autopay_plan_id", "autopay_months",
+	"language", "is_blocked", "trial_used", "payment_method_id", "autopay_enabled", "autopay_plan_id", "autopay_months", "autopay_failed_attempts",
 }
 
 func scanCustomer(row interface{ Scan(dest ...any) error }) (*Customer, error) {
 	var c Customer
 	err := row.Scan(
 		&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
-		&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths,
+		&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
 	)
 	if err != nil {
 		return nil, err
@@ -457,7 +458,7 @@ func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params Customer
 	query := fmt.Sprintf(`
 		SELECT 
 			c.id, c.telegram_id, c.expire_at, c.created_at, c.subscription_link,
-			c.language, c.is_blocked, c.trial_used, c.payment_method_id, c.autopay_enabled, c.autopay_plan_id, c.autopay_months,
+			c.language, c.is_blocked, c.trial_used, c.payment_method_id, c.autopay_enabled, c.autopay_plan_id, c.autopay_months, c.autopay_failed_attempts,
 			COALESCE(ps.total_spent, 0) as total_spent,
 			COALESCE(ps.payments_count, 0) as payments_count,
 			COALESCE(rc.referrals_count, 0) as referrals_count
@@ -491,7 +492,7 @@ func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params Customer
 		var c CustomerWithStats
 		err := rows.Scan(
 			&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
-			&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths,
+			&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
 			&c.TotalSpent, &c.PaymentsCount, &c.ReferralsCount,
 		)
 		if err != nil {
@@ -784,13 +785,14 @@ func (cr *CustomerRepository) FindCustomersWithExpiringAutopay(ctx context.Conte
 	return &customers, nil
 }
 
-// SetPaymentMethod saves the payment method ID for autopay
+// SetPaymentMethod saves the payment method ID for autopay and resets failed attempts counter
 func (cr *CustomerRepository) SetPaymentMethod(ctx context.Context, customerID int64, paymentMethodID string, autopayPlanID int64, months int) error {
 	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
-		"payment_method_id": paymentMethodID,
-		"autopay_enabled":   true,
-		"autopay_plan_id":   autopayPlanID,
-		"autopay_months":    months,
+		"payment_method_id":        paymentMethodID,
+		"autopay_enabled":          true,
+		"autopay_plan_id":          autopayPlanID,
+		"autopay_months":           months,
+		"autopay_failed_attempts":  0,
 	})
 }
 
@@ -811,4 +813,30 @@ func (cr *CustomerRepository) DisableAutopayByTelegramID(ctx context.Context, te
 		return fmt.Errorf("customer not found")
 	}
 	return cr.DisableAutopay(ctx, customer.ID)
+}
+
+// IncrementAutopayFailedAttempts increments the failed attempts counter and returns the new value
+func (cr *CustomerRepository) IncrementAutopayFailedAttempts(ctx context.Context, customerID int64) (int, error) {
+	query := `UPDATE customer SET autopay_failed_attempts = autopay_failed_attempts + 1 WHERE id = $1 RETURNING autopay_failed_attempts`
+	var newCount int
+	err := cr.pool.QueryRow(ctx, query, customerID).Scan(&newCount)
+	if err != nil {
+		return 0, fmt.Errorf("failed to increment autopay failed attempts: %w", err)
+	}
+	return newCount, nil
+}
+
+// ResetAutopayFailedAttempts resets the failed attempts counter to 0
+func (cr *CustomerRepository) ResetAutopayFailedAttempts(ctx context.Context, customerID int64) error {
+	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
+		"autopay_failed_attempts": 0,
+	})
+}
+
+// DisableAutopayAndReset disables autopay and resets the failed attempts counter
+func (cr *CustomerRepository) DisableAutopayAndReset(ctx context.Context, customerID int64) error {
+	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
+		"autopay_enabled":         false,
+		"autopay_failed_attempts": 0,
+	})
 }

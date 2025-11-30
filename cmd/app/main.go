@@ -294,7 +294,7 @@ func checkYookasaInvoice(
 ) {
 	pendingPurchases, err := purchaseRepository.FindByInvoiceTypeAndStatus(
 		ctx,
-		database.InvoiceTypeYookasa,
+		database.InvoiceTypeYookassa,
 		database.PurchaseStatusPending,
 	)
 	if err != nil {

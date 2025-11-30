@@ -26,6 +26,7 @@ import {
 import { notifications } from '@mantine/notifications'
 import { IconPlus, IconTrash, IconStar, IconEdit } from '@tabler/icons-react'
 import { httpGet, httpPut, httpPost, httpDelete } from '@/lib/http'
+import { TelegramStarsLogo, CryptoPayLogo, YookassaLogo, TributeLogo } from '@/components/PaymentIcons'
 
 interface Squad {
   uuid: string
@@ -525,7 +526,10 @@ const SettingsPage: React.FC = () => {
               {/* Telegram Stars */}
               <Paper p="xs" withBorder>
                 <Group justify="space-between" mb="xs">
-                  <Text fw={600} size="sm">Telegram Stars</Text>
+                  <Group gap="xs">
+                    <TelegramStarsLogo size={20} />
+                    <Text fw={600} size="sm">Telegram Stars</Text>
+                  </Group>
                   <Switch
                     size="xs"
                     checked={settings.telegram_stars_enabled === 'true'}
@@ -543,7 +547,10 @@ const SettingsPage: React.FC = () => {
               {/* CryptoPay */}
               <Paper p="xs" withBorder>
                 <Group justify="space-between" mb="xs">
-                  <Text fw={600} size="sm">CryptoPay</Text>
+                  <Group gap="xs">
+                    <CryptoPayLogo size={20} />
+                    <Text fw={600} size="sm">CryptoPay</Text>
+                  </Group>
                   <Switch
                     size="xs"
                     checked={settings.crypto_pay_enabled === 'true'}
@@ -570,7 +577,10 @@ const SettingsPage: React.FC = () => {
               {/* YooKassa */}
               <Paper p="xs" withBorder>
                 <Group justify="space-between" mb="xs">
-                  <Text fw={600} size="sm">YooKassa</Text>
+                  <Group gap="xs">
+                    <YookassaLogo size={20} />
+                    <Text fw={600} size="sm">YooKassa</Text>
+                  </Group>
                   <Switch
                     size="xs"
                     checked={settings.yookasa_enabled === 'true'}
@@ -645,7 +655,10 @@ const SettingsPage: React.FC = () => {
               {/* Tribute */}
               <Paper p="xs" withBorder>
                 <Group justify="space-between" mb="xs">
-                  <Text fw={600} size="sm">Tribute</Text>
+                  <Group gap="xs">
+                    <TributeLogo size={20} />
+                    <Text fw={600} size="sm">Tribute</Text>
+                  </Group>
                   <Switch
                     size="xs"
                     checked={settings.tribute_enabled === 'true'}

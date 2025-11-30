@@ -1,0 +1,1 @@
+ALTER TABLE customer ADD COLUMN IF NOT EXISTS autopay_failed_attempts INTEGER NOT NULL DEFAULT 0;

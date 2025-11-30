@@ -18,7 +18,7 @@ type InvoiceType string
 
 const (
 	InvoiceTypeCrypto   InvoiceType = "crypto"
-	InvoiceTypeYookasa  InvoiceType = "yookasa"
+	InvoiceTypeYookassa InvoiceType = "yookassa"
 	InvoiceTypeTelegram InvoiceType = "telegram"
 	InvoiceTypeTribute  InvoiceType = "tribute"
 )
@@ -199,7 +199,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 		Where(sq.And{
 			sq.Eq{"customer_id": customerID},
 			sq.Eq{"status": PurchaseStatusPaid},
-			sq.Or{sq.Eq{"invoice_type": InvoiceTypeCrypto}, sq.Eq{"invoice_type": InvoiceTypeYookasa}},
+			sq.Or{sq.Eq{"invoice_type": InvoiceTypeCrypto}, sq.Eq{"invoice_type": InvoiceTypeYookassa}},
 		}).
 		OrderBy("paid_at DESC").
 		Limit(1).

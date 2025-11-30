@@ -3,6 +3,7 @@ import { Stack, Grid, Paper, Text, Group, SimpleGrid, Loader, Center, SegmentedC
 import { IconUsers, IconUserCheck, IconUserX, IconCoin, IconReceipt, IconTrendingUp } from '@tabler/icons-react'
 import { AreaChart, BarChart } from '@mantine/charts'
 import { http } from '@/lib/http'
+import { PaymentIcon, getPaymentLabel } from '@/components/PaymentIcons'
 
 interface UserStats {
   total: number
@@ -244,10 +245,13 @@ const StatsOverviewPage: React.FC = () => {
       {payments.by_payment_type && payments.by_payment_type.length > 0 && (
         <>
           <Text size="lg" fw={600} mt="md">По способам оплаты</Text>
-          <SimpleGrid cols={{ base: 2, sm: 3 }}>
+          <SimpleGrid cols={{ base: 2, sm: 4 }}>
             {payments.by_payment_type.map((item) => (
               <Paper key={item.type} p="md" radius="md" withBorder>
-                <Text size="sm" c="dimmed">{item.type}</Text>
+                <Group gap="xs" mb="xs">
+                  <PaymentIcon type={item.type as 'yookassa' | 'crypto' | 'telegram' | 'tribute'} size={20} />
+                  <Text size="sm" c="dimmed">{getPaymentLabel(item.type as 'yookassa' | 'crypto' | 'telegram' | 'tribute')}</Text>
+                </Group>
                 <Text size="lg" fw={600}>{formatCurrency(item.amount)}</Text>
                 <Text size="xs" c="dimmed">{item.count} платежей</Text>
               </Paper>

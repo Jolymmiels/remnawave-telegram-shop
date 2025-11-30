@@ -180,7 +180,7 @@ func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, mont
 	switch invoiceType {
 	case database.InvoiceTypeCrypto:
 		return s.createCryptoInvoice(ctx, amount, months, customer, planID)
-	case database.InvoiceTypeYookasa:
+	case database.InvoiceTypeYookassa:
 		return s.createYookasaInvoice(ctx, amount, months, customer, planID)
 	case database.InvoiceTypeTelegram:
 		return s.createTelegramInvoice(ctx, amount, months, customer, planID)
@@ -294,7 +294,7 @@ func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64,
 
 func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64, months int, customer *database.Customer, planID *int64) (url string, purchaseId int64, err error) {
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
-		InvoiceType: database.InvoiceTypeYookasa,
+		InvoiceType: database.InvoiceTypeYookassa,
 		Status:      database.PurchaseStatusNew,
 		Amount:      amount,
 		Currency:    "RUB",
@@ -552,7 +552,7 @@ func (s *PaymentService) CreateRecurringPayment(ctx context.Context, customer *d
 
 	// Create purchase record
 	purchaseId, err := s.purchaseRepository.Create(ctx, &database.Purchase{
-		InvoiceType: database.InvoiceTypeYookasa,
+		InvoiceType: database.InvoiceTypeYookassa,
 		Status:      database.PurchaseStatusNew,
 		Amount:      float64(price),
 		Currency:    "RUB",
@@ -626,14 +626,41 @@ func (s *PaymentService) ProcessAutopayments(ctx context.Context) error {
 
 	slog.Info("Processing autopayments", "customer_count", len(*customers))
 
+	maxAttempts := s.settingsRepository.GetInt("recurring_max_failed_attempts", 3)
+
 	for _, customer := range *customers {
 		if err := s.CreateRecurringPayment(ctx, &customer); err != nil {
 			slog.Error("Failed to create recurring payment",
 				"customer_id", utils.MaskHalfInt64(customer.ID),
 				"error", err,
 			)
-			// Continue with other customers
+
+			// Increment failed attempts counter
+			failedAttempts, incErr := s.customerRepository.IncrementAutopayFailedAttempts(ctx, customer.ID)
+			if incErr != nil {
+				slog.Error("Failed to increment autopay failed attempts", "customer_id", customer.ID, "error", incErr)
+				continue
+			}
+
+			// Check if max attempts reached
+			if failedAttempts >= maxAttempts {
+				// Disable autopay
+				if disableErr := s.customerRepository.DisableAutopayAndReset(ctx, customer.ID); disableErr != nil {
+					slog.Error("Failed to disable autopay after max attempts", "customer_id", customer.ID, "error", disableErr)
+				} else {
+					slog.Info("Autopay disabled after max failed attempts", "customer_id", customer.ID, "attempts", failedAttempts)
+					// Notify user
+					s.notifyAutopayDisabledDueToFailure(ctx, &customer)
+				}
+			}
 			continue
+		}
+
+		// Reset failed attempts on success
+		if customer.AutopayFailedAttempts > 0 {
+			if resetErr := s.customerRepository.ResetAutopayFailedAttempts(ctx, customer.ID); resetErr != nil {
+				slog.Error("Failed to reset autopay failed attempts", "customer_id", customer.ID, "error", resetErr)
+			}
 		}
 	}
 
@@ -688,6 +715,21 @@ func (s *PaymentService) NotifyUpcomingAutopayments(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+// notifyAutopayDisabledDueToFailure sends a notification to user that autopay was disabled due to failed attempts
+func (s *PaymentService) notifyAutopayDisabledDueToFailure(ctx context.Context, customer *database.Customer) {
+	_, err := s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    customer.TelegramID,
+		ParseMode: models.ParseModeHTML,
+		Text:      s.translation.GetText(customer.Language, "autopay_disabled_due_to_failure"),
+	})
+	if err != nil {
+		slog.Error("Failed to send autopay disabled notification",
+			"customer_id", utils.MaskHalfInt64(customer.ID),
+			"error", err,
+		)
+	}
 }
 
 func (s *PaymentService) processReferralBonus(ctx context.Context, customer *database.Customer, purchaseID int64, purchaseMonths int) error {

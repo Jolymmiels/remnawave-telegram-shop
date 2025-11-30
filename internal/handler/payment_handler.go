@@ -213,7 +213,7 @@ func (h *PaymentHandler) SellCallbackHandler(ctx context.Context, b *bot.Bot, up
 
 	if config.IsYookasaEnabled() {
 		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s&planId=%s", CallbackPayment, month, database.InvoiceTypeYookasa, amount, planId)},
+			{Text: h.translation.GetText(langCode, "card_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s&planId=%s", CallbackPayment, month, database.InvoiceTypeYookassa, amount, planId)},
 		})
 	}
 

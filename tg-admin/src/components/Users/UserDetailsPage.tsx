@@ -277,7 +277,7 @@ const UserDetailsPage: React.FC = () => {
 
   const getInvoiceTypeBadge = (type: string) => {
     switch (type) {
-      case 'yookasa':
+      case 'yookassa':
         return <Badge variant="light" color="violet" size="xs">YooKassa</Badge>
       case 'crypto':
         return <Badge variant="light" color="blue" size="xs">Crypto</Badge>
