@@ -252,13 +252,19 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 	if err != nil {
 		return nil, err
 	}
-	if value, ok := updateUser.(*remapi.UsersControllerUpdateUserInternalServerError); ok {
-		return nil, errors.New("error while updating user. message: " + value.GetMessage().Value + ". code: " + value.GetErrorCode().Value)
-	}
 
-	tgid, _ := existingUser.TelegramId.Get()
-	slog.Info("updated user", "telegramId", utils.MaskHalf(strconv.Itoa(tgid)), "username", utils.MaskHalf(username), "days", days)
-	return &updateUser.(*remapi.UserResponse).Response, nil
+	switch resp := updateUser.(type) {
+	case *remapi.UserResponse:
+		tgid, _ := existingUser.TelegramId.Get()
+		slog.Info("updated user", "telegramId", utils.MaskHalf(strconv.Itoa(tgid)), "username", utils.MaskHalf(username), "days", days)
+		return &resp.Response, nil
+	case *remapi.UsersControllerUpdateUserBadRequest:
+		return nil, fmt.Errorf("bad request updating user: %s", resp.GetMessage().Value)
+	case *remapi.UsersControllerUpdateUserInternalServerError:
+		return nil, fmt.Errorf("internal server error updating user: %s (code: %s)", resp.GetMessage().Value, resp.GetErrorCode().Value)
+	default:
+		return nil, fmt.Errorf("unexpected response type updating user: %T", updateUser)
+	}
 }
 
 func (r *Client) createUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
@@ -358,8 +364,18 @@ func (r *Client) createUserWithPlan(ctx context.Context, customerId int64, teleg
 	if err != nil {
 		return nil, err
 	}
-	slog.Info("created user", "telegramId", utils.MaskHalf(strconv.FormatInt(telegramId, 10)), "username", utils.MaskHalf(tgUsername), "days", days)
-	return &userCreate.(*remapi.UserResponse).Response, nil
+
+	switch resp := userCreate.(type) {
+	case *remapi.UserResponse:
+		slog.Info("created user", "telegramId", utils.MaskHalf(strconv.FormatInt(telegramId, 10)), "username", utils.MaskHalf(tgUsername), "days", days)
+		return &resp.Response, nil
+	case *remapi.UsersControllerCreateUserBadRequest:
+		return nil, fmt.Errorf("bad request creating user: %s", resp.GetMessage().Value)
+	case *remapi.UsersControllerCreateUserInternalServerError:
+		return nil, fmt.Errorf("internal server error creating user: %s (code: %s)", resp.GetMessage().Value, resp.GetErrorCode().Value)
+	default:
+		return nil, fmt.Errorf("unexpected response type creating user: %T", userCreate)
+	}
 }
 
 // parseSquadUUIDs parses comma-separated UUID string into a map
