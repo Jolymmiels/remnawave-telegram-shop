@@ -28,10 +28,10 @@ import {
   IconExternalLink,
   IconDeviceMobile,
   IconTrash,
-  IconUserX,
 } from '@tabler/icons-react'
 import { http } from '../../lib/http'
 import { backButton } from '@telegram-apps/sdk'
+import { useMediaQuery } from '@mantine/hooks'
 import { notifications } from '@mantine/notifications'
 
 interface User {
@@ -79,6 +79,7 @@ interface Device {
 const UserDetailsPage: React.FC = () => {
   const { telegramId } = useParams<{ telegramId: string }>()
   const navigate = useNavigate()
+  const isMobile = useMediaQuery('(max-width: 768px)')
   const [user, setUser] = useState<User | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
   const [devices, setDevices] = useState<Device[]>([])
@@ -282,7 +283,7 @@ const UserDetailsPage: React.FC = () => {
 
   return (
     <Stack gap="md">
-      <Paper p="md" shadow="sm">
+      <Paper p="xs" shadow="sm">
         <Group justify="space-between" mb="md">
           <Group gap="xs">
             <Text size="xl" fw={700}>ID: {user.telegram_id}</Text>
@@ -298,7 +299,7 @@ const UserDetailsPage: React.FC = () => {
                   color="red"
                   onClick={() => setRevokeModalOpened(true)}
                 >
-                  <IconUserX size={16} />
+                  <svg stroke="currentColor" fill="currentColor" strokeWidth="0" viewBox="0 0 256 256" height="16px" width="16px" xmlns="http://www.w3.org/2000/svg"><path d="M232,98.36C230.73,136.92,198.67,168,160.09,168a71.68,71.68,0,0,1-26.92-5.17h0L120,176H96v24H72v24H40a8,8,0,0,1-8-8V187.31a8,8,0,0,1,2.34-5.65l58.83-58.83h0A71.68,71.68,0,0,1,88,95.91c0-38.58,31.08-70.64,69.64-71.87A72,72,0,0,1,232,98.36Z" opacity="0.2"></path><path d="M216.57,39.43A80,80,0,0,0,83.91,120.78L28.69,176A15.86,15.86,0,0,0,24,187.31V216a16,16,0,0,0,16,16H72a8,8,0,0,0,8-8V208H96a8,8,0,0,0,8-8V184h16a8,8,0,0,0,5.66-2.34l9.56-9.57A79.73,79.73,0,0,0,160,176h.1A80,80,0,0,0,216.57,39.43ZM224,98.1c-1.09,34.09-29.75,61.86-63.89,61.9H160a63.7,63.7,0,0,1-23.65-4.51,8,8,0,0,0-8.84,1.68L116.69,168H96a8,8,0,0,0-8,8v16H72a8,8,0,0,0-8,8v16H40V187.31l58.83-58.82a8,8,0,0,0,1.68-8.84A63.72,63.72,0,0,1,96,95.92c0-34.14,27.81-62.8,61.9-63.89A64,64,0,0,1,224,98.1ZM192,76a12,12,0,1,1-12-12A12,12,0,0,1,192,76Z"></path></svg>
                 </ActionIcon>
               </Tooltip>
             )}
@@ -346,7 +347,7 @@ const UserDetailsPage: React.FC = () => {
         </SimpleGrid>
       </Paper>
 
-      <Paper p="md" shadow="sm">
+      <Paper p="xs" shadow="sm">
         <Text size="lg" fw={600} mb="md">История платежей</Text>
 
         {paymentsLoading ? (
@@ -355,9 +356,76 @@ const UserDetailsPage: React.FC = () => {
           </Stack>
         ) : payments.length === 0 ? (
           <Alert color="gray">Платежи не найдены</Alert>
+        ) : isMobile ? (
+          <Stack gap="sm">
+            {payments.map((payment) => (
+              <Card key={payment.id} withBorder padding="sm">
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={600}>
+                    {payment.amount} {payment.currency}
+                  </Text>
+                  {getPaymentStatusBadge(payment.status)}
+                </Group>
+                <SimpleGrid cols={2} spacing={4} verticalSpacing={4}>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>Дата:</Text>
+                    <Text size="xs" style={{ whiteSpace: 'nowrap' }}>{formatDate(payment.paid_at || payment.created_at)}</Text>
+                  </Group>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed">Тариф:</Text>
+                    <Text size="xs" truncate>{payment.plan_name || '-'}</Text>
+                  </Group>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed">Тип:</Text>
+                    {getInvoiceTypeBadge(payment.invoice_type)}
+                  </Group>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed">Мес.:</Text>
+                    <Text size="xs">{payment.month}</Text>
+                  </Group>
+                </SimpleGrid>
+                {payment.yookasa_id && (
+                  <Group gap="xs" mt="xs">
+                    <Text size="xs" c="dimmed">YooKassa:</Text>
+                    <Group gap={4}>
+                      <Text size="xs" style={{ fontFamily: 'monospace' }}>
+                        {payment.yookasa_id.substring(0, 8)}...
+                      </Text>
+                      <CopyButton value={payment.yookasa_id}>
+                        {({ copied, copy }) => (
+                          <Tooltip label={copied ? 'Скопировано' : 'Копировать'}>
+                            <ActionIcon
+                              size="xs"
+                              variant="subtle"
+                              color={copied ? 'green' : 'gray'}
+                              onClick={copy}
+                            >
+                              {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                            </ActionIcon>
+                          </Tooltip>
+                        )}
+                      </CopyButton>
+                      <Tooltip label="Открыть в YooKassa">
+                        <ActionIcon
+                          size="xs"
+                          variant="subtle"
+                          color="blue"
+                          component="a"
+                          href={`https://yookassa.ru/my/payments?search=${payment.yookasa_id}`}
+                          target="_blank"
+                        >
+                          <IconExternalLink size={12} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                  </Group>
+                )}
+              </Card>
+            ))}
+          </Stack>
         ) : (
           <ScrollArea>
-            <Table striped highlightOnHover>
+            <Table striped highlightOnHover style={{ whiteSpace: 'nowrap' }}>
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th>Дата</Table.Th>
@@ -366,6 +434,7 @@ const UserDetailsPage: React.FC = () => {
                   <Table.Th>Тип</Table.Th>
                   <Table.Th>Статус</Table.Th>
                   <Table.Th>Мес.</Table.Th>
+                  <Table.Th>YooKassa ID</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -387,6 +456,43 @@ const UserDetailsPage: React.FC = () => {
                     <Table.Td>
                       <Text size="sm">{payment.month}</Text>
                     </Table.Td>
+                    <Table.Td>
+                      {payment.yookasa_id ? (
+                        <Group gap={4} wrap="nowrap">
+                          <Text size="xs" style={{ fontFamily: 'monospace' }}>
+                            {payment.yookasa_id.substring(0, 8)}...
+                          </Text>
+                          <CopyButton value={payment.yookasa_id}>
+                            {({ copied, copy }) => (
+                              <Tooltip label={copied ? 'Скопировано' : 'Копировать'}>
+                                <ActionIcon
+                                  size="xs"
+                                  variant="subtle"
+                                  color={copied ? 'green' : 'gray'}
+                                  onClick={copy}
+                                >
+                                  {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                                </ActionIcon>
+                              </Tooltip>
+                            )}
+                          </CopyButton>
+                          <Tooltip label="Открыть в YooKassa">
+                            <ActionIcon
+                              size="xs"
+                              variant="subtle"
+                              color="blue"
+                              component="a"
+                              href={`https://yookassa.ru/my/payments?search=${payment.yookasa_id}`}
+                              target="_blank"
+                            >
+                              <IconExternalLink size={12} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Group>
+                      ) : (
+                        <Text size="xs" c="dimmed">-</Text>
+                      )}
+                    </Table.Td>
                   </Table.Tr>
                 ))}
               </Table.Tbody>
@@ -395,7 +501,7 @@ const UserDetailsPage: React.FC = () => {
         )}
       </Paper>
 
-      <Paper p="md" shadow="sm">
+      <Paper p="xs" shadow="sm">
         <Group gap="xs" mb="md">
           <IconDeviceMobile size={20} />
           <Text size="lg" fw={600}>Устройства</Text>
@@ -407,6 +513,60 @@ const UserDetailsPage: React.FC = () => {
           </Stack>
         ) : devices.length === 0 ? (
           <Alert color="gray">Устройства не найдены</Alert>
+        ) : isMobile ? (
+          <Stack gap="sm">
+            {devices.map((device) => (
+              <Card key={device.hwid} withBorder padding="sm">
+                <Group justify="space-between" mb="xs">
+                  <Badge variant="light" size="sm">
+                    {device.platform || 'Unknown'}
+                  </Badge>
+                  <Tooltip label="Удалить устройство">
+                    <ActionIcon
+                      size="sm"
+                      variant="subtle"
+                      color="red"
+                      onClick={() => openDeleteModal(device)}
+                    >
+                      <IconTrash size={14} />
+                    </ActionIcon>
+                  </Tooltip>
+                </Group>
+                <SimpleGrid cols={2} spacing={4} verticalSpacing={4}>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed">Устройство:</Text>
+                    <Text size="xs" truncate>{device.device_model || '-'}</Text>
+                  </Group>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed" style={{ whiteSpace: 'nowrap' }}>Добавлено:</Text>
+                    <Text size="xs" style={{ whiteSpace: 'nowrap' }}>{formatDate(device.created_at)}</Text>
+                  </Group>
+                </SimpleGrid>
+                <Group gap="xs" mt="xs">
+                  <Text size="xs" c="dimmed">HWID:</Text>
+                  <Group gap={4}>
+                    <Text size="xs" style={{ fontFamily: 'monospace' }}>
+                      {maskHwid(device.hwid)}
+                    </Text>
+                    <CopyButton value={device.hwid}>
+                      {({ copied, copy }) => (
+                        <Tooltip label={copied ? 'Скопировано' : 'Копировать HWID'}>
+                          <ActionIcon
+                            size="xs"
+                            variant="subtle"
+                            color={copied ? 'green' : 'gray'}
+                            onClick={copy}
+                          >
+                            {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
+                          </ActionIcon>
+                        </Tooltip>
+                      )}
+                    </CopyButton>
+                  </Group>
+                </Group>
+              </Card>
+            ))}
+          </Stack>
         ) : (
           <ScrollArea>
             <Table striped highlightOnHover>

@@ -26,7 +26,7 @@ const AppContent: React.FC = () => {
   return (
     <AppShell
       footer={{ height: 70 }}
-      padding="md"
+      padding="xs"
       style={{
         paddingBottom: 'var(--tg-safe-area-inset-bottom, 0px)'
       }}

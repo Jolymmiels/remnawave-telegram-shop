@@ -178,7 +178,13 @@ const UserManagement: React.FC = () => {
 
   const formatDate = (dateString?: string | null) => {
     if (!dateString) return 'Не указано'
-    return new Date(dateString).toLocaleString('ru-RU')
+    return new Date(dateString).toLocaleString('ru-RU', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
   }
 
   const getStatusBadge = (user: User) => {
