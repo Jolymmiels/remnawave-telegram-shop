@@ -247,31 +247,30 @@ func setupInvoiceChecker(
 	cryptoPayClient *cryptopay.Client,
 	paymentService *payment.PaymentService,
 	yookasaClient *yookasa.Client) *cron.Cron {
-	if !config.IsYookasaEnabled() && !config.IsCryptoPayEnabled() {
-		return nil
-	}
 	c := cron.New(cron.WithSeconds())
 
-	if config.IsCryptoPayEnabled() {
-		_, err := c.AddFunc("*/5 * * * * *", func() {
-			ctx := context.Background()
-			checkCryptoPayInvoice(ctx, purchaseRepository, cryptoPayClient, paymentService)
-		})
-
-		if err != nil {
-			panic(err)
+	// CryptoPay checker - checks setting on each tick
+	_, err := c.AddFunc("*/5 * * * * *", func() {
+		if !config.IsCryptoPayEnabled() {
+			return
 		}
+		ctx := context.Background()
+		checkCryptoPayInvoice(ctx, purchaseRepository, cryptoPayClient, paymentService)
+	})
+	if err != nil {
+		log.Fatal("Failed to add CryptoPay invoice checker: ", err)
 	}
 
-	if config.IsYookasaEnabled() {
-		_, err := c.AddFunc("*/5 * * * * *", func() {
-			ctx := context.Background()
-			checkYookasaInvoice(ctx, purchaseRepository, yookasaClient, paymentService)
-		})
-
-		if err != nil {
-			panic(err)
+	// YooKassa checker - checks setting on each tick
+	_, err = c.AddFunc("*/5 * * * * *", func() {
+		if !config.IsYookasaEnabled() {
+			return
 		}
+		ctx := context.Background()
+		checkYookasaInvoice(ctx, purchaseRepository, yookasaClient, paymentService)
+	})
+	if err != nil {
+		log.Fatal("Failed to add YooKassa invoice checker: ", err)
 	}
 
 	return c
