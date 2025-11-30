@@ -7,11 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/utils"
 	"strconv"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -103,6 +102,13 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 }
 
 func (c *Client) CreatePayment(ctx context.Context, request PaymentRequest, idempotencyKey string) (*Payment, error) {
+	cfg := utils.DefaultRetryConfig()
+	return utils.WithRetry(ctx, cfg, "yookasa.CreatePayment", func() (*Payment, error) {
+		return c.doCreatePayment(ctx, request, idempotencyKey)
+	})
+}
+
+func (c *Client) doCreatePayment(ctx context.Context, request PaymentRequest, idempotencyKey string) (*Payment, error) {
 	paymentURL := fmt.Sprintf("%s/payments", c.getBaseURL())
 
 	reqBody, err := json.Marshal(request)
@@ -142,44 +148,35 @@ func (c *Client) CreatePayment(ctx context.Context, request PaymentRequest, idem
 }
 
 func (c *Client) GetPayment(ctx context.Context, paymentID uuid.UUID) (*Payment, error) {
+	cfg := utils.DefaultRetryConfig()
+	return utils.WithRetry(ctx, cfg, "yookasa.GetPayment", func() (*Payment, error) {
+		return c.doGetPayment(ctx, paymentID)
+	})
+}
+
+func (c *Client) doGetPayment(ctx context.Context, paymentID uuid.UUID) (*Payment, error) {
 	paymentURL := fmt.Sprintf("%s/payments/%s", c.getBaseURL(), paymentID)
 
-	var payment *Payment
-
-	maxRetries := 5
-	baseDelay := time.Second
-
-	for attempt := 0; attempt < maxRetries; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, "GET", paymentURL, nil)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create request: %w", err)
-		}
-
-		req.Header.Set("Authorization", c.getAuthHeader())
-
-		resp, err := c.httpClient.Do(req)
-		if err != nil {
-			return nil, fmt.Errorf("failed to send request: %w", err)
-		}
-		defer resp.Body.Close()
-
-		if resp.StatusCode == http.StatusOK {
-			payment = new(Payment)
-			if err := json.NewDecoder(resp.Body).Decode(payment); err != nil {
-				return nil, fmt.Errorf("failed to decode response: %w", err)
-			}
-			return payment, nil
-		}
-
-		if resp.StatusCode == http.StatusTooManyRequests {
-			retryDelay := baseDelay * time.Duration(1<<attempt)
-			log.Printf("Received 429 Too Many Requests. Retrying in %v...", retryDelay)
-			time.Sleep(retryDelay)
-			continue
-		}
-
-		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	req, err := http.NewRequestWithContext(ctx, "GET", paymentURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	return nil, fmt.Errorf("exceeded maximum retries due to 429 Too Many Requests")
+	req.Header.Set("Authorization", c.getAuthHeader())
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusOK {
+		var payment Payment
+		if err := json.NewDecoder(resp.Body).Decode(&payment); err != nil {
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+		return &payment, nil
+	}
+
+	return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 }

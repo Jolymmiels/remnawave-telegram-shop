@@ -2,11 +2,13 @@ package cryptopay
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/utils"
 )
 
 type CryptoPayApi interface {
@@ -35,6 +37,17 @@ func (c *Client) getToken() string {
 }
 
 func (c *Client) CreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, error) {
+	return c.CreateInvoiceWithContext(context.Background(), invoiceReq)
+}
+
+func (c *Client) CreateInvoiceWithContext(ctx context.Context, invoiceReq *InvoiceRequest) (*InvoiceResponse, error) {
+	cfg := utils.DefaultRetryConfig()
+	return utils.WithRetry(ctx, cfg, "cryptopay.CreateInvoice", func() (*InvoiceResponse, error) {
+		return c.doCreateInvoice(invoiceReq)
+	})
+}
+
+func (c *Client) doCreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, error) {
 	jsonData, err := json.Marshal(invoiceReq)
 	if err != nil {
 		return nil, fmt.Errorf("error marshaling invoice: %w", err)
@@ -77,6 +90,17 @@ func (c *Client) CreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, er
 }
 
 func (c *Client) GetInvoices(status, fiat, asset, invoiceIds string, offset, limit int) (*[]InvoiceResponse, error) {
+	return c.GetInvoicesWithContext(context.Background(), status, fiat, asset, invoiceIds, offset, limit)
+}
+
+func (c *Client) GetInvoicesWithContext(ctx context.Context, status, fiat, asset, invoiceIds string, offset, limit int) (*[]InvoiceResponse, error) {
+	cfg := utils.DefaultRetryConfig()
+	return utils.WithRetry(ctx, cfg, "cryptopay.GetInvoices", func() (*[]InvoiceResponse, error) {
+		return c.doGetInvoices(status, fiat, asset, invoiceIds, offset, limit)
+	})
+}
+
+func (c *Client) doGetInvoices(status, fiat, asset, invoiceIds string, offset, limit int) (*[]InvoiceResponse, error) {
 	endpoint := fmt.Sprintf("%s/api/getInvoices", c.getBaseURL())
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
