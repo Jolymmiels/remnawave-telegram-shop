@@ -15,14 +15,16 @@ type UsersHandler struct {
 	customerRepository *database.CustomerRepository
 	purchaseRepository *database.PurchaseRepository
 	referralRepository *database.ReferralRepository
+	planRepository     *database.PlanRepository
 	remnawaveClient    *remnawave.Client
 }
 
-func NewUsersHandler(customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, remnawaveClient *remnawave.Client) *UsersHandler {
+func NewUsersHandler(customerRepository *database.CustomerRepository, purchaseRepository *database.PurchaseRepository, referralRepository *database.ReferralRepository, planRepository *database.PlanRepository, remnawaveClient *remnawave.Client) *UsersHandler {
 	return &UsersHandler{
 		customerRepository: customerRepository,
 		purchaseRepository: purchaseRepository,
 		referralRepository: referralRepository,
+		planRepository:     planRepository,
 		remnawaveClient:    remnawaveClient,
 	}
 }
@@ -60,6 +62,8 @@ type PaymentDTO struct {
 	CryptoInvoiceLink *string `json:"crypto_invoice_link"`
 	YookasaURL        *string `json:"yookasa_url"`
 	YookasaID         *string `json:"yookasa_id"`
+	PlanID            *int64  `json:"plan_id"`
+	PlanName          *string `json:"plan_name"`
 }
 
 // SearchUsers handles GET /api/users/search?q=query&limit=20&offset=0
@@ -214,6 +218,18 @@ func (uh *UsersHandler) GetUserPayments(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	// Build plan name cache
+	planNames := make(map[int64]string)
+	for _, p := range payments {
+		if p.PlanID != nil {
+			if _, ok := planNames[*p.PlanID]; !ok {
+				if plan, err := uh.planRepository.FindById(ctx, *p.PlanID); err == nil && plan != nil {
+					planNames[*p.PlanID] = plan.Name
+				}
+			}
+		}
+	}
+
 	// Convert to DTOs with snake_case fields
 	paymentDTOs := make([]PaymentDTO, len(payments))
 	for i, p := range payments {
@@ -231,6 +247,13 @@ func (uh *UsersHandler) GetUserPayments(w http.ResponseWriter, r *http.Request) 
 			yookasaIDStr = p.YookasaID.String()
 		}
 
+		var planName *string
+		if p.PlanID != nil {
+			if name, ok := planNames[*p.PlanID]; ok {
+				planName = &name
+			}
+		}
+
 		paymentDTOs[i] = PaymentDTO{
 			ID:                p.ID,
 			Amount:            p.Amount,
@@ -246,6 +269,8 @@ func (uh *UsersHandler) GetUserPayments(w http.ResponseWriter, r *http.Request) 
 			CryptoInvoiceLink: p.CryptoInvoiceLink,
 			YookasaURL:        p.YookasaURL,
 			YookasaID:         stringPtrIfNotEmpty(yookasaIDStr),
+			PlanID:            p.PlanID,
+			PlanName:          planName,
 		}
 	}
 

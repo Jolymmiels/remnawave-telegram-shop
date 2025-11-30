@@ -62,6 +62,8 @@ interface Payment {
   crypto_invoice_link?: string | null
   yookasa_url?: string | null
   yookasa_id?: string | null
+  plan_id?: number | null
+  plan_name?: string | null
 }
 
 interface Device {
@@ -360,10 +362,10 @@ const UserDetailsPage: React.FC = () => {
                 <Table.Tr>
                   <Table.Th>Дата</Table.Th>
                   <Table.Th>Сумма</Table.Th>
+                  <Table.Th>Тариф</Table.Th>
                   <Table.Th>Тип</Table.Th>
                   <Table.Th>Статус</Table.Th>
-                  <Table.Th>Месяцев</Table.Th>
-                  <Table.Th>YooKassa ID</Table.Th>
+                  <Table.Th>Мес.</Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
@@ -377,47 +379,13 @@ const UserDetailsPage: React.FC = () => {
                         {payment.amount} {payment.currency}
                       </Text>
                     </Table.Td>
+                    <Table.Td>
+                      <Text size="xs">{payment.plan_name || '-'}</Text>
+                    </Table.Td>
                     <Table.Td>{getInvoiceTypeBadge(payment.invoice_type)}</Table.Td>
                     <Table.Td>{getPaymentStatusBadge(payment.status)}</Table.Td>
                     <Table.Td>
                       <Text size="sm">{payment.month}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      {payment.yookasa_id ? (
-                        <Group gap={4}>
-                          <Text size="xs" style={{ fontFamily: 'monospace' }}>
-                            {payment.yookasa_id.substring(0, 8)}...
-                          </Text>
-                          <CopyButton value={payment.yookasa_id}>
-                            {({ copied, copy }) => (
-                              <Tooltip label={copied ? 'Скопировано' : 'Копировать'}>
-                                <ActionIcon
-                                  size="xs"
-                                  variant="subtle"
-                                  color={copied ? 'green' : 'gray'}
-                                  onClick={copy}
-                                >
-                                  {copied ? <IconCheck size={12} /> : <IconCopy size={12} />}
-                                </ActionIcon>
-                              </Tooltip>
-                            )}
-                          </CopyButton>
-                          <Tooltip label="Открыть в YooKassa">
-                            <ActionIcon
-                              size="xs"
-                              variant="subtle"
-                              color="blue"
-                              component="a"
-                              href={`https://yookassa.ru/my/payments?search=${payment.yookasa_id}`}
-                              target="_blank"
-                            >
-                              <IconExternalLink size={12} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Group>
-                      ) : (
-                        <Text size="xs" c="dimmed">-</Text>
-                      )}
                     </Table.Td>
                   </Table.Tr>
                 ))}

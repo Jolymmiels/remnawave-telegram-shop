@@ -47,7 +47,7 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 	mux.HandleFunc("/api/users/{telegramID}", authHandler.RequireAdmin(sh.GetUserByTelegramID))
 
 	// User management endpoints - all require admin privileges
-	usersHandler := handler.NewUsersHandler(customerRepository, purchaseRepository, referralRepository, remnawaveClient)
+	usersHandler := handler.NewUsersHandler(customerRepository, purchaseRepository, referralRepository, planRepository, remnawaveClient)
 	mux.HandleFunc("/api/users/search", authHandler.RequireAdmin(usersHandler.SearchUsers))
 	mux.HandleFunc("/api/users/{telegramID}/payments", authHandler.RequireAdmin(usersHandler.GetUserPayments))
 	mux.HandleFunc("/api/users/{telegramID}/devices", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
