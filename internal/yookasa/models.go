@@ -29,7 +29,7 @@ func (p *Payment) IsCancelled() bool {
 
 type PaymentRequest struct {
 	Amount            Amount             `json:"amount"`
-	Confirmation      ConfirmationType   `json:"confirmation"`
+	Confirmation      *ConfirmationType  `json:"confirmation,omitempty"`
 	Capture           bool               `json:"capture"`
 	Description       string             `json:"description,omitempty"`
 	PaymentMethodData *PaymentMethodData `json:"payment_method_data,omitempty"`
@@ -49,7 +49,7 @@ func NewPaymentRequest(
 		Amount:   amount,
 		Receipt:  receipt,
 		Metadata: metadata,
-		Confirmation: ConfirmationType{
+		Confirmation: &ConfirmationType{
 			Type:      "redirect",
 			ReturnURL: urlRedirect,
 		},

@@ -69,7 +69,7 @@ func (c *Client) CreateInvoiceWithOptions(ctx context.Context, amount int, month
 	switch month {
 	case 1:
 		monthString = "месяц"
-	case 3, 4:
+	case 2, 3, 4:
 		monthString = "месяца"
 	default:
 		monthString = "месяцев"
@@ -86,7 +86,7 @@ func (c *Client) CreateInvoiceWithOptions(ctx context.Context, amount int, month
 				Quantity:       "1",
 				Description:    description,
 				Amount:         rub,
-				PaymentSubject: "payment",
+				PaymentSubject: "service",
 				PaymentMode:    "full_payment",
 			},
 		},

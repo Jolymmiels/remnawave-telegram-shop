@@ -23,6 +23,7 @@ import (
 	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/yookasa"
+	"remnawave-tg-shop-bot/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -334,7 +335,7 @@ func checkYookasaInvoice(
 		if err != nil {
 			slog.Error("Error processing invoice", "invoiceId", invoice.ID, "purchaseId", purchaseId, "error", err)
 		} else {
-			slog.Info("Invoice processed", "invoiceId", invoice.ID, "purchaseId", purchaseId)
+			slog.Info("Invoice processed", "invoiceId", utils.MaskHalf(invoice.ID.String()), "purchaseId", purchaseId)
 
 			// Save payment method if it was saved for autopay
 			if savedPaymentMethodID := invoice.GetSavedPaymentMethodID(); savedPaymentMethodID != nil {
@@ -345,7 +346,7 @@ func checkYookasaInvoice(
 					if saveErr != nil {
 						slog.Error("Error saving payment method", "customerId", customerId, "error", saveErr)
 					} else {
-						slog.Info("Payment method saved for autopay", "customerId", customerId, "paymentMethodId", savedPaymentMethodID.String())
+						slog.Info("Payment method saved for autopay", "customerId", customerId, "paymentMethodId", utils.MaskHalf(savedPaymentMethodID.String()))
 					}
 				}
 			}
@@ -355,10 +356,9 @@ func checkYookasaInvoice(
 }
 
 func setupAutopaymentChecker(paymentService *payment.PaymentService) *cron.Cron {
-	c := cron.New()
+	c := cron.New(cron.WithSeconds())
 
-	// Run autopayment processing every hour at minute 30
-	_, err := c.AddFunc("30 * * * *", func() {
+	_, err := c.AddFunc("30 * * * * *", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		if err := paymentService.ProcessAutopayments(ctx); err != nil {
@@ -370,7 +370,7 @@ func setupAutopaymentChecker(paymentService *payment.PaymentService) *cron.Cron 
 	}
 
 	// Run autopayment notification every day at 10:00
-	_, err = c.AddFunc("0 10 * * *", func() {
+	_, err = c.AddFunc("0 10 * * * *", func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		defer cancel()
 		if err := paymentService.NotifyUpcomingAutopayments(ctx); err != nil {
