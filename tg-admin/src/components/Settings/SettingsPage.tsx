@@ -634,6 +634,49 @@ const SettingsPage: React.FC = () => {
                   />
                 </Stack>
               </Paper>
+
+              {/* Recurring Payments (Autopay) */}
+              <Paper p="xs" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text fw={600} size="sm">Автоплатежи (YooKassa)</Text>
+                  <Switch
+                    size="xs"
+                    checked={settings.recurring_payments_enabled === 'true'}
+                    onChange={e => updateSetting('recurring_payments_enabled', e.currentTarget.checked)}
+                  />
+                </Group>
+                <Text size="xs" c="dimmed" mb="xs">
+                  Автоматическое продление подписки для пользователей с сохраненным способом оплаты
+                </Text>
+                <Stack gap="xs">
+                  <SimpleGrid cols={2} spacing="xs">
+                    <NumberInput
+                      label="Списание за (дней)"
+                      description="За сколько дней до окончания списывать"
+                      size="xs"
+                      value={Number(settings.recurring_days_before) || 1}
+                      onChange={v => updateSetting('recurring_days_before', v || 1)}
+                      min={1}
+                      max={30}
+                      disabled={settings.recurring_payments_enabled !== 'true'}
+                    />
+                    <NumberInput
+                      label="Уведомление за (дней)"
+                      description="За сколько дней предупредить"
+                      size="xs"
+                      value={Number(settings.recurring_notify_days_before) || 3}
+                      onChange={v => updateSetting('recurring_notify_days_before', v || 3)}
+                      min={1}
+                      max={30}
+                      disabled={settings.recurring_payments_enabled !== 'true'}
+                    />
+                  </SimpleGrid>
+                  <Text size="xs" c="dimmed">
+                    Пользователи получат уведомление за {settings.recurring_notify_days_before || 3} дн. до окончания подписки. 
+                    Автоплатеж будет выполнен за {settings.recurring_days_before || 1} дн. до окончания.
+                  </Text>
+                </Stack>
+              </Paper>
             </Stack>
           </Accordion.Panel>
         </Accordion.Item>

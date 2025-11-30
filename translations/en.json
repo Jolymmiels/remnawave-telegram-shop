@@ -53,5 +53,11 @@
   "device_deleted": "✅ Device deleted",
   "device_delete_error": "❌ Failed to delete device",
   "yes": "Yes",
-  "no": "No"
+  "no": "No",
+  "autopay_notification": "🔔 <b>Autopay Notification</b>\n\nYour subscription is expiring soon. Automatic renewal will be processed shortly.\n\nIf you want to disable autopay, click the button below.",
+  "autopay_disable_button": "❌ Disable Autopay",
+  "autopay_not_enabled": "Autopay is not enabled for your account",
+  "autopay_disable_error": "Failed to disable autopay. Please try again later.",
+  "autopay_disabled": "Autopay successfully disabled",
+  "autopay_disabled_message": "✅ <b>Autopay Disabled</b>\n\nAutomatic subscription renewal will no longer be performed.\n\nYou can renew your subscription manually at any time."
 }
