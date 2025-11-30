@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"remnawave-tg-shop-bot/internal/stats"
+	"strings"
 	"remnawave-tg-shop-bot/utils"
 	"time"
 
@@ -367,6 +368,153 @@ func (cr *CustomerRepository) GetUserGrowthStats(ctx context.Context) (*UserGrow
 	}
 
 	return stats, nil
+}
+
+type CustomerSortField string
+
+const (
+	SortByDate      CustomerSortField = "date"
+	SortBySpent     CustomerSortField = "spent"
+	SortByReferrals CustomerSortField = "referrals"
+)
+
+type CustomerSortOrder string
+
+const (
+	SortAsc  CustomerSortOrder = "asc"
+	SortDesc CustomerSortOrder = "desc"
+)
+
+type CustomerStatusFilter string
+
+const (
+	StatusAll          CustomerStatusFilter = ""
+	StatusActive       CustomerStatusFilter = "active"
+	StatusExpired      CustomerStatusFilter = "expired"
+	StatusNoSubscription CustomerStatusFilter = "no_subscription"
+)
+
+type CustomerWithStats struct {
+	Customer
+	TotalSpent     float64 `db:"total_spent" json:"total_spent"`
+	ReferralsCount int     `db:"referrals_count" json:"referrals_count"`
+	PaymentsCount  int     `db:"payments_count" json:"payments_count"`
+}
+
+type CustomerSearchParams struct {
+	Query      string
+	Status     CustomerStatusFilter
+	SortBy     CustomerSortField
+	SortOrder  CustomerSortOrder
+	Limit      int
+	Offset     int
+}
+
+func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params CustomerSearchParams) ([]CustomerWithStats, int, error) {
+	orderDir := "DESC"
+	if params.SortOrder == SortAsc {
+		orderDir = "ASC"
+	}
+
+	var orderClause string
+	switch params.SortBy {
+	case SortBySpent:
+		orderClause = fmt.Sprintf("total_spent %s", orderDir)
+	case SortByReferrals:
+		orderClause = fmt.Sprintf("referrals_count %s", orderDir)
+	default:
+		orderClause = fmt.Sprintf("c.created_at %s", orderDir)
+	}
+
+	// Build WHERE clause
+	var whereConditions []string
+	var args []interface{}
+	argNum := 1
+
+	// Search by telegram_id (partial match as string)
+	if params.Query != "" {
+		whereConditions = append(whereConditions, fmt.Sprintf("CAST(c.telegram_id AS TEXT) LIKE $%d", argNum))
+		args = append(args, "%"+params.Query+"%")
+		argNum++
+	}
+
+	// Filter by status
+	switch params.Status {
+	case StatusActive:
+		whereConditions = append(whereConditions, "c.expire_at IS NOT NULL AND c.expire_at > NOW()")
+	case StatusExpired:
+		whereConditions = append(whereConditions, "c.expire_at IS NOT NULL AND c.expire_at <= NOW()")
+	case StatusNoSubscription:
+		whereConditions = append(whereConditions, "c.expire_at IS NULL")
+	}
+
+	whereClause := ""
+	if len(whereConditions) > 0 {
+		whereClause = "WHERE " + strings.Join(whereConditions, " AND ")
+	}
+
+	// Main query
+	query := fmt.Sprintf(`
+		SELECT 
+			c.id, c.telegram_id, c.expire_at, c.created_at, c.subscription_link,
+			c.language, c.is_blocked, c.trial_used, c.payment_method_id, c.autopay_enabled, c.autopay_plan_id, c.autopay_months,
+			COALESCE(ps.total_spent, 0) as total_spent,
+			COALESCE(ps.payments_count, 0) as payments_count,
+			COALESCE(rc.referrals_count, 0) as referrals_count
+		FROM customer c
+		LEFT JOIN (
+			SELECT customer_id, SUM(amount) as total_spent, COUNT(*) as payments_count
+			FROM purchase
+			WHERE status = 'paid'
+			GROUP BY customer_id
+		) ps ON ps.customer_id = c.id
+		LEFT JOIN (
+			SELECT referrer_id, COUNT(*) as referrals_count
+			FROM referral
+			GROUP BY referrer_id
+		) rc ON rc.referrer_id = c.telegram_id
+		%s
+		ORDER BY %s
+		LIMIT $%d OFFSET $%d
+	`, whereClause, orderClause, argNum, argNum+1)
+
+	args = append(args, params.Limit, params.Offset)
+
+	rows, err := cr.pool.Query(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to query customers sorted: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []CustomerWithStats
+	for rows.Next() {
+		var c CustomerWithStats
+		err := rows.Scan(
+			&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
+			&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths,
+			&c.TotalSpent, &c.PaymentsCount, &c.ReferralsCount,
+		)
+		if err != nil {
+			return nil, 0, fmt.Errorf("failed to scan customer row: %w", err)
+		}
+		customers = append(customers, c)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, 0, fmt.Errorf("error iterating over customer rows: %w", err)
+	}
+
+	// Get total count with same filters
+	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM customer c %s", whereClause)
+	countArgs := args[:len(args)-2] // Remove limit and offset
+
+	var total int
+	err = cr.pool.QueryRow(ctx, countQuery, countArgs...).Scan(&total)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to count customers: %w", err)
+	}
+
+	return customers, total, nil
 }
 
 func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) {

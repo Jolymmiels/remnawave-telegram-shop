@@ -66,112 +66,99 @@ type PaymentDTO struct {
 	PlanName          *string `json:"plan_name"`
 }
 
-// SearchUsers handles GET /api/users/search?q=query&limit=20&offset=0
+// SearchUsers handles GET /api/users/search?q=query&limit=20&offset=0&sort=date&order=desc&status=active
 func (uh *UsersHandler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	// Parse query parameters
-	query := r.URL.Query().Get("q")
+	query := strings.TrimSpace(r.URL.Query().Get("q"))
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
+	sortBy := r.URL.Query().Get("sort")
+	sortOrder := r.URL.Query().Get("order")
+	status := r.URL.Query().Get("status")
 
-	limit := 20 // default
+	limit := 20
 	if limitStr != "" {
 		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 && l <= 100 {
 			limit = l
 		}
 	}
 
-	offset := 0 // default
+	offset := 0
 	if offsetStr != "" {
 		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
 			offset = o
 		}
 	}
 
-	var customers []database.Customer
+	// Parse sort parameters
+	var dbSortBy database.CustomerSortField
+	switch sortBy {
+	case "spent":
+		dbSortBy = database.SortBySpent
+	case "referrals":
+		dbSortBy = database.SortByReferrals
+	default:
+		dbSortBy = database.SortByDate
+	}
 
-	if query != "" && strings.TrimSpace(query) != "" {
-		// Try to parse as Telegram ID first
-		if telegramID, parseErr := strconv.ParseInt(strings.TrimSpace(query), 10, 64); parseErr == nil {
-			customer, findErr := uh.customerRepository.FindByTelegramId(ctx, telegramID)
-			if findErr != nil {
-				slog.Error("Failed to search user by telegram ID", "error", findErr)
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
-			if customer != nil {
-				customers = []database.Customer{*customer}
-			}
-		} else {
-			// If not a valid telegram ID, return empty results for now
-			// In the future, we could search by username or other fields
-			customers = []database.Customer{}
-		}
+	var dbSortOrder database.CustomerSortOrder
+	if sortOrder == "asc" {
+		dbSortOrder = database.SortAsc
 	} else {
-		// No query - return all users with pagination
-		allCustomers, err := uh.customerRepository.FindAll(ctx)
-		if err != nil {
-			slog.Error("Failed to get all customers", "error", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		if allCustomers != nil {
-			// Simple pagination
-			start := offset
-			end := offset + limit
-			if start < len(*allCustomers) {
-				if end > len(*allCustomers) {
-					end = len(*allCustomers)
-				}
-				customers = (*allCustomers)[start:end]
-			}
-		}
+		dbSortOrder = database.SortDesc
 	}
 
-	// Enrich with additional details
-	usersWithDetails := make([]UserWithDetails, 0, len(customers))
-	for _, customer := range customers {
+	// Parse status filter
+	var dbStatus database.CustomerStatusFilter
+	switch status {
+	case "active":
+		dbStatus = database.StatusActive
+	case "expired":
+		dbStatus = database.StatusExpired
+	case "no_subscription":
+		dbStatus = database.StatusNoSubscription
+	default:
+		dbStatus = database.StatusAll
+	}
+
+	// Use unified search with all filters
+	params := database.CustomerSearchParams{
+		Query:     query,
+		Status:    dbStatus,
+		SortBy:    dbSortBy,
+		SortOrder: dbSortOrder,
+		Limit:     limit,
+		Offset:    offset,
+	}
+
+	customersWithStats, totalCount, err := uh.customerRepository.FindAllSorted(ctx, params)
+	if err != nil {
+		slog.Error("Failed to get customers", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	usersWithDetails := make([]UserWithDetails, 0, len(customersWithStats))
+	for _, c := range customersWithStats {
 		var expireAtStr *string
-		if customer.ExpireAt != nil {
-			expireAtStr = stringPtr(customer.ExpireAt.Format("2006-01-02T15:04:05Z07:00"))
+		if c.ExpireAt != nil {
+			expireAtStr = stringPtr(c.ExpireAt.Format("2006-01-02T15:04:05Z07:00"))
 		}
 
-		userDetails := UserWithDetails{
-			ID:               customer.ID,
-			TelegramID:       customer.TelegramID,
+		usersWithDetails = append(usersWithDetails, UserWithDetails{
+			ID:               c.ID,
+			TelegramID:       c.TelegramID,
 			ExpireAt:         expireAtStr,
-			CreatedAt:        customer.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			SubscriptionLink: customer.SubscriptionLink,
-			Language:         customer.Language,
-			IsBlocked:        customer.IsBlocked,
-		}
-
-		// Get payments count and total spent
-		if payments, err := uh.getCustomerPayments(ctx, customer.ID); err == nil {
-			userDetails.PaymentsCount = len(payments)
-			for _, payment := range payments {
-				if payment.Status == database.PurchaseStatusPaid {
-					userDetails.TotalSpent += payment.Amount
-				}
-			}
-		}
-
-		// Get referrals count
-		if count, err := uh.referralRepository.CountByReferrer(ctx, customer.TelegramID); err == nil {
-			userDetails.ReferralsCount = count
-		}
-
-		usersWithDetails = append(usersWithDetails, userDetails)
-	}
-
-	// For total count - this is simplified, in production you'd want a proper count query
-	totalCount := len(usersWithDetails)
-	if query == "" {
-		// If no search query, get actual total from database
-		if allCustomers, err := uh.customerRepository.FindAll(ctx); err == nil && allCustomers != nil {
-			totalCount = len(*allCustomers)
-		}
+			CreatedAt:        c.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			SubscriptionLink: c.SubscriptionLink,
+			Language:         c.Language,
+			IsBlocked:        c.IsBlocked,
+			PaymentsCount:    c.PaymentsCount,
+			ReferralsCount:   c.ReferralsCount,
+			TotalSpent:       c.TotalSpent,
+		})
 	}
 
 	response := UserSearchResponse{
@@ -468,6 +455,17 @@ func stringPtrIfNotEmpty(s string) *string {
 }
 
 // DeviceDTO represents a device in the API response
+// ReferralBonusDTO represents a referral bonus in the API response
+type ReferralBonusDTO struct {
+	ID           int64   `json:"id"`
+	ReferralID   int64   `json:"referral_id"`
+	PurchaseID   *int64  `json:"purchase_id"`
+	BonusDays    int     `json:"bonus_days"`
+	IsFirstBonus bool    `json:"is_first_bonus"`
+	GrantedAt    string  `json:"granted_at"`
+	RefereeTgID  int64   `json:"referee_telegram_id"`
+}
+
 type DeviceDTO struct {
 	Hwid        string `json:"hwid"`
 	UserUuid    string `json:"user_uuid"`
@@ -612,4 +610,59 @@ func (uh *UsersHandler) RevokeSubscription(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"subscription_link": newSubscriptionLink,
 	})
+}
+
+// GetUserReferralBonuses handles GET /api/users/{telegramID}/referral-bonuses
+func (uh *UsersHandler) GetUserReferralBonuses(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	telegramIDStr := r.PathValue("telegramID")
+	telegramID, err := strconv.ParseInt(telegramIDStr, 10, 64)
+	if err != nil {
+		http.Error(w, "Invalid Telegram ID", http.StatusBadRequest)
+		return
+	}
+
+	// Get bonus history for this user as referrer
+	bonuses, err := uh.referralRepository.GetBonusHistoryByReferrer(ctx, telegramID)
+	if err != nil {
+		slog.Error("Failed to get referral bonuses", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Get referrals to map referral_id to referee telegram_id
+	referrals, err := uh.referralRepository.FindByReferrer(ctx, telegramID)
+	if err != nil {
+		slog.Error("Failed to get referrals", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Build referral ID to referee telegram ID map
+	referralToReferee := make(map[int64]int64)
+	for _, ref := range referrals {
+		referralToReferee[ref.ID] = ref.RefereeID
+	}
+
+	// Convert to DTOs
+	bonusDTOs := make([]ReferralBonusDTO, len(bonuses))
+	for i, b := range bonuses {
+		bonusDTOs[i] = ReferralBonusDTO{
+			ID:           b.ID,
+			ReferralID:   b.ReferralID,
+			PurchaseID:   b.PurchaseID,
+			BonusDays:    b.BonusDays,
+			IsFirstBonus: b.IsFirstBonus,
+			GrantedAt:    b.GrantedAt.Format("2006-01-02T15:04:05Z07:00"),
+			RefereeTgID:  referralToReferee[b.ReferralID],
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(bonusDTOs); err != nil {
+		slog.Error("Failed to encode referral bonuses", "error", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }

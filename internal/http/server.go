@@ -99,6 +99,13 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}))
+	mux.HandleFunc("/api/users/{telegramID}/referral-bonuses", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			usersHandler.GetUserReferralBonuses(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
 
 	// Broadcast endpoints - require admin privileges
 	brH := handler.NewBroadcastHandler(broadcastService)

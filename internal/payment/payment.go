@@ -147,7 +147,7 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	}
 
 	// Process referral bonus (uses settings from DB)
-	if err := s.processReferralBonus(ctx, customer, purchase.Month); err != nil {
+	if err := s.processReferralBonus(ctx, customer, purchase.ID, purchase.Month); err != nil {
 		slog.Error("Error processing referral bonus", "error", err)
 	}
 	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
@@ -684,7 +684,7 @@ func (s *PaymentService) NotifyUpcomingAutopayments(ctx context.Context) error {
 	return nil
 }
 
-func (s *PaymentService) processReferralBonus(ctx context.Context, customer *database.Customer, purchaseMonths int) error {
+func (s *PaymentService) processReferralBonus(ctx context.Context, customer *database.Customer, purchaseID int64, purchaseMonths int) error {
 	if !s.settingsRepository.GetBool("referral_enabled", true) {
 		return nil
 	}
@@ -746,6 +746,11 @@ func (s *PaymentService) processReferralBonus(ctx context.Context, customer *dat
 		}
 
 		slog.Info("Granted referral bonus", "referrer_id", utils.MaskHalfInt64(referrerCustomer.ID), "bonus_days", bonusDays, "is_first", isFirstBonus)
+
+		_, err = s.referralRepository.CreateBonusHistory(ctx, referee.ID, &purchaseID, bonusDays, isFirstBonus)
+		if err != nil {
+			slog.Error("Error creating referral bonus history", "error", err)
+		}
 
 		_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID:    referrerCustomer.TelegramID,

@@ -1,8 +1,10 @@
 services:
   bot:
-    image: ghcr.io/jolymmiels/remnawave-telegram-shop-bot:latest
+    image: private-remnawave-telegram-shop-bot:3.4.10
     env_file:
       - .env
+    ports:
+      - "8080:8080"
     depends_on:
       db:
         condition: service_healthy

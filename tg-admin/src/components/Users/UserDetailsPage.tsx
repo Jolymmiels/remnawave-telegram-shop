@@ -76,6 +76,16 @@ interface Device {
   updated_at: string
 }
 
+interface ReferralBonus {
+  id: number
+  referral_id: number
+  purchase_id?: number | null
+  bonus_days: number
+  is_first_bonus: boolean
+  granted_at: string
+  referee_telegram_id: number
+}
+
 const UserDetailsPage: React.FC = () => {
   const { telegramId } = useParams<{ telegramId: string }>()
   const navigate = useNavigate()
@@ -83,9 +93,11 @@ const UserDetailsPage: React.FC = () => {
   const [user, setUser] = useState<User | null>(null)
   const [payments, setPayments] = useState<Payment[]>([])
   const [devices, setDevices] = useState<Device[]>([])
+  const [referralBonuses, setReferralBonuses] = useState<ReferralBonus[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentsLoading, setPaymentsLoading] = useState(true)
   const [devicesLoading, setDevicesLoading] = useState(true)
+  const [referralBonusesLoading, setReferralBonusesLoading] = useState(true)
   const [deleteModalOpened, setDeleteModalOpened] = useState(false)
   const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -149,6 +161,17 @@ const UserDetailsPage: React.FC = () => {
         setDevices([])
       } finally {
         setDevicesLoading(false)
+      }
+
+      try {
+        setReferralBonusesLoading(true)
+        const bonusesData: ReferralBonus[] = await http.get(`/api/users/${telegramId}/referral-bonuses`)
+        setReferralBonuses(bonusesData)
+      } catch (error) {
+        console.error('Failed to fetch referral bonuses:', error)
+        setReferralBonuses([])
+      } finally {
+        setReferralBonusesLoading(false)
       }
     }
 
@@ -625,6 +648,77 @@ const UserDetailsPage: React.FC = () => {
                           <IconTrash size={14} />
                         </ActionIcon>
                       </Tooltip>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        )}
+      </Paper>
+
+      <Paper p="xs" shadow="sm">
+        <Group gap="xs" mb="md">
+          <IconUsers size={20} />
+          <Text size="lg" fw={600}>История реферальных бонусов</Text>
+        </Group>
+
+        {referralBonusesLoading ? (
+          <Stack align="center" py="xl">
+            <Loader size="sm" />
+          </Stack>
+        ) : referralBonuses.length === 0 ? (
+          <Alert color="gray">Бонусы не найдены</Alert>
+        ) : isMobile ? (
+          <Stack gap="sm">
+            {referralBonuses.map((bonus) => (
+              <Card key={bonus.id} withBorder padding="sm">
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={600}>+{bonus.bonus_days} дней</Text>
+                  <Badge color={bonus.is_first_bonus ? 'green' : 'blue'} size="sm">
+                    {bonus.is_first_bonus ? 'Первый' : 'Повторный'}
+                  </Badge>
+                </Group>
+                <SimpleGrid cols={2} spacing={4} verticalSpacing={4}>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed">Дата:</Text>
+                    <Text size="xs">{formatDate(bonus.granted_at)}</Text>
+                  </Group>
+                  <Group gap={4} wrap="nowrap">
+                    <Text size="xs" c="dimmed">Реферал:</Text>
+                    <Text size="xs">{bonus.referee_telegram_id}</Text>
+                  </Group>
+                </SimpleGrid>
+              </Card>
+            ))}
+          </Stack>
+        ) : (
+          <ScrollArea>
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Дата</Table.Th>
+                  <Table.Th>Бонус</Table.Th>
+                  <Table.Th>Тип</Table.Th>
+                  <Table.Th>Реферал (TG ID)</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {referralBonuses.map((bonus) => (
+                  <Table.Tr key={bonus.id}>
+                    <Table.Td>
+                      <Text size="xs">{formatDate(bonus.granted_at)}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" fw={600} c="green">+{bonus.bonus_days} дней</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Badge color={bonus.is_first_bonus ? 'green' : 'blue'} size="xs">
+                        {bonus.is_first_bonus ? 'Первый' : 'Повторный'}
+                      </Badge>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm">{bonus.referee_telegram_id}</Text>
                     </Table.Td>
                   </Table.Tr>
                 ))}

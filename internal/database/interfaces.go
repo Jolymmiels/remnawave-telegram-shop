@@ -88,6 +88,8 @@ type ReferralRepo interface {
 	FindByReferee(ctx context.Context, refereeID int64) (*Referral, error)
 	CountByReferrer(ctx context.Context, referrerID int64) (int, error)
 	MarkBonusGranted(ctx context.Context, referralID int64) error
+	CreateBonusHistory(ctx context.Context, referralID int64, purchaseID *int64, bonusDays int, isFirstBonus bool) (*ReferralBonusHistory, error)
+	GetBonusHistoryByReferrer(ctx context.Context, referrerID int64) ([]ReferralBonusHistory, error)
 }
 
 // BroadcastRepo defines the interface for broadcast repository operations.

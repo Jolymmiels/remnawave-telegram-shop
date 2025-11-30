@@ -24,6 +24,7 @@ interface CreatePayload {
 interface BroadcastsState {
   items: Broadcast[]
   loading: boolean
+  creating: boolean
   error: string | null
   initialized: boolean
   filter: {
@@ -44,6 +45,7 @@ const BroadcastsContext = createContext<BroadcastsState | undefined>(undefined)
 export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<Broadcast[]>([])
   const [loading, setLoading] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [initialized, setInitialized] = useState(false)
   const [filter, setFilterState] = useState({
@@ -92,6 +94,8 @@ export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children
   }
 
   const create = async (payload: CreatePayload) => {
+    setCreating(true)
+    try {
     let newBroadcast
     
     if (payload.media) {
@@ -112,8 +116,12 @@ export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children
         language: payload.language
       })
     }
+
     
     setItems(prev => [newBroadcast, ...prev])
+    } finally {
+      setCreating(false)
+    }
   }
 
   const remove = async (id: number) => {
@@ -129,6 +137,7 @@ export const BroadcastsProvider: React.FC<{ children: ReactNode }> = ({ children
     <BroadcastsContext.Provider value={{
       items,
       loading,
+      creating,
       error,
       initialized,
       filter,

@@ -16,7 +16,7 @@ if [ ! -d "node_modules" ]; then
 fi
 
 echo "Running build..."
-npm run build
+pnpm build
 
 echo ""
 echo "Done! Frontend built to: ${DIST_DIR}"

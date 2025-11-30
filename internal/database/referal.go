@@ -18,6 +18,15 @@ type Referral struct {
 	BonusGranted bool      `db:"bonus_granted"`
 }
 
+type ReferralBonusHistory struct {
+	ID           int64     `db:"id"`
+	ReferralID   int64     `db:"referral_id"`
+	PurchaseID   *int64    `db:"purchase_id"`
+	BonusDays    int       `db:"bonus_days"`
+	IsFirstBonus bool      `db:"is_first_bonus"`
+	GrantedAt    time.Time `db:"granted_at"`
+}
+
 type ReferralRepository struct {
 	pool *pgxpool.Pool
 }
@@ -138,4 +147,57 @@ func (r *ReferralRepository) MarkBonusGranted(ctx context.Context, referralID in
 		return errors.New("no referral record updated")
 	}
 	return nil
+}
+
+func (r *ReferralRepository) CreateBonusHistory(ctx context.Context, referralID int64, purchaseID *int64, bonusDays int, isFirstBonus bool) (*ReferralBonusHistory, error) {
+	query := sq.Insert("referral_bonus_history").
+		Columns("referral_id", "purchase_id", "bonus_days", "is_first_bonus", "granted_at").
+		Values(referralID, purchaseID, bonusDays, isFirstBonus, sq.Expr("NOW()")).
+		Suffix("RETURNING id, referral_id, purchase_id, bonus_days, is_first_bonus, granted_at").
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build insert referral_bonus_history query: %w", err)
+	}
+
+	row := r.pool.QueryRow(ctx, sql, args...)
+	var h ReferralBonusHistory
+	if err := row.Scan(&h.ID, &h.ReferralID, &h.PurchaseID, &h.BonusDays, &h.IsFirstBonus, &h.GrantedAt); err != nil {
+		return nil, fmt.Errorf("failed to scan inserted referral_bonus_history: %w", err)
+	}
+	return &h, nil
+}
+
+func (r *ReferralRepository) GetBonusHistoryByReferrer(ctx context.Context, referrerID int64) ([]ReferralBonusHistory, error) {
+	query := sq.Select("rbh.id", "rbh.referral_id", "rbh.purchase_id", "rbh.bonus_days", "rbh.is_first_bonus", "rbh.granted_at").
+		From("referral_bonus_history rbh").
+		Join("referral ref ON ref.id = rbh.referral_id").
+		Where(sq.Eq{"ref.referrer_id": referrerID}).
+		OrderBy("rbh.granted_at DESC").
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select referral_bonus_history query: %w", err)
+	}
+
+	rows, err := r.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query referral_bonus_history: %w", err)
+	}
+	defer rows.Close()
+
+	var list []ReferralBonusHistory
+	for rows.Next() {
+		var h ReferralBonusHistory
+		if err := rows.Scan(&h.ID, &h.ReferralID, &h.PurchaseID, &h.BonusDays, &h.IsFirstBonus, &h.GrantedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan referral_bonus_history row: %w", err)
+		}
+		list = append(list, h)
+	}
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("error iterating referral_bonus_history rows: %w", rows.Err())
+	}
+	return list, nil
 }

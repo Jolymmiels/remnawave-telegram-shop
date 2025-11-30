@@ -6,7 +6,7 @@ import { notifications } from '@mantine/notifications'
 import { useTelegram } from '@/hooks/useTelegram'
 
 const CreateForm: React.FC = () => {
-  const { create, loading } = useBroadcasts()
+  const { create, creating } = useBroadcasts()
   const { hapticFeedback } = useTelegram()
   const [content, setContent] = useState('')
   const [type, setType] = useState<string>('all')
@@ -300,10 +300,10 @@ const CreateForm: React.FC = () => {
           <Button
             type="submit"
             leftSection={<IconSend size={16} />}
-            loading={loading}
+            loading={creating}
             disabled={!content.trim() && !mediaFile}
           >
-            {loading ? 'Отправляется...' : 'Отправить рассылку'}
+            {creating ? 'Отправляется...' : 'Отправить рассылку'}
           </Button>
         </Group>
       </form>

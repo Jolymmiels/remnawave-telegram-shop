@@ -19,6 +19,7 @@ import {
   Flex,
   Box,
   SimpleGrid,
+  Select,
 } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import {
@@ -31,6 +32,8 @@ import {
   IconCoin,
   IconUsers,
   IconRefresh,
+  IconSortDescending,
+  IconSortAscending,
 } from '@tabler/icons-react'
 import { http } from '../../lib/http'
 import { useDisclosure } from '@mantine/hooks'
@@ -62,6 +65,9 @@ const UserManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
+  const [sortBy, setSortBy] = useState<string>('date')
+  const [sortOrder, setSortOrder] = useState<string>('desc')
+  const [statusFilter, setStatusFilter] = useState<string>('')
   const [currentPage, setCurrentPage] = useState(1)
   const [totalUsers, setTotalUsers] = useState(0)
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
@@ -83,9 +89,14 @@ const UserManagement: React.FC = () => {
       const params = new URLSearchParams({
         limit: itemsPerPage.toString(),
         offset: offset.toString(),
+        sort: sortBy,
+        order: sortOrder,
       })
       if (query.trim()) {
         params.append('q', query.trim())
+      }
+      if (statusFilter) {
+        params.append('status', statusFilter)
       }
       
       const response: UserSearchResponse = await http.get(`/api/users/search?${params}`)
@@ -203,8 +214,8 @@ const UserManagement: React.FC = () => {
   }
 
   useEffect(() => {
-    fetchUsers()
-  }, [currentPage])
+    fetchUsers(currentPage, searchQuery)
+  }, [currentPage, sortBy, sortOrder, statusFilter])
 
   const totalPages = Math.ceil(totalUsers / itemsPerPage)
 
@@ -329,6 +340,50 @@ const UserManagement: React.FC = () => {
           <Button onClick={handleSearch} loading={loading}>
             Поиск
           </Button>
+        </Group>
+
+        <Group mb="md" gap="xs">
+          <Select
+            placeholder="Сортировка"
+            value={sortBy}
+            onChange={(value) => {
+              setSortBy(value || 'date')
+              setCurrentPage(1)
+            }}
+            data={[
+              { value: 'date', label: 'По дате' },
+              { value: 'spent', label: 'По сумме' },
+              { value: 'referrals', label: 'По рефералам' },
+            ]}
+            style={{ width: isMobile ? '100%' : 160 }}
+          />
+          <ActionIcon
+            variant="light"
+            size="lg"
+            onClick={() => {
+              setSortOrder(sortOrder === 'desc' ? 'asc' : 'desc')
+              setCurrentPage(1)
+            }}
+            title={sortOrder === 'desc' ? 'По убыванию' : 'По возрастанию'}
+          >
+            {sortOrder === 'desc' ? <IconSortDescending size={18} /> : <IconSortAscending size={18} />}
+          </ActionIcon>
+          <Select
+            placeholder="Статус"
+            value={statusFilter}
+            onChange={(value) => {
+              setStatusFilter(value || '')
+              setCurrentPage(1)
+            }}
+            data={[
+              { value: '', label: 'Все' },
+              { value: 'active', label: 'Активные' },
+              { value: 'expired', label: 'Истекшие' },
+              { value: 'no_subscription', label: 'Без подписки' },
+            ]}
+            clearable
+            style={{ width: isMobile ? '100%' : 160 }}
+          />
         </Group>
 
         {loading ? (
