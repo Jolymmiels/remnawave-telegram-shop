@@ -45,6 +45,21 @@ func (c *Client) getAuthHeader() string {
 }
 
 func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, customerId int64, purchaseId int64, returnURL string) (*Payment, error) {
+	return c.CreateInvoiceWithOptions(ctx, amount, month, customerId, purchaseId, returnURL, false, nil)
+}
+
+// CreateInvoiceWithSavePaymentMethod creates an invoice and saves the payment method for future autopayments
+func (c *Client) CreateInvoiceWithSavePaymentMethod(ctx context.Context, amount int, month int, customerId int64, purchaseId int64, returnURL string) (*Payment, error) {
+	return c.CreateInvoiceWithOptions(ctx, amount, month, customerId, purchaseId, returnURL, true, nil)
+}
+
+// CreateRecurringPayment creates a payment using a saved payment method (for autopayments)
+func (c *Client) CreateRecurringPayment(ctx context.Context, amount int, month int, customerId int64, purchaseId int64, paymentMethodID uuid.UUID) (*Payment, error) {
+	return c.CreateInvoiceWithOptions(ctx, amount, month, customerId, purchaseId, "", false, &paymentMethodID)
+}
+
+// CreateInvoiceWithOptions creates an invoice with optional save_payment_method and payment_method_id
+func (c *Client) CreateInvoiceWithOptions(ctx context.Context, amount int, month int, customerId int64, purchaseId int64, returnURL string, savePaymentMethod bool, paymentMethodID *uuid.UUID) (*Payment, error) {
 	rub := Amount{
 		Value:    strconv.Itoa(amount),
 		Currency: "RUB",
@@ -83,13 +98,29 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 		"username":   ctx.Value("username"),
 	}
 
-	paymentRequest := NewPaymentRequest(
-		rub,
-		returnURL,
-		description,
-		receipt,
-		metaData,
-	)
+	var paymentRequest PaymentRequest
+
+	if paymentMethodID != nil {
+		// Recurring payment with saved payment method (no confirmation needed)
+		paymentRequest = PaymentRequest{
+			Amount:          rub,
+			Receipt:         receipt,
+			Metadata:        metaData,
+			PaymentMethodID: paymentMethodID,
+			Capture:         true,
+			Description:     description,
+		}
+	} else {
+		// Normal payment with redirect confirmation
+		paymentRequest = NewPaymentRequest(
+			rub,
+			returnURL,
+			description,
+			receipt,
+			metaData,
+		)
+		paymentRequest.SavePaymentMethod = savePaymentMethod
+	}
 
 	idempotencyKey := uuid.New().String()
 

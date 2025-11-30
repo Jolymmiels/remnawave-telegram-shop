@@ -98,7 +98,16 @@ type RecipientType struct {
 }
 
 type PaymentType struct {
-	Type  string    `json:"type,omitempty"`
-	ID    uuid.UUID `json:"id,omitempty"`
-	Saved bool      `json:"saved,omitempty"`
+	Type   string    `json:"type,omitempty"`
+	ID     uuid.UUID `json:"id,omitempty"`
+	Saved  bool      `json:"saved,omitempty"`
+	Status string    `json:"status,omitempty"` // pending, active, inactive
+}
+
+// GetSavedPaymentMethodID returns the payment method ID if it was saved, nil otherwise
+func (p *Payment) GetSavedPaymentMethodID() *uuid.UUID {
+	if p.PaymentMethod.Saved && p.PaymentMethod.ID != uuid.Nil {
+		return &p.PaymentMethod.ID
+	}
+	return nil
 }

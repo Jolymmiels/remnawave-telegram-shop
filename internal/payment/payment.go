@@ -17,6 +17,7 @@ import (
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
+	"github.com/google/uuid"
 )
 
 type PaymentService struct {
@@ -523,6 +524,166 @@ func (s *PaymentService) getRecurringReferralPercent() int {
 }
 
 // processReferralBonus handles the referral bonus logic for a purchase
+// CreateRecurringPayment creates a recurring payment for a customer with a saved payment method
+func (s *PaymentService) CreateRecurringPayment(ctx context.Context, customer *database.Customer) error {
+	if customer.PaymentMethodID == nil || customer.AutopayPlanID == nil {
+		return fmt.Errorf("customer %d has no payment method or autopay plan", customer.ID)
+	}
+
+	plan, err := s.planRepository.FindById(ctx, *customer.AutopayPlanID)
+	if err != nil {
+		return fmt.Errorf("failed to find plan: %w", err)
+	}
+	if plan == nil {
+		return fmt.Errorf("plan %d not found", *customer.AutopayPlanID)
+	}
+
+	months := customer.AutopayMonths
+	if months == 0 {
+		months = 1
+	}
+	price := plan.GetPrice(months)
+
+	// Create purchase record
+	purchaseId, err := s.purchaseRepository.Create(ctx, &database.Purchase{
+		InvoiceType: database.InvoiceTypeYookasa,
+		Status:      database.PurchaseStatusNew,
+		Amount:      float64(price),
+		Currency:    "RUB",
+		CustomerID:  customer.ID,
+		Month:       months,
+		PlanID:      customer.AutopayPlanID,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to create purchase: %w", err)
+	}
+
+	// Create recurring payment via YooKassa
+	paymentMethodID, err := uuid.Parse(*customer.PaymentMethodID)
+	if err != nil {
+		return fmt.Errorf("invalid payment method ID: %w", err)
+	}
+
+	payment, err := s.yookasaClient.CreateRecurringPayment(ctx, price, months, customer.ID, purchaseId, paymentMethodID)
+	if err != nil {
+		// Mark purchase as failed
+		_ = s.purchaseRepository.UpdateFields(ctx, purchaseId, map[string]interface{}{
+			"status": database.PurchaseStatusCancel,
+		})
+		return fmt.Errorf("failed to create recurring payment: %w", err)
+	}
+
+	// Update purchase with YooKassa data
+	updates := map[string]interface{}{
+		"yookasa_id": payment.ID,
+		"status":     database.PurchaseStatusPending,
+	}
+	if err := s.purchaseRepository.UpdateFields(ctx, purchaseId, updates); err != nil {
+		return fmt.Errorf("failed to update purchase: %w", err)
+	}
+
+	slog.Info("Created recurring payment",
+		"customer_id", utils.MaskHalfInt64(customer.ID),
+		"purchase_id", utils.MaskHalfInt64(purchaseId),
+		"payment_id", payment.ID,
+	)
+
+	return nil
+}
+
+// SavePaymentMethod saves the payment method from a successful payment for future autopayments
+func (s *PaymentService) SavePaymentMethod(ctx context.Context, customerID int64, paymentMethodID string, planID int64, months int) error {
+	return s.customerRepository.SetPaymentMethod(ctx, customerID, paymentMethodID, planID, months)
+}
+
+// DisableAutopay disables autopay for a customer
+func (s *PaymentService) DisableAutopay(ctx context.Context, telegramID int64) error {
+	return s.customerRepository.DisableAutopayByTelegramID(ctx, telegramID)
+}
+
+// ProcessAutopayments finds all customers with expiring subscriptions and creates recurring payments
+func (s *PaymentService) ProcessAutopayments(ctx context.Context) error {
+	if !s.settingsRepository.GetBool("recurring_payments_enabled", false) {
+		return nil
+	}
+
+	daysBefore := s.settingsRepository.GetInt("recurring_days_before", 3)
+
+	customers, err := s.customerRepository.FindCustomersWithExpiringAutopay(ctx, daysBefore)
+	if err != nil {
+		return fmt.Errorf("failed to find customers with expiring autopay: %w", err)
+	}
+
+	if customers == nil || len(*customers) == 0 {
+		return nil
+	}
+
+	slog.Info("Processing autopayments", "customer_count", len(*customers))
+
+	for _, customer := range *customers {
+		if err := s.CreateRecurringPayment(ctx, &customer); err != nil {
+			slog.Error("Failed to create recurring payment",
+				"customer_id", utils.MaskHalfInt64(customer.ID),
+				"error", err,
+			)
+			// Continue with other customers
+			continue
+		}
+	}
+
+	return nil
+}
+
+// NotifyUpcomingAutopayments sends notifications to customers about upcoming autopayments
+func (s *PaymentService) NotifyUpcomingAutopayments(ctx context.Context) error {
+	if !s.settingsRepository.GetBool("recurring_payments_enabled", false) {
+		return nil
+	}
+
+	notifyDays := s.settingsRepository.GetInt("recurring_notify_days_before", 5)
+	daysBefore := s.settingsRepository.GetInt("recurring_days_before", 3)
+
+	// Find customers who should be notified but not yet charged
+	customers, err := s.customerRepository.FindCustomersWithExpiringAutopay(ctx, notifyDays)
+	if err != nil {
+		return fmt.Errorf("failed to find customers for notification: %w", err)
+	}
+
+	if customers == nil || len(*customers) == 0 {
+		return nil
+	}
+
+	now := time.Now()
+	chargeThreshold := now.AddDate(0, 0, daysBefore)
+
+	for _, customer := range *customers {
+		// Skip if already within charging window
+		if customer.ExpireAt != nil && customer.ExpireAt.Before(chargeThreshold) {
+			continue
+		}
+
+		// Send notification with disable button
+		_, err := s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    customer.TelegramID,
+			ParseMode: models.ParseModeHTML,
+			Text:      s.translation.GetText(customer.Language, "autopay_notification"),
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					{{Text: s.translation.GetText(customer.Language, "autopay_disable_button"), CallbackData: "autopay_disable"}},
+				},
+			},
+		})
+		if err != nil {
+			slog.Error("Failed to send autopay notification",
+				"customer_id", utils.MaskHalfInt64(customer.ID),
+				"error", err,
+			)
+		}
+	}
+
+	return nil
+}
+
 func (s *PaymentService) processReferralBonus(ctx context.Context, customer *database.Customer, purchaseMonths int) error {
 	if !s.settingsRepository.GetBool("referral_enabled", true) {
 		return nil

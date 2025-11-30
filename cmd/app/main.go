@@ -100,6 +100,11 @@ func main() {
 	subscriptionNotificationCronScheduler.Start()
 	defer subscriptionNotificationCronScheduler.Stop()
 
+	// Autopayment cron scheduler
+	autopaymentCronScheduler := setupAutopaymentChecker(paymentService)
+	autopaymentCronScheduler.Start()
+	defer autopaymentCronScheduler.Stop()
+
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
 	promoService := promo.NewService(database.NewPromoRepository(pool))
@@ -119,6 +124,7 @@ func main() {
 	promoHandler := tghandler.NewPromoHandler(customerRepository, promoService, paymentService, tm)
 	adminHandler := tghandler.NewAdminHandler()
 	devicesHandler := tghandler.NewDevicesHandler(remnawaveClient, customerRepository, purchaseRepository, planRepository, tm)
+	autopayHandler := tghandler.NewAutopayHandler(customerRepository, paymentService, tm)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {
@@ -173,6 +179,9 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDevices, bot.MatchTypeExact, devicesHandler.DevicesCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceDelete, bot.MatchTypePrefix, devicesHandler.DeviceDeleteCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceConfirm, bot.MatchTypePrefix, devicesHandler.DeviceConfirmDeleteHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+
+	// Autopay handler
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackAutopayDisable, bot.MatchTypeExact, autopayHandler.AutopayDisableCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 
 	// Payment flow handlers
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
@@ -326,9 +335,53 @@ func checkYookasaInvoice(
 			slog.Error("Error processing invoice", "invoiceId", invoice.ID, "purchaseId", purchaseId, "error", err)
 		} else {
 			slog.Info("Invoice processed", "invoiceId", invoice.ID, "purchaseId", purchaseId)
+
+			// Save payment method if it was saved for autopay
+			if savedPaymentMethodID := invoice.GetSavedPaymentMethodID(); savedPaymentMethodID != nil {
+				customerIdStr := invoice.Metadata["customerId"]
+				customerId, parseErr := strconv.ParseInt(customerIdStr, 10, 64)
+				if parseErr == nil && purchase.PlanID != nil {
+					saveErr := paymentService.SavePaymentMethod(ctx, customerId, savedPaymentMethodID.String(), *purchase.PlanID, purchase.Month)
+					if saveErr != nil {
+						slog.Error("Error saving payment method", "customerId", customerId, "error", saveErr)
+					} else {
+						slog.Info("Payment method saved for autopay", "customerId", customerId, "paymentMethodId", savedPaymentMethodID.String())
+					}
+				}
+			}
 		}
 
 	}
+}
+
+func setupAutopaymentChecker(paymentService *payment.PaymentService) *cron.Cron {
+	c := cron.New()
+
+	// Run autopayment processing every hour at minute 30
+	_, err := c.AddFunc("30 * * * *", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		if err := paymentService.ProcessAutopayments(ctx); err != nil {
+			slog.Error("Error processing autopayments", "error", err)
+		}
+	})
+	if err != nil {
+		log.Fatal("Failed to add autopayment checker cron job: ", err)
+	}
+
+	// Run autopayment notification every day at 10:00
+	_, err = c.AddFunc("0 10 * * *", func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		if err := paymentService.NotifyUpcomingAutopayments(ctx); err != nil {
+			slog.Error("Error sending autopayment notifications", "error", err)
+		}
+	})
+	if err != nil {
+		log.Fatal("Failed to add autopayment notification cron job: ", err)
+	}
+
+	return c
 }
 
 func checkCryptoPayInvoice(

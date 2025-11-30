@@ -31,10 +31,31 @@ type Customer struct {
 	Language         string     `db:"language" json:"language"`
 	IsBlocked        bool       `db:"is_blocked" json:"is_blocked"`
 	TrialUsed        bool       `db:"trial_used" json:"trial_used"`
+	PaymentMethodID  *string    `db:"payment_method_id" json:"payment_method_id"`
+	AutopayEnabled   bool       `db:"autopay_enabled" json:"autopay_enabled"`
+	AutopayPlanID    *int64     `db:"autopay_plan_id" json:"autopay_plan_id"`
+	AutopayMonths    int        `db:"autopay_months" json:"autopay_months"`
+}
+
+var customerColumns = []string{
+	"id", "telegram_id", "expire_at", "created_at", "subscription_link",
+	"language", "is_blocked", "trial_used", "payment_method_id", "autopay_enabled", "autopay_plan_id", "autopay_months",
+}
+
+func scanCustomer(row interface{ Scan(dest ...any) error }) (*Customer, error) {
+	var c Customer
+	err := row.Scan(
+		&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
+		&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &c, nil
 }
 
 func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDate, endDate time.Time) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
+	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(
 			sq.And{
@@ -58,21 +79,11 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 
 	var customers []Customer
 	for rows.Next() {
-		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-			&customer.IsBlocked,
-			&customer.TrialUsed,
-		)
+		c, err := scanCustomer(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
 		}
-		customers = append(customers, customer)
+		customers = append(customers, *c)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -83,7 +94,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 }
 
 func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
+	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.Eq{"id": id}).
 		PlaceholderFormat(sq.Dollar)
@@ -93,29 +104,18 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 		return nil, fmt.Errorf("failed to build select query: %w", err)
 	}
 
-	var customer Customer
-
-	err = cr.pool.QueryRow(ctx, sql, args...).Scan(
-		&customer.ID,
-		&customer.TelegramID,
-		&customer.ExpireAt,
-		&customer.CreatedAt,
-		&customer.SubscriptionLink,
-		&customer.Language,
-		&customer.IsBlocked,
-		&customer.TrialUsed,
-	)
+	customer, err := scanCustomer(cr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to query customer: %w", err)
 	}
-	return &customer, nil
+	return customer, nil
 }
 
 func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
+	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramId}).
 		PlaceholderFormat(sq.Dollar)
@@ -125,25 +125,14 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 		return nil, fmt.Errorf("failed to build select query: %w", err)
 	}
 
-	var customer Customer
-
-	err = cr.pool.QueryRow(ctx, sql, args...).Scan(
-		&customer.ID,
-		&customer.TelegramID,
-		&customer.ExpireAt,
-		&customer.CreatedAt,
-		&customer.SubscriptionLink,
-		&customer.Language,
-		&customer.IsBlocked,
-		&customer.TrialUsed,
-	)
+	customer, err := scanCustomer(cr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
 		}
 		return nil, fmt.Errorf("failed to query customer: %w", err)
 	}
-	return &customer, nil
+	return customer, nil
 }
 
 func (cr *CustomerRepository) Create(ctx context.Context, customer *Customer) (*Customer, error) {
@@ -155,26 +144,17 @@ func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Custom
 		INSERT INTO customer (telegram_id, expire_at, language)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = customer.telegram_id
-		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked, trial_used
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked, trial_used, payment_method_id, autopay_enabled, autopay_plan_id
 	`
 
 	row := cr.pool.QueryRow(ctx, query, customer.TelegramID, customer.ExpireAt, customer.Language)
-	var result Customer
-	if err := row.Scan(
-		&result.ID,
-		&result.TelegramID,
-		&result.ExpireAt,
-		&result.CreatedAt,
-		&result.SubscriptionLink,
-		&result.Language,
-		&result.IsBlocked,
-		&result.TrialUsed,
-	); err != nil {
+	result, err := scanCustomer(row)
+	if err != nil {
 		return nil, fmt.Errorf("failed to find or create customer: %w", err)
 	}
 
 	slog.Info("user found or created in bot database", "telegramId", utils.MaskHalfInt64(result.TelegramID))
-	return &result, nil
+	return result, nil
 }
 
 func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
@@ -220,7 +200,7 @@ func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, update
 }
 
 func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs []int64) ([]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
+	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramIDs}).
 		PlaceholderFormat(sq.Dollar)
@@ -238,21 +218,11 @@ func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs
 
 	var customers []Customer
 	for rows.Next() {
-		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-			&customer.IsBlocked,
-			&customer.TrialUsed,
-		)
+		c, err := scanCustomer(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
 		}
-		customers = append(customers, customer)
+		customers = append(customers, *c)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating over customer rows: %w", err)
@@ -404,7 +374,7 @@ func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) 
 }
 
 func (cr *CustomerRepository) FindAllWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
+	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		PlaceholderFormat(sq.Dollar)
 
@@ -425,21 +395,11 @@ func (cr *CustomerRepository) FindAllWithLanguage(ctx context.Context, language 
 
 	var customers []Customer
 	for rows.Next() {
-		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-			&customer.IsBlocked,
-			&customer.TrialUsed,
-		)
+		c, err := scanCustomer(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
 		}
-		customers = append(customers, customer)
+		customers = append(customers, *c)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -454,7 +414,7 @@ func (cr *CustomerRepository) FindNonExpired(ctx context.Context) (*[]Customer, 
 }
 
 func (cr *CustomerRepository) FindNonExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
+	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.Gt{"expire_at": time.Now()}).
 		PlaceholderFormat(sq.Dollar)
@@ -476,21 +436,11 @@ func (cr *CustomerRepository) FindNonExpiredWithLanguage(ctx context.Context, la
 
 	var customers []Customer
 	for rows.Next() {
-		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-			&customer.IsBlocked,
-			&customer.TrialUsed,
-		)
+		c, err := scanCustomer(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
 		}
-		customers = append(customers, customer)
+		customers = append(customers, *c)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -505,7 +455,7 @@ func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, err
 }
 
 func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "is_blocked", "trial_used").
+	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.Or{
 			sq.LtOrEq{"expire_at": time.Now()},
@@ -530,21 +480,11 @@ func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, langu
 
 	var customers []Customer
 	for rows.Next() {
-		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-			&customer.IsBlocked,
-			&customer.TrialUsed,
-		)
+		c, err := scanCustomer(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
 		}
-		customers = append(customers, customer)
+		customers = append(customers, *c)
 	}
 
 	if err := rows.Err(); err != nil {
@@ -650,4 +590,77 @@ func (cr *CustomerRepository) GetDailyUserGrowth(ctx context.Context, days int) 
 	}
 
 	return result, nil
+}
+
+// FindCustomersWithExpiringAutopay finds customers whose subscription expires within the given days
+// and have autopay enabled with a valid payment method
+func (cr *CustomerRepository) FindCustomersWithExpiringAutopay(ctx context.Context, daysBeforeExpiry int) (*[]Customer, error) {
+	now := time.Now()
+	expiryThreshold := now.AddDate(0, 0, daysBeforeExpiry)
+
+	buildSelect := sq.Select(customerColumns...).
+		From("customer").
+		Where(sq.And{
+			sq.NotEq{"payment_method_id": nil},
+			sq.Eq{"autopay_enabled": true},
+			sq.NotEq{"autopay_plan_id": nil},
+			sq.Gt{"expire_at": now},
+			sq.LtOrEq{"expire_at": expiryThreshold},
+		}).
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query customers with expiring autopay: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []Customer
+	for rows.Next() {
+		c, err := scanCustomer(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan customer row: %w", err)
+		}
+		customers = append(customers, *c)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over customer rows: %w", err)
+	}
+
+	return &customers, nil
+}
+
+// SetPaymentMethod saves the payment method ID for autopay
+func (cr *CustomerRepository) SetPaymentMethod(ctx context.Context, customerID int64, paymentMethodID string, autopayPlanID int64, months int) error {
+	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
+		"payment_method_id": paymentMethodID,
+		"autopay_enabled":   true,
+		"autopay_plan_id":   autopayPlanID,
+		"autopay_months":    months,
+	})
+}
+
+// DisableAutopay disables autopay for a customer
+func (cr *CustomerRepository) DisableAutopay(ctx context.Context, customerID int64) error {
+	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
+		"autopay_enabled": false,
+	})
+}
+
+// DisableAutopayByTelegramID disables autopay for a customer by their telegram ID
+func (cr *CustomerRepository) DisableAutopayByTelegramID(ctx context.Context, telegramID int64) error {
+	customer, err := cr.FindByTelegramId(ctx, telegramID)
+	if err != nil {
+		return err
+	}
+	if customer == nil {
+		return fmt.Errorf("customer not found")
+	}
+	return cr.DisableAutopay(ctx, customer.ID)
 }
