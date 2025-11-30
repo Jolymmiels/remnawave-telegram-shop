@@ -107,7 +107,18 @@ func main() {
 	broadcastService := broadcast.NewService(broadcastRepository, b, customerRepository)
 	broadcastService.SetAppContext(ctx)
 	statsHandler := httphandler.NewStatsHandler(purchaseRepository, customerRepository)
-	h := tghandler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, promoService, planRepository, settingsRepository)
+
+	// Create domain-specific handlers
+	middleware := tghandler.NewMiddlewareHandler(customerRepository, tm)
+	startHandler := tghandler.NewStartHandler(customerRepository, referralRepository, promoService, tm)
+	paymentHandler := tghandler.NewPaymentHandler(customerRepository, purchaseRepository, planRepository, settingsRepository, paymentService, tm, cache)
+	connectHandler := tghandler.NewConnectHandler(customerRepository, tm)
+	trialHandler := tghandler.NewTrialHandler(customerRepository, paymentService, tm)
+	referralHandler := tghandler.NewReferralHandler(customerRepository, referralRepository, tm)
+	syncHandler := tghandler.NewSyncHandler(syncService)
+	promoHandler := tghandler.NewPromoHandler(customerRepository, promoService, paymentService, tm)
+	adminHandler := tghandler.NewAdminHandler()
+	devicesHandler := tghandler.NewDevicesHandler(remnawaveClient, customerRepository, purchaseRepository, planRepository, tm)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {
@@ -139,35 +150,38 @@ func main() {
 
 	config.SetBotURL(fmt.Sprintf("https://t.me/%s", me.Username))
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, h.StartCommandHandler, h.SuspiciousUserFilterMiddleware)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/connect", bot.MatchTypeExact, h.ConnectCommandHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/sync", bot.MatchTypeExact, h.SyncUsersCommandHandler, isAdminMiddleware)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/admin", bot.MatchTypeExact, h.AdminCommandHandler, isAdminMiddleware)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/promo", bot.MatchTypePrefix, h.PromoCommandHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	// Register command handlers
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, startHandler.StartCommandHandler, middleware.SuspiciousUserFilterMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/connect", bot.MatchTypeExact, connectHandler.ConnectCommandHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/sync", bot.MatchTypeExact, syncHandler.SyncUsersCommandHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/admin", bot.MatchTypeExact, adminHandler.AdminCommandHandler, isAdminMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/promo", bot.MatchTypePrefix, promoHandler.PromoCommandHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPlan, bot.MatchTypePrefix, h.PlanCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPromo, bot.MatchTypePrefix, h.PromoCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	// Register callback handlers
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackReferral, bot.MatchTypeExact, referralHandler.ReferralCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackBuy, bot.MatchTypeExact, paymentHandler.BuyCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPlan, bot.MatchTypePrefix, paymentHandler.PlanCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackTrial, bot.MatchTypeExact, trialHandler.TrialCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackActivateTrial, bot.MatchTypeExact, trialHandler.ActivateTrialCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackStart, bot.MatchTypeExact, startHandler.StartCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackSell, bot.MatchTypePrefix, paymentHandler.SellCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackConnect, bot.MatchTypeExact, connectHandler.ConnectCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPayment, bot.MatchTypePrefix, paymentHandler.PaymentCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPromo, bot.MatchTypePrefix, promoHandler.PromoCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 
-	devicesHandler := tghandler.NewDevicesHandler(remnawaveClient, customerRepository, purchaseRepository, planRepository, tm)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDevices, bot.MatchTypeExact, devicesHandler.DevicesCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceDelete, bot.MatchTypePrefix, devicesHandler.DeviceDeleteCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceConfirm, bot.MatchTypePrefix, devicesHandler.DeviceConfirmDeleteHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	// Devices handlers
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDevices, bot.MatchTypeExact, devicesHandler.DevicesCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceDelete, bot.MatchTypePrefix, devicesHandler.DeviceDeleteCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeviceConfirm, bot.MatchTypePrefix, devicesHandler.DeviceConfirmDeleteHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 
+	// Payment flow handlers
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.PreCheckoutQuery != nil
-	}, h.PreCheckoutCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	}, paymentHandler.PreCheckoutCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.Message != nil && update.Message.SuccessfulPayment != nil
-	}, h.SuccessPaymentHandler, h.SuspiciousUserFilterMiddleware)
+	}, paymentHandler.SuccessPaymentHandler, middleware.SuspiciousUserFilterMiddleware)
 
 	srv := httpserver.NewServer(statsHandler, pool, remnawaveClient, paymentService, broadcastService, promoService, customerRepository, purchaseRepository, referralRepository, syncService, settingsRepository, planRepository)
 	go func() {
@@ -202,14 +216,16 @@ func subscriptionChecker(subService *notification.SubscriptionService) *cron.Cro
 	c := cron.New()
 
 	_, err := c.AddFunc("0 16 * * *", func() {
-		err := subService.ProcessSubscriptionExpiration()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		err := subService.ProcessSubscriptionExpiration(ctx)
 		if err != nil {
 			slog.Error("Error sending subscription notifications", "error", err)
 		}
 	})
 
 	if err != nil {
-		panic(err)
+		log.Fatal("Failed to add subscription checker cron job: ", err)
 	}
 	return c
 }
