@@ -328,21 +328,15 @@ const UserManagement: React.FC = () => {
           </Button>
         </Group>
         
-        <Group mb="md">
+        <Group mb="md" gap="xs" wrap="wrap">
           <TextInput
             placeholder="Поиск по Telegram ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.currentTarget.value)}
             leftSection={<IconSearch size={16} />}
-            flex={1}
+            style={{ flex: 1, minWidth: isMobile ? '100%' : 200 }}
             onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
           />
-          <Button onClick={handleSearch} loading={loading}>
-            Поиск
-          </Button>
-        </Group>
-
-        <Group mb="md" gap="xs">
           <Select
             placeholder="Сортировка"
             value={sortBy}
@@ -355,7 +349,7 @@ const UserManagement: React.FC = () => {
               { value: 'spent', label: 'По сумме' },
               { value: 'referrals', label: 'По рефералам' },
             ]}
-            style={{ width: isMobile ? '100%' : 160 }}
+            style={{ width: isMobile ? '100%' : 140 }}
           />
           <ActionIcon
             variant="light"
@@ -382,8 +376,11 @@ const UserManagement: React.FC = () => {
               { value: 'no_subscription', label: 'Без подписки' },
             ]}
             clearable
-            style={{ width: isMobile ? '100%' : 160 }}
+            style={{ width: isMobile ? '100%' : 140 }}
           />
+          <Button onClick={handleSearch} loading={loading}>
+            Поиск
+          </Button>
         </Group>
 
         {loading ? (

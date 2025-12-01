@@ -173,9 +173,9 @@ func (bh *BroadcastHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	switch typ {
-	case database.BroadcastAll, database.BroadcastActive, database.BroadcastInactive:
+	case database.BroadcastAll, database.BroadcastActive, database.BroadcastInactive, database.BroadcastNoSubscription:
 	default:
-		writeErr(w, http.StatusBadRequest, "type must be one of: all, active, inactive")
+		writeErr(w, http.StatusBadRequest, "type must be one of: all, active, inactive, no_subscription")
 		return
 	}
 

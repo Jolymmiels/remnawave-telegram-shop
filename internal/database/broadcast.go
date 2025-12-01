@@ -15,9 +15,10 @@ type BroadcastRepository struct {
 }
 
 const (
-	BroadcastAll      = "all"
-	BroadcastActive   = "active"
-	BroadcastInactive = "inactive"
+	BroadcastAll            = "all"
+	BroadcastActive         = "active"
+	BroadcastInactive       = "inactive"
+	BroadcastNoSubscription = "no_subscription"
 
 	BroadcastStatusPending    = "pending"
 	BroadcastStatusInProgress = "in_progress"

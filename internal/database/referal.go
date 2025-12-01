@@ -201,3 +201,22 @@ func (r *ReferralRepository) GetBonusHistoryByReferrer(ctx context.Context, refe
 	}
 	return list, nil
 }
+
+func (r *ReferralRepository) SumBonusDaysByReferrer(ctx context.Context, referrerID int64) (int, error) {
+	query := sq.Select("COALESCE(SUM(rbh.bonus_days), 0)").
+		From("referral_bonus_history rbh").
+		Join("referral ref ON ref.id = rbh.referral_id").
+		Where(sq.Eq{"ref.referrer_id": referrerID}).
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return 0, fmt.Errorf("failed to build sum bonus_days query: %w", err)
+	}
+
+	var sum int
+	if err := r.pool.QueryRow(ctx, sql, args...).Scan(&sum); err != nil {
+		return 0, fmt.Errorf("failed to scan sum of bonus_days: %w", err)
+	}
+	return sum, nil
+}

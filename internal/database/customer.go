@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"remnawave-tg-shop-bot/internal/stats"
-	"strings"
 	"remnawave-tg-shop-bot/utils"
+	"strings"
 	"time"
 
 	sq "github.com/Masterminds/squirrel"
@@ -389,9 +389,9 @@ const (
 type CustomerStatusFilter string
 
 const (
-	StatusAll          CustomerStatusFilter = ""
-	StatusActive       CustomerStatusFilter = "active"
-	StatusExpired      CustomerStatusFilter = "expired"
+	StatusAll            CustomerStatusFilter = ""
+	StatusActive         CustomerStatusFilter = "active"
+	StatusExpired        CustomerStatusFilter = "expired"
 	StatusNoSubscription CustomerStatusFilter = "no_subscription"
 )
 
@@ -403,12 +403,12 @@ type CustomerWithStats struct {
 }
 
 type CustomerSearchParams struct {
-	Query      string
-	Status     CustomerStatusFilter
-	SortBy     CustomerSortField
-	SortOrder  CustomerSortOrder
-	Limit      int
-	Offset     int
+	Query     string
+	Status    CustomerStatusFilter
+	SortBy    CustomerSortField
+	SortOrder CustomerSortOrder
+	Limit     int
+	Offset    int
 }
 
 func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params CustomerSearchParams) ([]CustomerWithStats, int, error) {
@@ -606,10 +606,7 @@ func (cr *CustomerRepository) FindExpired(ctx context.Context) (*[]Customer, err
 func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
 	buildSelect := sq.Select(customerColumns...).
 		From("customer").
-		Where(sq.Or{
-			sq.LtOrEq{"expire_at": time.Now()},
-			sq.Eq{"expire_at": nil},
-		}).
+		Where(sq.LtOrEq{"expire_at": time.Now()}).
 		PlaceholderFormat(sq.Dollar)
 
 	if language != "" {
@@ -624,6 +621,47 @@ func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, langu
 	rows, err := cr.pool.Query(ctx, sql, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to query expired customers: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []Customer
+	for rows.Next() {
+		c, err := scanCustomer(rows)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan customer row: %w", err)
+		}
+		customers = append(customers, *c)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating over customer rows: %w", err)
+	}
+
+	return &customers, nil
+}
+
+func (cr *CustomerRepository) FindNoSubscription(ctx context.Context) (*[]Customer, error) {
+	return cr.FindNoSubscriptionWithLanguage(ctx, "")
+}
+
+func (cr *CustomerRepository) FindNoSubscriptionWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
+	buildSelect := sq.Select(customerColumns...).
+		From("customer").
+		Where(sq.Eq{"expire_at": nil}).
+		PlaceholderFormat(sq.Dollar)
+
+	if language != "" {
+		buildSelect = buildSelect.Where(sq.Eq{"language": language})
+	}
+
+	sql, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select query: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query customers without subscription: %w", err)
 	}
 	defer rows.Close()
 
@@ -676,7 +714,7 @@ func (cr *CustomerRepository) GetDistinctLanguages(ctx context.Context) ([]strin
 func (cr *CustomerRepository) GetUserStats(ctx context.Context) (*stats.UserStats, error) {
 	now := time.Now()
 	startOfDay := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	
+
 	// Start of week (Monday)
 	offset := int(time.Monday - now.Weekday())
 	if offset > 0 {
@@ -788,11 +826,11 @@ func (cr *CustomerRepository) FindCustomersWithExpiringAutopay(ctx context.Conte
 // SetPaymentMethod saves the payment method ID for autopay and resets failed attempts counter
 func (cr *CustomerRepository) SetPaymentMethod(ctx context.Context, customerID int64, paymentMethodID string, autopayPlanID int64, months int) error {
 	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
-		"payment_method_id":        paymentMethodID,
-		"autopay_enabled":          true,
-		"autopay_plan_id":          autopayPlanID,
-		"autopay_months":           months,
-		"autopay_failed_attempts":  0,
+		"payment_method_id":       paymentMethodID,
+		"autopay_enabled":         true,
+		"autopay_plan_id":         autopayPlanID,
+		"autopay_months":          months,
+		"autopay_failed_attempts": 0,
 	})
 }
 

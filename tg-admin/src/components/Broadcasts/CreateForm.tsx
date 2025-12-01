@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Box, Select, Textarea, Button, Group, Title, Alert, SegmentedControl, Text, ActionIcon, Tooltip, FileButton, Image, CloseButton, Stack, Modal, TextInput } from '@mantine/core'
+import { Box, Select, Textarea, Button, Group, Title, Alert, SegmentedControl, Text, ActionIcon, Tooltip, FileButton, Image, CloseButton, Stack, Modal, TextInput, SimpleGrid } from '@mantine/core'
 import { IconSend, IconInfoCircle, IconUsers, IconUserCheck, IconUserOff, IconBold, IconItalic, IconUnderline, IconStrikethrough, IconCode, IconLink, IconPhoto, IconX } from '@tabler/icons-react'
 import { useBroadcasts } from '@/context/BroadcastsContext'
 import { notifications } from '@mantine/notifications'
@@ -16,6 +16,7 @@ const CreateForm: React.FC = () => {
   const [mediaPreview, setMediaPreview] = useState<string | null>(null)
   const [linkModalOpen, setLinkModalOpen] = useState(false)
   const [linkUrl, setLinkUrl] = useState('')
+  const [linkText, setLinkText] = useState('')
   const [linkSelection, setLinkSelection] = useState({ start: 0, end: 0, text: '' })
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -82,21 +83,23 @@ const CreateForm: React.FC = () => {
     
     setLinkSelection({ start, end, text: selectedText })
     setLinkUrl('')
+    setLinkText(selectedText)
     setLinkModalOpen(true)
   }
 
   const insertLink = () => {
     if (!linkUrl) return
 
-    const selectedText = linkSelection.text || 'ссылка'
+    const displayText = linkText || linkSelection.text || 'ссылка'
     const before = content.substring(0, linkSelection.start)
     const after = content.substring(linkSelection.end)
 
-    const linkHtml = `<a href="${linkUrl}">${selectedText}</a>`
+    const linkHtml = `<a href="${linkUrl}">${displayText}</a>`
     const newText = before + linkHtml + after
     setContent(newText)
     setLinkModalOpen(false)
     setLinkUrl('')
+    setLinkText('')
 
     setTimeout(() => {
       textareaRef.current?.focus()
@@ -175,10 +178,10 @@ const CreateForm: React.FC = () => {
     setMediaPreview(null)
   }
 
-  const typeOptions = [
-    { value: 'all', label: <Group gap={4} wrap="nowrap"><IconUsers size={16} />Всем</Group> },
+  const topTypeOptions = [
     { value: 'active', label: <Group gap={4} wrap="nowrap"><IconUserCheck size={16} />Активным</Group> },
-    { value: 'inactive', label: <Group gap={4} wrap="nowrap"><IconUserOff size={16} />Неактивным</Group> }
+    { value: 'inactive', label: <Group gap={4} wrap="nowrap"><IconUserOff size={16} />Истекшим</Group> },
+    { value: 'no_subscription', label: <Group gap={4} wrap="nowrap"><IconUserOff size={16} />Без подписки</Group> }
   ]
 
   const isImage = mediaFile?.type.startsWith('image/')
@@ -275,15 +278,26 @@ const CreateForm: React.FC = () => {
 
         <Box mb="md">
           <Text size="sm" fw={500} mb={4}>Получатели</Text>
-          <SegmentedControl
-            fullWidth
-            data={typeOptions}
-            value={type}
-            onChange={(value) => {
-              hapticFeedback.selectionChanged()
-              setType(value)
-            }}
-          />
+          <Stack gap="xs">
+            <SegmentedControl
+              fullWidth
+              data={topTypeOptions}
+              value={type !== 'all' ? type : ''}
+              onChange={(value) => {
+                hapticFeedback.selectionChanged()
+                setType(value)
+              }}
+            />
+            <SegmentedControl
+              fullWidth
+              data={[{ value: 'all', label: <Group gap={4} wrap="nowrap"><IconUsers size={16} />Всем</Group> }]}
+              value={type === 'all' ? 'all' : ''}
+              onChange={(value) => {
+                hapticFeedback.selectionChanged()
+                setType(value)
+              }}
+            />
+          </Stack>
         </Box>
 
         <Select
@@ -316,12 +330,19 @@ const CreateForm: React.FC = () => {
         size="sm"
       >
         <TextInput
+          label="Название ссылки"
+          placeholder="Текст который будет отображаться"
+          value={linkText}
+          onChange={(e) => setLinkText(e.target.value)}
+          mb="md"
+          data-autofocus
+        />
+        <TextInput
           label="URL"
           placeholder="https://example.com"
           value={linkUrl}
           onChange={(e) => setLinkUrl(e.target.value)}
           mb="md"
-          data-autofocus
         />
         <Group justify="flex-end">
           <Button variant="subtle" onClick={() => setLinkModalOpen(false)}>

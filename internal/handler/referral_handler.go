@@ -45,7 +45,12 @@ func (h *ReferralHandler) ReferralCallbackHandler(ctx context.Context, b *bot.Bo
 		slog.Error("error counting referrals", "error", err)
 		return
 	}
-	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), count)
+	earnedDays, err := h.referralRepository.SumBonusDaysByReferrer(ctx, customer.TelegramID)
+	if err != nil {
+		slog.Error("error summing bonus days", "error", err)
+		earnedDays = 0
+	}
+	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), count, earnedDays)
 	callbackMessage := update.CallbackQuery.Message.Message
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    callbackMessage.Chat.ID,

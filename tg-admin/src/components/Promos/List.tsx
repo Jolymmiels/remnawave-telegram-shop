@@ -14,7 +14,8 @@ import {
   Alert,
   CopyButton,
   Tooltip,
-  SimpleGrid
+  SimpleGrid,
+  SegmentedControl
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
 import { IconTrash, IconCheck, IconX, IconInfoCircle, IconCopy, IconShare } from '@tabler/icons-react'
@@ -33,6 +34,7 @@ const PromosList: React.FC = () => {
     promo: null
   })
   const [botUsername, setBotUsername] = useState<string>('')
+  const [filter, setFilter] = useState<string>('all')
 
   useEffect(() => {
     const fetchBotConfig = async () => {
@@ -121,6 +123,13 @@ const PromosList: React.FC = () => {
     return promo.max_uses && promo.used_count >= promo.max_uses
   }
 
+  const filteredItems = items.filter((promo) => {
+    if (filter === 'all') return true
+    if (filter === 'active') return promo.active && !isPromoExpired(promo) && !isPromoLimitReached(promo)
+    if (filter === 'inactive') return !promo.active || isPromoExpired(promo) || isPromoLimitReached(promo)
+    return true
+  })
+
   if (loading) {
     return <Text>Loading...</Text>
   }
@@ -139,13 +148,27 @@ const PromosList: React.FC = () => {
         <CreateForm />
       </Box>
 
+      <Box>
+        <Text size="sm" fw={500} mb={4}>Фильтр</Text>
+        <SegmentedControl
+          fullWidth
+          data={[
+            { value: 'all', label: 'Все' },
+            { value: 'active', label: 'Активные' },
+            { value: 'inactive', label: 'Неактуальные' }
+          ]}
+          value={filter}
+          onChange={setFilter}
+        />
+      </Box>
+
       <SimpleGrid cols={{ base: 1, md: 2, xl: 3 }} spacing="md">
-        {items.length === 0 ? (
+        {filteredItems.length === 0 ? (
           <Text c="dimmed" ta="center" py="xl">
-            No promo codes found. Create one above to get started.
+            {filter === 'all' ? 'Промокоды не найдены. Создайте новый выше.' : 'Нет промокодов по выбранному фильтру.'}
           </Text>
         ) : (
-          items.map((promo) => (
+          filteredItems.map((promo) => (
             <Card key={promo.id} shadow="sm" padding="md" radius="md" withBorder>
               <Group justify="space-between" wrap="nowrap" mb="md">
                 <Text size="lg" fw={600} style={{ whiteSpace: 'nowrap' }}>{promo.code}</Text>

@@ -20,6 +20,8 @@ type CustomerRepo interface {
 	FindNonExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error)
 	FindExpired(ctx context.Context) (*[]Customer, error)
 	FindExpiredWithLanguage(ctx context.Context, language string) (*[]Customer, error)
+	FindNoSubscription(ctx context.Context) (*[]Customer, error)
+	FindNoSubscriptionWithLanguage(ctx context.Context, language string) (*[]Customer, error)
 	Create(ctx context.Context, customer *Customer) (*Customer, error)
 	FindOrCreate(ctx context.Context, customer *Customer) (*Customer, error)
 	CreateBatch(ctx context.Context, customers []Customer) error

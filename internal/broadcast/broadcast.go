@@ -92,6 +92,8 @@ func (s *Service) createBroadcastInternal(ctx context.Context, content, broadcas
 		customers, err = s.customers.FindNonExpiredWithLanguage(ctx, language)
 	case database.BroadcastInactive:
 		customers, err = s.customers.FindExpiredWithLanguage(ctx, language)
+	case database.BroadcastNoSubscription:
+		customers, err = s.customers.FindNoSubscriptionWithLanguage(ctx, language)
 	}
 	if err != nil {
 		slog.Error("failed to find customers", "error", err)
