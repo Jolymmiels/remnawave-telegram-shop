@@ -32,6 +32,7 @@
   "referral_button": "🤝 Рефералы",
   "referral_text": "Приглашено: %d",
   "referral_bonus_granted": "Вы получили бонус за реферала!",
+  "referee_bonus_granted": "Вы получили бонус за регистрацию по реферальной ссылке!",
   "stars_button": " ⭐Telegram Stars",
   "promo_usage": "Чтобы использовать промокод, отправьте: /promo ВАШ_КОД",
   "apply_promo": "✅ Применить промокод",

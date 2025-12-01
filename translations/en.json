@@ -32,6 +32,7 @@
   "referral_button": "🤝 Referrals",
   "referral_text": "Invited: %d",
   "referral_bonus_granted": "You have received a referral bonus!",
+  "referee_bonus_granted": "You have received a bonus for signing up via referral link!",
   "stars_button": " ⭐Telegram Stars",
   "promo_usage": "To use a promo code, send: /promo YOUR_CODE",
   "apply_promo": "✅ Apply Promo Code",

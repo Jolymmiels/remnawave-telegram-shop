@@ -813,5 +813,38 @@ func (s *PaymentService) processReferralBonus(ctx context.Context, customer *dat
 		}
 	}
 
+	// Grant bonus to referee (invited user) on first purchase
+	if isFirstBonus {
+		refereeBonusDays := s.getRefereeBonusDays()
+		if refereeBonusDays > 0 {
+			refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), refereeBonusDays, false)
+			if err != nil {
+				slog.Error("Error granting referee bonus", "error", err)
+			} else {
+				refereeFieldsToUpdate := map[string]interface{}{
+					"subscription_link": refereeUser.GetSubscriptionUrl(),
+					"expire_at":         refereeUser.GetExpireAt(),
+				}
+				if updateErr := s.customerRepository.UpdateFields(ctx, customer.ID, refereeFieldsToUpdate); updateErr != nil {
+					slog.Error("Error updating referee customer fields", "error", updateErr)
+				}
+
+				slog.Info("Granted referee bonus", "referee_id", utils.MaskHalfInt64(customer.ID), "bonus_days", refereeBonusDays)
+
+				_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+					ChatID:    customer.TelegramID,
+					ParseMode: models.ParseModeHTML,
+					Text:      s.translation.GetText(customer.Language, "referee_bonus_granted"),
+					ReplyMarkup: models.InlineKeyboardMarkup{
+						InlineKeyboard: s.createConnectKeyboard(customer),
+					},
+				})
+				if err != nil {
+					slog.Error("Error sending referee bonus message", "error", err)
+				}
+			}
+		}
+	}
+
 	return nil
 }
