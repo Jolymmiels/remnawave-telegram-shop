@@ -43,6 +43,7 @@ const BroadcastsList: React.FC = () => {
       case 'all': return 'blue'
       case 'active': return 'green'
       case 'inactive': return 'red'
+      case 'no_subscription': return 'orange'
       default: return 'gray'
     }
   }
@@ -51,7 +52,8 @@ const BroadcastsList: React.FC = () => {
     switch (type) {
       case 'all': return 'Всем'
       case 'active': return 'Активным'
-      case 'inactive': return 'Неактивным'
+      case 'inactive': return 'Истекшим'
+      case 'no_subscription': return 'Без подписки'
       default: return type
     }
   }
