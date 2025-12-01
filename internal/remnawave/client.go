@@ -631,3 +631,65 @@ func (r *Client) GetExternalSquads(ctx context.Context) ([]Squad, error) {
 
 	return squads, nil
 }
+
+// UserInfo contains user subscription information
+type UserInfo struct {
+	Username          string
+	Status            string
+	ExpireAt          *time.Time
+	SubscriptionURL   string
+	TrafficLimitBytes int64
+	UsedTrafficBytes  int64
+	OnlineAt          *time.Time
+}
+
+// GetUserInfo returns user information by telegram ID
+func (r *Client) GetUserInfo(ctx context.Context, telegramId int64) (*UserInfo, error) {
+	resp, err := r.client.Users().GetUserByTelegramId(ctx, remapi.UsersControllerGetUserByTelegramIdParams{
+		TelegramId: strconv.FormatInt(telegramId, 10),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	switch v := resp.(type) {
+	case *remapi.UsersControllerGetUserByTelegramIdNotFound:
+		return nil, nil
+	case *remapi.UsersResponse:
+		users := v.GetResponse()
+		if len(users) == 0 {
+			return nil, nil
+		}
+		var targetUser *remapi.UsersResponseResponseItem
+		for _, user := range users {
+			if strings.Contains(user.Username, fmt.Sprintf("_%d", telegramId)) {
+				targetUser = &user
+				break
+			}
+		}
+		if targetUser == nil {
+			targetUser = &users[0]
+		}
+
+		info := &UserInfo{
+			Username:        targetUser.Username,
+			SubscriptionURL: targetUser.SubscriptionUrl,
+		}
+		if status, ok := targetUser.Status.Get(); ok {
+			info.Status = string(status)
+		}
+		if trafficLimit, ok := targetUser.TrafficLimitBytes.Get(); ok {
+			info.TrafficLimitBytes = int64(trafficLimit)
+		}
+		info.UsedTrafficBytes = int64(targetUser.UsedTrafficBytes)
+		if !targetUser.ExpireAt.IsZero() {
+			info.ExpireAt = &targetUser.ExpireAt
+		}
+		if onlineAt, ok := targetUser.OnlineAt.Get(); ok {
+			info.OnlineAt = &onlineAt
+		}
+		return info, nil
+	default:
+		return nil, errors.New("unknown response type")
+	}
+}

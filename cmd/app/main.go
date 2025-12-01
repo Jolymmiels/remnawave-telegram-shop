@@ -118,7 +118,7 @@ func main() {
 	middleware := tghandler.NewMiddlewareHandler(customerRepository, tm)
 	startHandler := tghandler.NewStartHandler(customerRepository, referralRepository, promoService, tm)
 	paymentHandler := tghandler.NewPaymentHandler(customerRepository, purchaseRepository, planRepository, settingsRepository, paymentService, tm, cache)
-	connectHandler := tghandler.NewConnectHandler(customerRepository, tm)
+	connectHandler := tghandler.NewConnectHandler(customerRepository, tm, remnawaveClient)
 	trialHandler := tghandler.NewTrialHandler(customerRepository, paymentService, tm)
 	referralHandler := tghandler.NewReferralHandler(customerRepository, referralRepository, tm)
 	syncHandler := tghandler.NewSyncHandler(syncService)
@@ -173,6 +173,7 @@ func main() {
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackStart, bot.MatchTypeExact, startHandler.StartCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackSell, bot.MatchTypePrefix, paymentHandler.SellCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackConnect, bot.MatchTypeExact, connectHandler.ConnectCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPaymentMethods, bot.MatchTypeExact, autopayHandler.PaymentMethodsCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPayment, bot.MatchTypePrefix, paymentHandler.PaymentCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackPromo, bot.MatchTypePrefix, promoHandler.PromoCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 
@@ -183,6 +184,8 @@ func main() {
 
 	// Autopay handler
 	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackAutopayDisable, bot.MatchTypeExact, autopayHandler.AutopayDisableCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackAutopayEnable, bot.MatchTypeExact, autopayHandler.AutopayEnableCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, tghandler.CallbackDeletePayment, bot.MatchTypeExact, autopayHandler.DeletePaymentMethodCallbackHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 
 	// Payment flow handlers
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {

@@ -607,6 +607,16 @@ func (s *PaymentService) DisableAutopay(ctx context.Context, telegramID int64) e
 	return s.customerRepository.DisableAutopayByTelegramID(ctx, telegramID)
 }
 
+// EnableAutopay enables autopay for a customer
+func (s *PaymentService) EnableAutopay(ctx context.Context, telegramID int64) error {
+	return s.customerRepository.EnableAutopayByTelegramID(ctx, telegramID)
+}
+
+// DeletePaymentMethod removes the payment method for a customer
+func (s *PaymentService) DeletePaymentMethod(ctx context.Context, telegramID int64) error {
+	return s.customerRepository.DeletePaymentMethodByTelegramID(ctx, telegramID)
+}
+
 // ProcessAutopayments finds all customers with expiring subscriptions and creates recurring payments
 func (s *PaymentService) ProcessAutopayments(ctx context.Context) error {
 	if !s.settingsRepository.GetBool("recurring_payments_enabled", false) {

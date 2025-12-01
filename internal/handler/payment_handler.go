@@ -279,9 +279,15 @@ func (h *PaymentHandler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot,
 
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
-	month, err := strconv.Atoi(callbackQuery["month"])
+
+	monthStr := callbackQuery["month"]
+	if monthStr == "" {
+		slog.Warn("Empty month in payment callback, ignoring", "data", update.CallbackQuery.Data)
+		return
+	}
+	month, err := strconv.Atoi(monthStr)
 	if err != nil {
-		slog.Error("Error getting month from query", "error", err)
+		slog.Error("Error getting month from query", "error", err, "month", monthStr)
 		return
 	}
 

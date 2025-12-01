@@ -840,3 +840,46 @@ func (cr *CustomerRepository) DisableAutopayAndReset(ctx context.Context, custom
 		"autopay_failed_attempts": 0,
 	})
 }
+
+// DeletePaymentMethod removes the payment method and disables autopay
+func (cr *CustomerRepository) DeletePaymentMethod(ctx context.Context, customerID int64) error {
+	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
+		"payment_method_id":       nil,
+		"autopay_enabled":         false,
+		"autopay_plan_id":         nil,
+		"autopay_months":          0,
+		"autopay_failed_attempts": 0,
+	})
+}
+
+// DeletePaymentMethodByTelegramID removes the payment method by telegram ID
+func (cr *CustomerRepository) DeletePaymentMethodByTelegramID(ctx context.Context, telegramID int64) error {
+	customer, err := cr.FindByTelegramId(ctx, telegramID)
+	if err != nil {
+		return err
+	}
+	if customer == nil {
+		return nil
+	}
+	return cr.DeletePaymentMethod(ctx, customer.ID)
+}
+
+// EnableAutopay enables autopay for a customer
+func (cr *CustomerRepository) EnableAutopay(ctx context.Context, customerID int64) error {
+	return cr.UpdateFields(ctx, customerID, map[string]interface{}{
+		"autopay_enabled":         true,
+		"autopay_failed_attempts": 0,
+	})
+}
+
+// EnableAutopayByTelegramID enables autopay by telegram ID
+func (cr *CustomerRepository) EnableAutopayByTelegramID(ctx context.Context, telegramID int64) error {
+	customer, err := cr.FindByTelegramId(ctx, telegramID)
+	if err != nil {
+		return err
+	}
+	if customer == nil {
+		return nil
+	}
+	return cr.EnableAutopay(ctx, customer.ID)
+}
