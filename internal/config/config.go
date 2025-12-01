@@ -128,6 +128,13 @@ func RemnawaveTag() string {
 	return conf.remnawaveTag
 }
 
+func RemnawaveUsernamePrefix() string {
+	if settingsProvider != nil {
+		return settingsProvider.Get("remnawave_username_prefix")
+	}
+	return ""
+}
+
 func TrialRemnawaveTag() string {
 	// Check DB setting first
 	if settingsProvider != nil {

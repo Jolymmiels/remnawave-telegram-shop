@@ -908,6 +908,23 @@ const SettingsPage: React.FC = () => {
           </Accordion.Panel>
         </Accordion.Item>
 
+        {/* Remnawave Section */}
+        <Accordion.Item value="remnawave">
+          <Accordion.Control>Remnawave</Accordion.Control>
+          <Accordion.Panel>
+            <Stack gap="xs">
+              <TextInput
+                label="Префикс username"
+                description="Если задан, username будет: PREFIX_telegramId. Если пустой: customerId_telegramId"
+                size="xs"
+                value={settings.remnawave_username_prefix || ''}
+                onChange={e => updateSetting('remnawave_username_prefix', e.target.value.toUpperCase())}
+                placeholder="MYVPN"
+              />
+            </Stack>
+          </Accordion.Panel>
+        </Accordion.Item>
+
         {/* Other Section */}
         <Accordion.Item value="other">
           <Accordion.Control>Прочее</Accordion.Control>

@@ -394,6 +394,10 @@ func parseSquadUUIDs(s string) map[uuid.UUID]uuid.UUID {
 }
 
 func generateUsername(customerId int64, telegramId int64) string {
+	prefix := config.RemnawaveUsernamePrefix()
+	if prefix != "" {
+		return fmt.Sprintf("%s_%d", prefix, telegramId)
+	}
 	return fmt.Sprintf("%d_%d", customerId, telegramId)
 }
 
