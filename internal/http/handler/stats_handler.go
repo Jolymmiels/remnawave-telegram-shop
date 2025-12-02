@@ -13,12 +13,14 @@ import (
 type StatsHandler struct {
 	purchaseRepository *database.PurchaseRepository
 	customerRepository *database.CustomerRepository
+	statsQueries       *database.StatsQueries
 }
 
-func NewStatsHandler(purchaseRepository *database.PurchaseRepository, customerRepository *database.CustomerRepository) *StatsHandler {
+func NewStatsHandler(purchaseRepository *database.PurchaseRepository, customerRepository *database.CustomerRepository, statsQueries *database.StatsQueries) *StatsHandler {
 	return &StatsHandler{
 		purchaseRepository: purchaseRepository,
 		customerRepository: customerRepository,
+		statsQueries:       statsQueries,
 	}
 }
 
@@ -169,10 +171,59 @@ func (sh *StatsHandler) GetStatsOverview(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	referralStats, err := sh.statsQueries.GetReferralStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get referral stats", "error", err)
+		referralStats = &stats.ReferralStats{}
+	}
+
+	promoStats, err := sh.statsQueries.GetPromoStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get promo stats", "error", err)
+		promoStats = &stats.PromoStats{}
+	}
+
+	planStats, err := sh.statsQueries.GetPlanStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get plan stats", "error", err)
+		planStats = []stats.PlanStats{}
+	}
+
+	periodStats, err := sh.statsQueries.GetPeriodStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get period stats", "error", err)
+		periodStats = []stats.PeriodStats{}
+	}
+
+	autopayStats, err := sh.statsQueries.GetAutopayStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get autopay stats", "error", err)
+		autopayStats = &stats.AutopayStats{}
+	}
+
+	trialStats, err := sh.statsQueries.GetTrialStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get trial stats", "error", err)
+		trialStats = &stats.TrialStats{}
+	}
+
+	languageStats, err := sh.statsQueries.GetLanguageStats(ctx)
+	if err != nil {
+		slog.Error("Failed to get language stats", "error", err)
+		languageStats = []stats.LanguageStat{}
+	}
+
 	overview := stats.StatsOverview{
-		Users:    *userStats,
-		Revenue:  *revenueStats,
-		Payments: *paymentStats,
+		Users:     *userStats,
+		Revenue:   *revenueStats,
+		Payments:  *paymentStats,
+		Referrals: *referralStats,
+		Promos:    *promoStats,
+		Plans:     planStats,
+		Periods:   periodStats,
+		Autopay:   *autopayStats,
+		Trial:     *trialStats,
+		Languages: languageStats,
 	}
 
 	w.Header().Set("Content-Type", "application/json")

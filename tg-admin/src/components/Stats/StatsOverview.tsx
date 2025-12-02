@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Stack, Grid, Paper, Text, Group, SimpleGrid, Loader, Center, SegmentedControl } from '@mantine/core'
-import { IconUsers, IconUserCheck, IconUserX, IconCoin, IconReceipt, IconTrendingUp } from '@tabler/icons-react'
+import { Stack, Grid, Paper, Text, Group, SimpleGrid, Loader, Center, SegmentedControl, Progress, Badge } from '@mantine/core'
+import { IconUsers, IconUserCheck, IconUserX, IconCoin, IconReceipt, IconTrendingUp, IconGift, IconTicket, IconCreditCard, IconFlask, IconLanguage } from '@tabler/icons-react'
 import { AreaChart, BarChart } from '@mantine/charts'
 import { http } from '@/lib/http'
 import { PaymentIcon, getPaymentLabel } from '@/components/PaymentIcons'
@@ -30,10 +30,63 @@ interface PaymentStats {
   by_payment_type: { type: string; count: number; amount: number }[]
 }
 
+interface ReferralStats {
+  total_referrals: number
+  active_referrers: number
+  bonus_days_granted: number
+  conversion_rate: number
+}
+
+interface PromoStats {
+  total_promos: number
+  active_promos: number
+  total_usages: number
+  bonus_days_granted: number
+}
+
+interface PlanStats {
+  plan_id: number
+  plan_name: string
+  count: number
+  amount: number
+  percent: number
+}
+
+interface PeriodStats {
+  months: number
+  count: number
+  amount: number
+  percent: number
+}
+
+interface AutopayStats {
+  enabled_users: number
+  total_with_method: number
+}
+
+interface TrialStats {
+  total_used: number
+  converted_to_paid: number
+  conversion_rate: number
+}
+
+interface LanguageStat {
+  language: string
+  count: number
+  percent: number
+}
+
 interface StatsOverview {
   users: UserStats
   revenue: RevenueStats
   payments: PaymentStats
+  referrals: ReferralStats
+  promos: PromoStats
+  plans: PlanStats[]
+  periods: PeriodStats[]
+  autopay: AutopayStats
+  trial: TrialStats
+  languages: LanguageStat[]
 }
 
 interface DailyGrowth {
@@ -111,7 +164,7 @@ const StatsOverviewPage: React.FC = () => {
     return <Text c="red">Не удалось загрузить статистику</Text>
   }
 
-  const { users, revenue, payments } = overview
+  const { users, revenue, payments, referrals, promos, plans, periods, autopay, trial, languages } = overview
 
   return (
     <Stack gap="md">
@@ -254,6 +307,178 @@ const StatsOverviewPage: React.FC = () => {
                 </Group>
                 <Text size="lg" fw={600}>{formatCurrency(item.amount)}</Text>
                 <Text size="xs" c="dimmed">{item.count} платежей</Text>
+              </Paper>
+            ))}
+          </SimpleGrid>
+        </>
+      )}
+
+      {/* Referral Stats */}
+      {referrals && (
+        <>
+          <Text size="lg" fw={600} mt="md">Реферальная программа</Text>
+          <SimpleGrid cols={{ base: 2, sm: 4 }}>
+            <StatCard
+              title="Всего рефералов"
+              value={formatNumber(referrals.total_referrals)}
+              icon={<IconGift size={20} />}
+              color="violet"
+            />
+            <StatCard
+              title="Активных рефереров"
+              value={formatNumber(referrals.active_referrers)}
+              icon={<IconUsers size={20} />}
+              color="violet"
+            />
+            <StatCard
+              title="Бонусных дней выдано"
+              value={formatNumber(referrals.bonus_days_granted)}
+              icon={<IconGift size={20} />}
+              color="violet"
+            />
+            <StatCard
+              title="Конверсия"
+              value={`${referrals.conversion_rate.toFixed(1)}%`}
+              subtitle="рефералов в платящих"
+              icon={<IconTrendingUp size={20} />}
+              color="violet"
+            />
+          </SimpleGrid>
+        </>
+      )}
+
+      {/* Promo Stats */}
+      {promos && (
+        <>
+          <Text size="lg" fw={600} mt="md">Промокоды</Text>
+          <SimpleGrid cols={{ base: 2, sm: 4 }}>
+            <StatCard
+              title="Всего промокодов"
+              value={formatNumber(promos.total_promos)}
+              subtitle={`Активных: ${promos.active_promos}`}
+              icon={<IconTicket size={20} />}
+              color="pink"
+            />
+            <StatCard
+              title="Использований"
+              value={formatNumber(promos.total_usages)}
+              icon={<IconTicket size={20} />}
+              color="pink"
+            />
+            <StatCard
+              title="Бонусных дней"
+              value={formatNumber(promos.bonus_days_granted)}
+              subtitle="выдано через промокоды"
+              icon={<IconGift size={20} />}
+              color="pink"
+            />
+          </SimpleGrid>
+        </>
+      )}
+
+      {/* Plans Stats */}
+      {plans && plans.length > 0 && (
+        <>
+          <Text size="lg" fw={600} mt="md">По тарифам</Text>
+          <SimpleGrid cols={{ base: 1, sm: 2 }}>
+            {plans.map((plan) => (
+              <Paper key={plan.plan_id} p="md" radius="md" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text fw={500}>{plan.plan_name}</Text>
+                  <Badge color="blue">{plan.percent.toFixed(1)}%</Badge>
+                </Group>
+                <Text size="lg" fw={600}>{formatCurrency(plan.amount)}</Text>
+                <Text size="xs" c="dimmed">{plan.count} покупок</Text>
+                <Progress value={plan.percent} size="sm" mt="xs" />
+              </Paper>
+            ))}
+          </SimpleGrid>
+        </>
+      )}
+
+      {/* Period Stats */}
+      {periods && periods.length > 0 && (
+        <>
+          <Text size="lg" fw={600} mt="md">По периодам подписки</Text>
+          <SimpleGrid cols={{ base: 2, sm: 4 }}>
+            {periods.map((period) => (
+              <Paper key={period.months} p="md" radius="md" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Text fw={500}>{period.months} мес</Text>
+                  <Badge color="cyan">{period.percent.toFixed(1)}%</Badge>
+                </Group>
+                <Text size="lg" fw={600}>{formatCurrency(period.amount)}</Text>
+                <Text size="xs" c="dimmed">{period.count} покупок</Text>
+              </Paper>
+            ))}
+          </SimpleGrid>
+        </>
+      )}
+
+      {/* Autopay & Trial Stats */}
+      <Grid mt="md">
+        {autopay && (
+          <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Paper p="md" radius="md" withBorder>
+              <Group gap="xs" mb="md">
+                <IconCreditCard size={20} />
+                <Text size="lg" fw={600}>Автоплатежи</Text>
+              </Group>
+              <SimpleGrid cols={2}>
+                <div>
+                  <Text size="xs" c="dimmed">С автоплатежом</Text>
+                  <Text size="lg" fw={600}>{formatNumber(autopay.enabled_users)}</Text>
+                </div>
+                <div>
+                  <Text size="xs" c="dimmed">С методом оплаты</Text>
+                  <Text size="lg" fw={600}>{formatNumber(autopay.total_with_method)}</Text>
+                </div>
+              </SimpleGrid>
+            </Paper>
+          </Grid.Col>
+        )}
+
+        {trial && (
+          <Grid.Col span={{ base: 12, sm: 6 }}>
+            <Paper p="md" radius="md" withBorder>
+              <Group gap="xs" mb="md">
+                <IconFlask size={20} />
+                <Text size="lg" fw={600}>Триал</Text>
+              </Group>
+              <SimpleGrid cols={3}>
+                <div>
+                  <Text size="xs" c="dimmed">Использовали</Text>
+                  <Text size="lg" fw={600}>{formatNumber(trial.total_used)}</Text>
+                </div>
+                <div>
+                  <Text size="xs" c="dimmed">Оплатили</Text>
+                  <Text size="lg" fw={600}>{formatNumber(trial.converted_to_paid)}</Text>
+                </div>
+                <div>
+                  <Text size="xs" c="dimmed">Конверсия</Text>
+                  <Text size="lg" fw={600} c="green">{trial.conversion_rate.toFixed(1)}%</Text>
+                </div>
+              </SimpleGrid>
+            </Paper>
+          </Grid.Col>
+        )}
+      </Grid>
+
+      {/* Language Stats */}
+      {languages && languages.length > 0 && (
+        <>
+          <Text size="lg" fw={600} mt="md">По языкам</Text>
+          <SimpleGrid cols={{ base: 2, sm: 4 }}>
+            {languages.map((lang) => (
+              <Paper key={lang.language} p="md" radius="md" withBorder>
+                <Group justify="space-between" mb="xs">
+                  <Group gap="xs">
+                    <IconLanguage size={16} />
+                    <Text fw={500}>{lang.language.toUpperCase()}</Text>
+                  </Group>
+                  <Badge color="gray">{lang.percent.toFixed(1)}%</Badge>
+                </Group>
+                <Text size="lg" fw={600}>{formatNumber(lang.count)}</Text>
               </Paper>
             ))}
           </SimpleGrid>

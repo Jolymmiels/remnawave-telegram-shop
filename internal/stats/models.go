@@ -17,9 +17,16 @@ type UserGrowthStats struct {
 }
 
 type StatsOverview struct {
-	Users    UserStats    `json:"users"`
-	Revenue  RevenueStats `json:"revenue"`
-	Payments PaymentStats `json:"payments"`
+	Users     UserStats     `json:"users"`
+	Revenue   RevenueStats  `json:"revenue"`
+	Payments  PaymentStats  `json:"payments"`
+	Referrals ReferralStats `json:"referrals"`
+	Promos    PromoStats    `json:"promos"`
+	Plans     []PlanStats   `json:"plans"`
+	Periods   []PeriodStats `json:"periods"`
+	Autopay   AutopayStats  `json:"autopay"`
+	Trial     TrialStats    `json:"trial"`
+	Languages []LanguageStat `json:"languages"`
 }
 
 type UserStats struct {
@@ -68,4 +75,50 @@ type DailyRevenue struct {
 	Date   string  `json:"date"`
 	Amount float64 `json:"amount"`
 	Count  int64   `json:"count"`
+}
+
+type ReferralStats struct {
+	TotalReferrals     int64   `json:"total_referrals"`
+	ActiveReferrers    int64   `json:"active_referrers"`
+	BonusDaysGranted   int64   `json:"bonus_days_granted"`
+	ConversionRate     float64 `json:"conversion_rate"`
+}
+
+type PromoStats struct {
+	TotalPromos      int64 `json:"total_promos"`
+	ActivePromos     int64 `json:"active_promos"`
+	TotalUsages      int64 `json:"total_usages"`
+	BonusDaysGranted int64 `json:"bonus_days_granted"`
+}
+
+type PlanStats struct {
+	PlanID   int64   `json:"plan_id"`
+	PlanName string  `json:"plan_name"`
+	Count    int64   `json:"count"`
+	Amount   float64 `json:"amount"`
+	Percent  float64 `json:"percent"`
+}
+
+type PeriodStats struct {
+	Months  int     `json:"months"`
+	Count   int64   `json:"count"`
+	Amount  float64 `json:"amount"`
+	Percent float64 `json:"percent"`
+}
+
+type AutopayStats struct {
+	EnabledUsers   int64 `json:"enabled_users"`
+	TotalWithMethod int64 `json:"total_with_method"`
+}
+
+type TrialStats struct {
+	TotalUsed       int64   `json:"total_used"`
+	ConvertedToPaid int64   `json:"converted_to_paid"`
+	ConversionRate  float64 `json:"conversion_rate"`
+}
+
+type LanguageStat struct {
+	Language string  `json:"language"`
+	Count    int64   `json:"count"`
+	Percent  float64 `json:"percent"`
 }

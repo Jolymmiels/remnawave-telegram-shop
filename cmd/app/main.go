@@ -112,7 +112,8 @@ func main() {
 	broadcastRepository := database.NewBroadcastRepository(pool)
 	broadcastService := broadcast.NewService(broadcastRepository, b, customerRepository)
 	broadcastService.SetAppContext(ctx)
-	statsHandler := httphandler.NewStatsHandler(purchaseRepository, customerRepository)
+	statsQueries := database.NewStatsQueries(pool)
+	statsHandler := httphandler.NewStatsHandler(purchaseRepository, customerRepository, statsQueries)
 
 	// Create domain-specific handlers
 	middleware := tghandler.NewMiddlewareHandler(customerRepository, tm)
