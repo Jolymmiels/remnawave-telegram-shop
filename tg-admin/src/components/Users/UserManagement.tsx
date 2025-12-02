@@ -294,11 +294,6 @@ const UserManagement: React.FC = () => {
           <Text size="xs">{formatDate(user.expire_at)}</Text>
         </Group>
         
-        <Group justify="space-between">
-          <Text size="xs" c="dimmed">Язык</Text>
-          <Badge variant="light" size="xs">{(user.language || 'EN').toUpperCase()}</Badge>
-        </Group>
-        
         <SimpleGrid cols={3}>
           <Box ta="center">
             <Group gap={2} justify="center">
