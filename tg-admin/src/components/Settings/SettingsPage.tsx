@@ -733,11 +733,12 @@ const SettingsPage: React.FC = () => {
                   size="xs"
                   fullWidth
                   data={[
-                    { value: '4x1', label: '4x1' },
-                    { value: '2x2', label: '2x2' },
-                    { value: '1x4', label: '1x4' },
+                    { value: '5x1', label: '5x1' },
+                    { value: '3x2', label: '3+2' },
+                    { value: '2x3', label: '2+3' },
+                    { value: '1x5', label: '1x5' },
                   ]}
-                  value={settings.link_buttons_layout || '4x1'}
+                  value={settings.link_buttons_layout || '5x1'}
                   onChange={v => updateSetting('link_buttons_layout', v)}
                 />
                 <DndContext
@@ -762,7 +763,7 @@ const SettingsPage: React.FC = () => {
                     strategy={rectSortingStrategy}
                   >
                     <SimpleGrid 
-                      cols={settings.link_buttons_layout === '1x4' ? 4 : settings.link_buttons_layout === '2x2' ? 2 : 1} 
+                      cols={settings.link_buttons_layout === '1x5' ? 5 : settings.link_buttons_layout === '3x2' ? 3 : settings.link_buttons_layout === '2x3' ? 2 : 1} 
                       spacing={4} 
                       mt="xs"
                     >

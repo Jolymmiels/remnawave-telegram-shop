@@ -237,7 +237,7 @@ func (h *StartHandler) BuildStartKeyboard(existingCustomer *database.Customer, l
 	if len(linkButtons) > 0 {
 		layout := config.LinkButtonsLayout()
 		switch layout {
-		case "2x2":
+		case "2x3":
 			for i := 0; i < len(linkButtons); i += 2 {
 				if i+1 < len(linkButtons) {
 					inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{linkButtons[i], linkButtons[i+1]})
@@ -245,17 +245,21 @@ func (h *StartHandler) BuildStartKeyboard(existingCustomer *database.Customer, l
 					inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{linkButtons[i]})
 				}
 			}
-		case "1x4":
+		case "3x2":
+			for i := 0; i < len(linkButtons); i += 3 {
+				row := []models.InlineKeyboardButton{}
+				for j := 0; j < 3 && i+j < len(linkButtons); j++ {
+					row = append(row, linkButtons[i+j])
+				}
+				inlineKeyboard = append(inlineKeyboard, row)
+			}
+		case "1x5":
 			inlineKeyboard = append(inlineKeyboard, linkButtons)
-		default:
+		default: // 5x1
 			for _, btn := range linkButtons {
 				inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{btn})
 			}
 		}
-	}
-
-	if config.TosURL() != "" {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "tos_button"), URL: config.TosURL()}})
 	}
 
 	if existingCustomer.TelegramID == config.GetAdminTelegramId() && config.BotAdminURL() != "" {
