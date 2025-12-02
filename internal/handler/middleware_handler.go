@@ -92,9 +92,7 @@ func (h *MiddlewareHandler) CreateCustomerIfNotExistMiddleware(next bot.HandlerF
 				updates["tg_last_name"] = *lastName
 			}
 			// User is interacting with bot, so they haven't blocked it
-			if existingCustomer.IsBlockedByUser {
-				updates["is_blocked_by_user"] = false
-			}
+			updates["is_blocked_by_user"] = false
 
 			err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)
 			if err != nil {
