@@ -575,7 +575,8 @@ func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) 
 func (cr *CustomerRepository) FindAllWithLanguage(ctx context.Context, language string) (*[]Customer, error) {
 	buildSelect := sq.Select(customerColumns...).
 		From("customer").
-		PlaceholderFormat(sq.Dollar)
+		PlaceholderFormat(sq.Dollar).
+		Where(sq.Eq{"is_blocked_by_user": false})
 
 	if language != "" {
 		buildSelect = buildSelect.Where(sq.Eq{"language": language})
@@ -616,6 +617,7 @@ func (cr *CustomerRepository) FindNonExpiredWithLanguage(ctx context.Context, la
 	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.Gt{"expire_at": time.Now()}).
+		Where(sq.Eq{"is_blocked_by_user": false}).
 		PlaceholderFormat(sq.Dollar)
 
 	if language != "" {
@@ -657,6 +659,7 @@ func (cr *CustomerRepository) FindExpiredWithLanguage(ctx context.Context, langu
 	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.LtOrEq{"expire_at": time.Now()}).
+		Where(sq.Eq{"is_blocked_by_user": false}).
 		PlaceholderFormat(sq.Dollar)
 
 	if language != "" {
@@ -698,6 +701,7 @@ func (cr *CustomerRepository) FindNoSubscriptionWithLanguage(ctx context.Context
 	buildSelect := sq.Select(customerColumns...).
 		From("customer").
 		Where(sq.Eq{"expire_at": nil}).
+		Where(sq.Eq{"is_blocked_by_user": false}).
 		PlaceholderFormat(sq.Dollar)
 
 	if language != "" {
