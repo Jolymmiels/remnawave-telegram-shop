@@ -32,13 +32,34 @@ func (h *MiddlewareHandler) CreateCustomerIfNotExistMiddleware(next bot.HandlerF
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
 		var telegramId int64
 		var langCode string
+		var username, firstName, lastName *string
+
 		if update.Message != nil {
 			telegramId = update.Message.From.ID
 			langCode = update.Message.From.LanguageCode
+			if update.Message.From.Username != "" {
+				username = &update.Message.From.Username
+			}
+			if update.Message.From.FirstName != "" {
+				firstName = &update.Message.From.FirstName
+			}
+			if update.Message.From.LastName != "" {
+				lastName = &update.Message.From.LastName
+			}
 		} else if update.CallbackQuery != nil {
 			telegramId = update.CallbackQuery.From.ID
 			langCode = update.CallbackQuery.From.LanguageCode
+			if update.CallbackQuery.From.Username != "" {
+				username = &update.CallbackQuery.From.Username
+			}
+			if update.CallbackQuery.From.FirstName != "" {
+				firstName = &update.CallbackQuery.From.FirstName
+			}
+			if update.CallbackQuery.From.LastName != "" {
+				lastName = &update.CallbackQuery.From.LastName
+			}
 		}
+
 		existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, telegramId)
 		if err != nil {
 			slog.Error("error finding customer by telegram id", "error", err)
@@ -47,8 +68,11 @@ func (h *MiddlewareHandler) CreateCustomerIfNotExistMiddleware(next bot.HandlerF
 
 		if existingCustomer == nil {
 			_, err = h.customerRepository.Create(ctx, &database.Customer{
-				TelegramID: telegramId,
-				Language:   langCode,
+				TelegramID:  telegramId,
+				Language:    langCode,
+				TgUsername:  username,
+				TgFirstName: firstName,
+				TgLastName:  lastName,
 			})
 			if err != nil {
 				slog.Error("error creating customer", "error", err)
@@ -57,6 +81,15 @@ func (h *MiddlewareHandler) CreateCustomerIfNotExistMiddleware(next bot.HandlerF
 		} else {
 			updates := map[string]interface{}{
 				"language": langCode,
+			}
+			if username != nil {
+				updates["tg_username"] = *username
+			}
+			if firstName != nil {
+				updates["tg_first_name"] = *firstName
+			}
+			if lastName != nil {
+				updates["tg_last_name"] = *lastName
 			}
 
 			err = h.customerRepository.UpdateFields(ctx, existingCustomer.ID, updates)

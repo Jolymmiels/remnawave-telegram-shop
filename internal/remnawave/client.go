@@ -119,18 +119,19 @@ func (r *Client) DecreaseSubscription(ctx context.Context, telegramId int64, tra
 		if existingUser == nil {
 			existingUser = &v.GetResponse()[0]
 		}
-		updatedUser, err := r.updateUser(ctx, existingUser, trafficLimit, days)
+		updatedUser, err := r.updateUser(ctx, nil, existingUser, trafficLimit, days)
 		return &updatedUser.ExpireAt, err
 	default:
 		return nil, errors.New("unknown response type")
 	}
 }
 
-func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
-	return r.CreateOrUpdateUserWithPlan(ctx, customerId, telegramId, trafficLimit, days, isTrialUser, nil)
+func (r *Client) CreateOrUpdateUser(ctx context.Context, customer *database.Customer, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
+	return r.CreateOrUpdateUserWithPlan(ctx, customer, trafficLimit, days, isTrialUser, nil)
 }
 
-func (r *Client) CreateOrUpdateUserWithPlan(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
+func (r *Client) CreateOrUpdateUserWithPlan(ctx context.Context, customer *database.Customer, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
+	telegramId := customer.TelegramID
 	resp, err := r.client.UsersControllerGetUserByTelegramId(ctx, remapi.UsersControllerGetUserByTelegramIdParams{TelegramId: strconv.FormatInt(telegramId, 10)})
 	if err != nil {
 		return nil, err
@@ -139,7 +140,7 @@ func (r *Client) CreateOrUpdateUserWithPlan(ctx context.Context, customerId int6
 	switch v := resp.(type) {
 
 	case *remapi.UsersControllerGetUserByTelegramIdNotFound:
-		return r.createUserWithPlan(ctx, customerId, telegramId, trafficLimit, days, isTrialUser, plan)
+		return r.createUserWithPlan(ctx, customer, trafficLimit, days, isTrialUser, plan)
 	case *remapi.UsersResponse:
 		var existingUser *remapi.UsersResponseResponseItem
 		for _, panelUser := range v.GetResponse() {
@@ -150,17 +151,17 @@ func (r *Client) CreateOrUpdateUserWithPlan(ctx context.Context, customerId int6
 		if existingUser == nil {
 			existingUser = &v.GetResponse()[0]
 		}
-		return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, isTrialUser, plan)
+		return r.updateUserWithPlan(ctx, customer, existingUser, trafficLimit, days, isTrialUser, plan)
 	default:
 		return nil, errors.New("unknown response type")
 	}
 }
 
-func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int) (*remapi.UserResponseResponse, error) {
-	return r.updateUserWithPlan(ctx, existingUser, trafficLimit, days, false, nil)
+func (r *Client) updateUser(ctx context.Context, customer *database.Customer, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int) (*remapi.UserResponseResponse, error) {
+	return r.updateUserWithPlan(ctx, customer, existingUser, trafficLimit, days, false, nil)
 }
 
-func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
+func (r *Client) updateUserWithPlan(ctx context.Context, customer *database.Customer, existingUser *remapi.UsersResponseResponseItem, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
 	newExpire := getNewExpire(days, existingUser.ExpireAt)
 
 	resp, err := r.client.InternalSquadControllerGetInternalSquads(ctx)
@@ -240,12 +241,9 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 		}
 	}
 
-	var username string
-	if ctx.Value("username") != nil {
-		username = ctx.Value("username").(string)
-		userUpdate.Description = remapi.NewOptNilString(username)
-	} else {
-		username = ""
+	description := buildUserDescription(customer)
+	if description != "" {
+		userUpdate.Description = remapi.NewOptNilString(description)
 	}
 
 	updateUser, err := r.client.UsersControllerUpdateUser(ctx, userUpdate)
@@ -256,7 +254,7 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 	switch resp := updateUser.(type) {
 	case *remapi.UserResponse:
 		tgid, _ := existingUser.TelegramId.Get()
-		slog.Info("updated user", "telegramId", utils.MaskHalf(strconv.Itoa(tgid)), "username", utils.MaskHalf(username), "days", days)
+		slog.Info("updated user", "telegramId", utils.MaskHalf(strconv.Itoa(tgid)), "description", utils.MaskHalf(description), "days", days)
 		return &resp.Response, nil
 	case *remapi.UsersControllerUpdateUserBadRequest:
 		return nil, fmt.Errorf("bad request updating user: %s", resp.GetMessage().Value)
@@ -267,11 +265,13 @@ func (r *Client) updateUserWithPlan(ctx context.Context, existingUser *remapi.Us
 	}
 }
 
-func (r *Client) createUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
-	return r.createUserWithPlan(ctx, customerId, telegramId, trafficLimit, days, isTrialUser, nil)
+func (r *Client) createUser(ctx context.Context, customer *database.Customer, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
+	return r.createUserWithPlan(ctx, customer, trafficLimit, days, isTrialUser, nil)
 }
 
-func (r *Client) createUserWithPlan(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
+func (r *Client) createUserWithPlan(ctx context.Context, customer *database.Customer, trafficLimit int, days int, isTrialUser bool, plan *database.Plan) (*remapi.UserResponseResponse, error) {
+	customerId := customer.ID
+	telegramId := customer.TelegramID
 	expireAt := time.Now().UTC().AddDate(0, 0, days)
 	username := generateUsername(customerId, telegramId)
 
@@ -352,12 +352,9 @@ func (r *Client) createUserWithPlan(ctx context.Context, customerId int64, teleg
 		}
 	}
 
-	var tgUsername string
-	if ctx.Value("username") != nil {
-		tgUsername = ctx.Value("username").(string)
-		createUserRequestDto.Description = remapi.NewOptString(ctx.Value("username").(string))
-	} else {
-		tgUsername = ""
+	description := buildUserDescription(customer)
+	if description != "" {
+		createUserRequestDto.Description = remapi.NewOptString(description)
 	}
 
 	userCreate, err := r.client.UsersControllerCreateUser(ctx, &createUserRequestDto)
@@ -367,7 +364,7 @@ func (r *Client) createUserWithPlan(ctx context.Context, customerId int64, teleg
 
 	switch resp := userCreate.(type) {
 	case *remapi.UserResponse:
-		slog.Info("created user", "telegramId", utils.MaskHalf(strconv.FormatInt(telegramId, 10)), "username", utils.MaskHalf(tgUsername), "days", days)
+		slog.Info("created user", "telegramId", utils.MaskHalf(strconv.FormatInt(telegramId, 10)), "description", utils.MaskHalf(description), "days", days)
 		return &resp.Response, nil
 	case *remapi.UsersControllerCreateUserBadRequest:
 		return nil, fmt.Errorf("bad request creating user: %s", resp.GetMessage().Value)
@@ -376,6 +373,36 @@ func (r *Client) createUserWithPlan(ctx context.Context, customerId int64, teleg
 	default:
 		return nil, fmt.Errorf("unexpected response type creating user: %T", userCreate)
 	}
+}
+
+// buildUserDescription creates description string from customer data
+func buildUserDescription(customer *database.Customer) string {
+	if customer == nil {
+		return ""
+	}
+	
+	var parts []string
+	
+	if customer.TgUsername != nil && *customer.TgUsername != "" {
+		parts = append(parts, "@"+*customer.TgUsername)
+	}
+	
+	var name string
+	if customer.TgFirstName != nil && *customer.TgFirstName != "" {
+		name = *customer.TgFirstName
+	}
+	if customer.TgLastName != nil && *customer.TgLastName != "" {
+		if name != "" {
+			name += " " + *customer.TgLastName
+		} else {
+			name = *customer.TgLastName
+		}
+	}
+	if name != "" {
+		parts = append(parts, name)
+	}
+	
+	return strings.Join(parts, " | ")
 }
 
 // parseSquadUUIDs parses comma-separated UUID string into a map

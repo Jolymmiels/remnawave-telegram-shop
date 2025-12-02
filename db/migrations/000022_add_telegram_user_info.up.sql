@@ -1,0 +1,3 @@
+ALTER TABLE customer ADD COLUMN IF NOT EXISTS tg_username TEXT;
+ALTER TABLE customer ADD COLUMN IF NOT EXISTS tg_first_name TEXT;
+ALTER TABLE customer ADD COLUMN IF NOT EXISTS tg_last_name TEXT;

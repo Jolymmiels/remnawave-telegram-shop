@@ -37,11 +37,15 @@ type Customer struct {
 	AutopayPlanID         *int64     `db:"autopay_plan_id" json:"autopay_plan_id"`
 	AutopayMonths         int        `db:"autopay_months" json:"autopay_months"`
 	AutopayFailedAttempts int        `db:"autopay_failed_attempts" json:"autopay_failed_attempts"`
+	TgUsername            *string    `db:"tg_username" json:"tg_username"`
+	TgFirstName           *string    `db:"tg_first_name" json:"tg_first_name"`
+	TgLastName            *string    `db:"tg_last_name" json:"tg_last_name"`
 }
 
 var customerColumns = []string{
 	"id", "telegram_id", "expire_at", "created_at", "subscription_link",
 	"language", "is_blocked", "trial_used", "payment_method_id", "autopay_enabled", "autopay_plan_id", "autopay_months", "autopay_failed_attempts",
+	"tg_username", "tg_first_name", "tg_last_name",
 }
 
 func scanCustomer(row interface{ Scan(dest ...any) error }) (*Customer, error) {
@@ -49,6 +53,7 @@ func scanCustomer(row interface{ Scan(dest ...any) error }) (*Customer, error) {
 	err := row.Scan(
 		&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
 		&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
+		&c.TgUsername, &c.TgFirstName, &c.TgLastName,
 	)
 	if err != nil {
 		return nil, err
@@ -143,13 +148,19 @@ func (cr *CustomerRepository) Create(ctx context.Context, customer *Customer) (*
 
 func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Customer) (*Customer, error) {
 	query := `
-		INSERT INTO customer (telegram_id, expire_at, language)
-		VALUES ($1, $2, $3)
-		ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = customer.telegram_id
-		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked, trial_used, payment_method_id, autopay_enabled, autopay_plan_id
+		INSERT INTO customer (telegram_id, expire_at, language, tg_username, tg_first_name, tg_last_name)
+		VALUES ($1, $2, $3, $4, $5, $6)
+		ON CONFLICT (telegram_id) DO UPDATE SET 
+			tg_username = COALESCE(EXCLUDED.tg_username, customer.tg_username),
+			tg_first_name = COALESCE(EXCLUDED.tg_first_name, customer.tg_first_name),
+			tg_last_name = COALESCE(EXCLUDED.tg_last_name, customer.tg_last_name)
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked, trial_used, 
+			payment_method_id, autopay_enabled, autopay_plan_id, autopay_months, autopay_failed_attempts,
+			tg_username, tg_first_name, tg_last_name
 	`
 
-	row := cr.pool.QueryRow(ctx, query, customer.TelegramID, customer.ExpireAt, customer.Language)
+	row := cr.pool.QueryRow(ctx, query, customer.TelegramID, customer.ExpireAt, customer.Language, 
+		customer.TgUsername, customer.TgFirstName, customer.TgLastName)
 	result, err := scanCustomer(row)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find or create customer: %w", err)

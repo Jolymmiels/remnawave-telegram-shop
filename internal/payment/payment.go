@@ -115,7 +115,7 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		trafficLimit = plan.TrafficLimit * 1024 * 1024 * 1024 // Convert GB to bytes
 	}
 
-	user, err := s.remnawaveClient.CreateOrUpdateUserWithPlan(ctx, customer.ID, customer.TelegramID, trafficLimit, purchase.Month*config.DaysInMonth(), false, plan)
+	user, err := s.remnawaveClient.CreateOrUpdateUserWithPlan(ctx, customer, trafficLimit, purchase.Month*config.DaysInMonth(), false, plan)
 	if err != nil {
 		return err
 	}
@@ -387,7 +387,7 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 	if customer == nil {
 		return "", fmt.Errorf("customer %d not found", telegramId)
 	}
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, telegramId, config.TrialTrafficLimit(), config.TrialDays(), true)
+	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer, config.TrialTrafficLimit(), config.TrialDays(), true)
 	if err != nil {
 		slog.Error("Error creating user", "error", err)
 		return "", err
@@ -457,7 +457,7 @@ func (s *PaymentService) ExtendSubscription(ctx context.Context, customerID int6
 		return fmt.Errorf("customer not found")
 	}
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), bonusDays, false)
+	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer, config.TrafficLimit(), bonusDays, false)
 	if err != nil {
 		slog.Error("Error creating user", "error", err)
 		return err
@@ -782,7 +782,7 @@ func (s *PaymentService) processReferralBonus(ctx context.Context, customer *dat
 	}
 
 	if bonusDays > 0 {
-		referrerUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, referrerCustomer.ID, referrerCustomer.TelegramID, config.TrafficLimit(), bonusDays, false)
+		referrerUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, referrerCustomer, config.TrafficLimit(), bonusDays, false)
 		if err != nil {
 			return err
 		}
@@ -827,7 +827,7 @@ func (s *PaymentService) processReferralBonus(ctx context.Context, customer *dat
 	if isFirstBonus {
 		refereeBonusDays := s.getRefereeBonusDays()
 		if refereeBonusDays > 0 {
-			refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), refereeBonusDays, false)
+			refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer, config.TrafficLimit(), refereeBonusDays, false)
 			if err != nil {
 				slog.Error("Error granting referee bonus", "error", err)
 			} else {
