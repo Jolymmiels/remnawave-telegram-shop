@@ -83,15 +83,6 @@ func (h *PaymentHandler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, upd
 		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
 	})
 
-	// Show autopay disable button if autopay is enabled
-	customer, _ := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
-	if customer != nil && customer.AutopayEnabled && customer.PaymentMethodID != nil {
-		// Insert before back button
-		keyboard = append(keyboard[:len(keyboard)-1], []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(langCode, "autopay_disable_button"), CallbackData: CallbackAutopayDisable},
-		}, keyboard[len(keyboard)-1])
-	}
-
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,

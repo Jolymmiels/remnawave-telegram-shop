@@ -292,9 +292,10 @@ const UserDetailsPage: React.FC = () => {
         return <Badge color="green" size="xs">Оплачено</Badge>
       case 'pending':
         return <Badge color="yellow" size="xs">Ожидание</Badge>
+      case 'cancel':
       case 'cancelled':
       case 'canceled':
-        return <Badge color="red" size="xs">Отменен</Badge>
+        return <Badge color="red" size="xs">Отменён</Badge>
       default:
         return <Badge color="gray" size="xs">{status}</Badge>
     }
