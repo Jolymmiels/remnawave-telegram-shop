@@ -45,6 +45,9 @@ type UserWithDetails struct {
 	PaymentsCount    int     `json:"payments_count"`
 	ReferralsCount   int     `json:"referrals_count"`
 	TotalSpent       float64 `json:"total_spent"`
+	TgUsername       *string `json:"tg_username"`
+	TgFirstName      *string `json:"tg_first_name"`
+	TgLastName       *string `json:"tg_last_name"`
 }
 
 type PaymentDTO struct {
@@ -158,6 +161,9 @@ func (uh *UsersHandler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 			PaymentsCount:    c.PaymentsCount,
 			ReferralsCount:   c.ReferralsCount,
 			TotalSpent:       c.TotalSpent,
+			TgUsername:       c.TgUsername,
+			TgFirstName:      c.TgFirstName,
+			TgLastName:       c.TgLastName,
 		})
 	}
 

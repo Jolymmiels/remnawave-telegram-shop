@@ -294,23 +294,21 @@ const UserManagement: React.FC = () => {
           <Text size="xs">{formatDate(user.expire_at)}</Text>
         </Group>
         
-        <SimpleGrid cols={2}>
-          <Box ta="center">
-            <Group gap={2} justify="center">
-              <IconCoin size={12} />
-              <Text size="xs" c="dimmed">Платежи</Text>
-            </Group>
-            <Text size="sm" fw={500}>{user.payments_count} · <Text span c="green">{user.total_spent.toFixed(0)} ₽</Text></Text>
-          </Box>
-          
-          <Box ta="center">
-            <Group gap={2} justify="center">
-              <IconUsers size={12} />
-              <Text size="xs" c="dimmed">Рефералы</Text>
-            </Group>
-            <Text size="sm" fw={500}>{user.referrals_count}</Text>
-          </Box>
-        </SimpleGrid>
+        <Group justify="space-between">
+          <Group gap={4}>
+            <IconCoin size={12} color="var(--mantine-color-dimmed)" />
+            <Text size="xs" c="dimmed">Платежи</Text>
+          </Group>
+          <Text size="xs" fw={500}>{user.payments_count} · <Text span c="green">{user.total_spent.toFixed(0)} ₽</Text></Text>
+        </Group>
+
+        <Group justify="space-between">
+          <Group gap={4}>
+            <IconUsers size={12} color="var(--mantine-color-dimmed)" />
+            <Text size="xs" c="dimmed">Рефералы</Text>
+          </Group>
+          <Text size="xs" fw={500}>{user.referrals_count}</Text>
+        </Group>
       </Stack>
     </Card>
   )
