@@ -443,9 +443,15 @@ func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params Customer
 	var args []interface{}
 	argNum := 1
 
-	// Search by telegram_id (partial match as string)
+	// Search by telegram_id, username, first_name, last_name (partial match)
 	if params.Query != "" {
-		whereConditions = append(whereConditions, fmt.Sprintf("CAST(c.telegram_id AS TEXT) LIKE $%d", argNum))
+		searchCondition := fmt.Sprintf(`(
+			CAST(c.telegram_id AS TEXT) LIKE $%d 
+			OR LOWER(c.tg_username) LIKE LOWER($%d)
+			OR LOWER(c.tg_first_name) LIKE LOWER($%d)
+			OR LOWER(c.tg_last_name) LIKE LOWER($%d)
+		)`, argNum, argNum, argNum, argNum)
+		whereConditions = append(whereConditions, searchCondition)
 		args = append(args, "%"+params.Query+"%")
 		argNum++
 	}
