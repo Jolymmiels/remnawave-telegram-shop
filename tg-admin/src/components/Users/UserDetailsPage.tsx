@@ -46,6 +46,9 @@ interface User {
   payments_count: number
   referrals_count: number
   total_spent: number
+  tg_username?: string | null
+  tg_first_name?: string | null
+  tg_last_name?: string | null
 }
 
 interface Payment {
@@ -330,10 +333,19 @@ const UserDetailsPage: React.FC = () => {
     <Stack gap="md">
       <Paper p="xs" shadow="sm">
         <Group justify="space-between" mb="md">
-          <Group gap="xs">
-            <Text size="xl" fw={700}>ID: {user.telegram_id}</Text>
-            {user.is_blocked && <Badge color="red">Заблокирован</Badge>}
-          </Group>
+          <Stack gap={4}>
+            <Group gap="xs">
+              <Text size="xl" fw={700}>ID: {user.telegram_id}</Text>
+              {user.is_blocked && <Badge color="red">Заблокирован</Badge>}
+            </Group>
+            {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
+              <Text size="sm" c="dimmed">
+                {user.tg_username && `@${user.tg_username}`}
+                {user.tg_username && (user.tg_first_name || user.tg_last_name) && ' · '}
+                {[user.tg_first_name, user.tg_last_name].filter(Boolean).join(' ')}
+              </Text>
+            )}
+          </Stack>
           <Group gap="xs">
             {getStatusBadge(user)}
             {user.expire_at && new Date(user.expire_at) > new Date() && (

@@ -51,6 +51,9 @@ interface User {
   payments_count: number
   referrals_count: number
   total_spent: number
+  tg_username?: string | null
+  tg_first_name?: string | null
+  tg_last_name?: string | null
 }
 
 interface UserSearchResponse {
@@ -228,6 +231,13 @@ const UserManagement: React.FC = () => {
             <Text fw={500} size="sm">ID: {user.telegram_id}</Text>
             {user.is_blocked && <Badge color="red" size="xs">Заблокирован</Badge>}
           </Flex>
+          {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
+            <Text size="xs" c="dimmed">
+              {user.tg_username && `@${user.tg_username}`}
+              {user.tg_username && (user.tg_first_name || user.tg_last_name) && ' · '}
+              {[user.tg_first_name, user.tg_last_name].filter(Boolean).join(' ')}
+            </Text>
+          )}
           {getStatusBadge(user)}
         </Box>
         <Menu shadow="md" width={200}>
@@ -426,10 +436,19 @@ const UserManagement: React.FC = () => {
                 {users.map((user) => (
                   <Table.Tr key={user.id} style={{ opacity: user.is_blocked ? 0.6 : 1, backgroundColor: user.is_blocked ? 'rgba(250, 82, 82, 0.05)' : 'transparent' }}>
                     <Table.Td>
-                      <Group gap="xs">
-                        <Text fw={500}>{user.telegram_id}</Text>
-                        {user.is_blocked && <Badge color="red" size="sm">Заблокирован</Badge>}
-                      </Group>
+                      <Stack gap={2}>
+                        <Group gap="xs">
+                          <Text fw={500}>{user.telegram_id}</Text>
+                          {user.is_blocked && <Badge color="red" size="sm">Заблокирован</Badge>}
+                        </Group>
+                        {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
+                          <Text size="xs" c="dimmed">
+                            {user.tg_username && `@${user.tg_username}`}
+                            {user.tg_username && (user.tg_first_name || user.tg_last_name) && ' · '}
+                            {[user.tg_first_name, user.tg_last_name].filter(Boolean).join(' ')}
+                          </Text>
+                        )}
+                      </Stack>
                     </Table.Td>
                     <Table.Td>
                       {getStatusBadge(user)}
