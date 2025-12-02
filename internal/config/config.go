@@ -32,7 +32,7 @@ type config struct {
 	isYookasaEnabled                                          bool
 	isCryptoEnabled                                           bool
 	isTelegramStarsEnabled                                    bool
-	adminTelegramId                                           int64
+	adminTelegramIds                                          []int64
 	trialDays                                                 int
 	trialRemnawaveTag                                         string
 	squadUUIDs                                                map[uuid.UUID]uuid.UUID
@@ -468,7 +468,23 @@ func IsTributeEnabled() bool {
 }
 
 func GetAdminTelegramId() int64 {
-	return conf.adminTelegramId
+	if len(conf.adminTelegramIds) > 0 {
+		return conf.adminTelegramIds[0]
+	}
+	return 0
+}
+
+func GetAdminTelegramIds() []int64 {
+	return conf.adminTelegramIds
+}
+
+func IsAdmin(telegramId int64) bool {
+	for _, id := range conf.adminTelegramIds {
+		if id == telegramId {
+			return true
+		}
+	}
+	return false
 }
 
 func GetHealthCheckPort() int {
@@ -540,10 +556,23 @@ func InitConfig() error {
 			log.Println("No .env loaded:", err)
 		}
 	}
-	var err error
-	conf.adminTelegramId, err = strconv.ParseInt(os.Getenv("ADMIN_TELEGRAM_ID"), 10, 64)
-	if err != nil {
-		return fmt.Errorf("ADMIN_TELEGRAM_ID: %w", err)
+	adminIdsStr := os.Getenv("ADMIN_TELEGRAM_ID")
+	if adminIdsStr == "" {
+		return fmt.Errorf("ADMIN_TELEGRAM_ID is required")
+	}
+	for _, idStr := range strings.Split(adminIdsStr, ",") {
+		idStr = strings.TrimSpace(idStr)
+		if idStr == "" {
+			continue
+		}
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			return fmt.Errorf("ADMIN_TELEGRAM_ID invalid value '%s': %w", idStr, err)
+		}
+		conf.adminTelegramIds = append(conf.adminTelegramIds, id)
+	}
+	if len(conf.adminTelegramIds) == 0 {
+		return fmt.Errorf("ADMIN_TELEGRAM_ID: at least one admin ID is required")
 	}
 
 	conf.telegramToken = mustEnv("TELEGRAM_TOKEN")

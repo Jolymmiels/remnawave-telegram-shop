@@ -177,15 +177,7 @@ func (ah *AuthHandler) validateTelegramInitData(initData string) (int64, error) 
 
 // isUserAdmin checks if the given Telegram ID is an admin
 func (ah *AuthHandler) isUserAdmin(ctx context.Context, telegramID int64) bool {
-	// Get admin Telegram ID from environment
-	adminTelegramID := config.GetAdminTelegramId()
-	if adminTelegramID == 0 {
-		slog.Error("Admin Telegram ID not configured")
-		return false
-	}
-
-	// Simple check - in production you might want to check against a database
-	return telegramID == adminTelegramID
+	return config.IsAdmin(telegramID)
 }
 
 // Middleware to verify admin access for protected routes

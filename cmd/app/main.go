@@ -218,7 +218,7 @@ func main() {
 
 func isAdminMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
-		if update.Message != nil && update.Message.From.ID == config.GetAdminTelegramId() {
+		if update.Message != nil && config.IsAdmin(update.Message.From.ID) {
 			next(ctx, b, update)
 		} else {
 			return
