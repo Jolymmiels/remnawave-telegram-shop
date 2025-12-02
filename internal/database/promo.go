@@ -246,16 +246,19 @@ func (r *PromoRepository) RecordPromoUsage(ctx context.Context, promoID, custome
 
 // PromoUsageWithCustomer contains usage info with customer telegram_id
 type PromoUsageWithCustomer struct {
-	ID         int64     `json:"id"`
-	PromoID    int64     `json:"promo_id"`
-	TelegramID int64     `json:"telegram_id"`
-	UsedAt     time.Time `json:"used_at"`
+	ID          int64     `json:"id"`
+	PromoID     int64     `json:"promo_id"`
+	TelegramID  int64     `json:"telegram_id"`
+	TgUsername  *string   `json:"tg_username"`
+	TgFirstName *string   `json:"tg_first_name"`
+	TgLastName  *string   `json:"tg_last_name"`
+	UsedAt      time.Time `json:"used_at"`
 }
 
 // GetPromoUsages returns all usages for a promo with customer telegram IDs
 func (r *PromoRepository) GetPromoUsages(ctx context.Context, promoID int64) ([]PromoUsageWithCustomer, error) {
 	query := `
-		SELECT pu.id, pu.promo_id, c.telegram_id, pu.used_at
+		SELECT pu.id, pu.promo_id, c.telegram_id, c.tg_username, c.tg_first_name, c.tg_last_name, pu.used_at
 		FROM promo_usage pu
 		JOIN customer c ON c.id = pu.customer_id
 		WHERE pu.promo_id = $1
@@ -271,7 +274,7 @@ func (r *PromoRepository) GetPromoUsages(ctx context.Context, promoID int64) ([]
 	var usages []PromoUsageWithCustomer
 	for rows.Next() {
 		var u PromoUsageWithCustomer
-		if err := rows.Scan(&u.ID, &u.PromoID, &u.TelegramID, &u.UsedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.PromoID, &u.TelegramID, &u.TgUsername, &u.TgFirstName, &u.TgLastName, &u.UsedAt); err != nil {
 			return nil, err
 		}
 		usages = append(usages, u)

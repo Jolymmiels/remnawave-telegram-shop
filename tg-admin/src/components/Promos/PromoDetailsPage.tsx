@@ -11,10 +11,12 @@ import {
   Alert,
   Card,
   SimpleGrid,
-  Button,
   ScrollArea,
+  ActionIcon,
+  Tooltip,
+  Button,
 } from '@mantine/core'
-import { IconArrowLeft, IconTicket } from '@tabler/icons-react'
+import { IconArrowLeft, IconTicket, IconEye } from '@tabler/icons-react'
 import { http } from '@/lib/http'
 import { backButton } from '@telegram-apps/sdk'
 import { useMediaQuery } from '@mantine/hooks'
@@ -35,6 +37,9 @@ interface PromoUsage {
   id: number
   promo_id: number
   telegram_id: number
+  tg_username?: string | null
+  tg_first_name?: string | null
+  tg_last_name?: string | null
   used_at: string
 }
 
@@ -182,18 +187,26 @@ const PromoDetailsPage: React.FC = () => {
           <Stack gap="sm">
             {usages.map((usage) => (
               <Card key={usage.id} padding="sm" withBorder>
-                <Group justify="space-between" mb="xs">
-                  <Text size="sm" fw={600}>{usage.telegram_id}</Text>
+                <Group justify="space-between">
+                  <Stack gap={2}>
+                    <Group gap="xs">
+                      <Text size="sm" fw={600}>{usage.telegram_id}</Text>
+                      <Tooltip label="Подробнее">
+                        <ActionIcon size="xs" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
+                          <IconEye size={14} />
+                        </ActionIcon>
+                      </Tooltip>
+                    </Group>
+                    {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
+                      <Text size="xs" c="dimmed">
+                        {usage.tg_username && `@${usage.tg_username}`}
+                        {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
+                        {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
+                      </Text>
+                    )}
+                  </Stack>
                   <Text size="xs" c="dimmed">{date(usage.used_at)} {time(usage.used_at)}</Text>
                 </Group>
-                <Button
-                  size="xs"
-                  variant="light"
-                  fullWidth
-                  onClick={() => navigate(`/user/${usage.telegram_id}`)}
-                >
-                  Перейти к пользователю
-                </Button>
               </Card>
             ))}
           </Stack>
@@ -202,28 +215,35 @@ const PromoDetailsPage: React.FC = () => {
             <Table striped highlightOnHover>
               <Table.Thead>
                 <Table.Tr>
-                  <Table.Th>Telegram ID</Table.Th>
+                  <Table.Th>Пользователь</Table.Th>
                   <Table.Th>Дата использования</Table.Th>
-                  <Table.Th></Table.Th>
+                  <Table.Th w={40}></Table.Th>
                 </Table.Tr>
               </Table.Thead>
               <Table.Tbody>
                 {usages.map((usage) => (
                   <Table.Tr key={usage.id}>
                     <Table.Td>
-                      <Text size="sm" fw={500}>{usage.telegram_id}</Text>
+                      <Stack gap={2}>
+                        <Text size="sm" fw={500}>{usage.telegram_id}</Text>
+                        {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
+                          <Text size="xs" c="dimmed">
+                            {usage.tg_username && `@${usage.tg_username}`}
+                            {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
+                            {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
+                          </Text>
+                        )}
+                      </Stack>
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">{date(usage.used_at)} {time(usage.used_at)}</Text>
                     </Table.Td>
                     <Table.Td>
-                      <Button
-                        size="xs"
-                        variant="subtle"
-                        onClick={() => navigate(`/user/${usage.telegram_id}`)}
-                      >
-                        Перейти
-                      </Button>
+                      <Tooltip label="Подробнее">
+                        <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
+                          <IconEye size={16} />
+                        </ActionIcon>
+                      </Tooltip>
                     </Table.Td>
                   </Table.Tr>
                 ))}
