@@ -142,40 +142,56 @@ func (h *PaymentHandler) PlanCallbackHandler(ctx context.Context, b *bot.Bot, up
 
 func (h *PaymentHandler) buildPeriodSelectionKeyboard(plan database.Plan, langCode string) [][]models.InlineKeyboardButton {
 	var priceButtons []models.InlineKeyboardButton
+	showPrice := config.PeriodButtonsShowPrice()
+
+	formatButton := func(monthKey string, price int, months int) models.InlineKeyboardButton {
+		var text string
+		if showPrice {
+			text = fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, monthKey), price)
+		} else {
+			text = h.translation.GetText(langCode, monthKey)
+		}
+		return models.InlineKeyboardButton{
+			Text:         text,
+			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, months, price, plan.ID),
+		}
+	}
 
 	if plan.Price1 > 0 {
-		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_1"), plan.Price1),
-			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 1, plan.Price1, plan.ID),
-		})
+		priceButtons = append(priceButtons, formatButton("month_1", plan.Price1, 1))
 	}
 
 	if plan.Price3 > 0 {
-		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_3"), plan.Price3),
-			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 3, plan.Price3, plan.ID),
-		})
+		priceButtons = append(priceButtons, formatButton("month_3", plan.Price3, 3))
 	}
 
 	if plan.Price6 > 0 {
-		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_6"), plan.Price6),
-			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 6, plan.Price6, plan.ID),
-		})
+		priceButtons = append(priceButtons, formatButton("month_6", plan.Price6, 6))
 	}
 
 	if plan.Price12 > 0 {
-		priceButtons = append(priceButtons, models.InlineKeyboardButton{
-			Text:         fmt.Sprintf("%s - %d ₽", h.translation.GetText(langCode, "month_12"), plan.Price12),
-			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d&planId=%d", CallbackSell, 12, plan.Price12, plan.ID),
-		})
+		priceButtons = append(priceButtons, formatButton("month_12", plan.Price12, 12))
 	}
 
 	var keyboard [][]models.InlineKeyboardButton
-	if len(priceButtons) == 4 {
-		keyboard = append(keyboard, priceButtons[:2])
-		keyboard = append(keyboard, priceButtons[2:])
-	} else if len(priceButtons) > 0 {
+	layout := config.PeriodButtonsLayout()
+
+	switch layout {
+	case "1x4":
+		keyboard = append(keyboard, priceButtons)
+	case "4x1":
+		for _, btn := range priceButtons {
+			keyboard = append(keyboard, []models.InlineKeyboardButton{btn})
+		}
+	case "2x2":
+		for i := 0; i < len(priceButtons); i += 2 {
+			if i+1 < len(priceButtons) {
+				keyboard = append(keyboard, []models.InlineKeyboardButton{priceButtons[i], priceButtons[i+1]})
+			} else {
+				keyboard = append(keyboard, []models.InlineKeyboardButton{priceButtons[i]})
+			}
+		}
+	default:
 		keyboard = append(keyboard, priceButtons)
 	}
 

@@ -329,6 +329,24 @@ func LinkButtonsOrder() []string {
 	return nil
 }
 
+func PeriodButtonsLayout() string {
+	if settingsProvider != nil {
+		if val := settingsProvider.Get("period_buttons_layout"); val != "" {
+			return val
+		}
+	}
+	return "2x2"
+}
+
+func PeriodButtonsShowPrice() bool {
+	if settingsProvider != nil {
+		if val := settingsProvider.Get("period_buttons_show_price"); val != "" {
+			return val == "true" || val == "1"
+		}
+	}
+	return true
+}
+
 func YookasaEmail() string {
 	return getSettingWithDeprecation("yookasa_email", conf.yookasaEmail, "YOOKASA_EMAIL")
 }

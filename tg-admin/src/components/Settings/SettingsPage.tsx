@@ -524,6 +524,34 @@ const SettingsPage: React.FC = () => {
                 onChange={e => updateSetting('payment_return_url', e.target.value)}
                 placeholder="https://t.me/your_bot"
               />
+
+              {/* Period Buttons Settings */}
+              <Paper p="xs" withBorder>
+                <Text fw={600} size="sm" mb="xs">Кнопки выбора периода</Text>
+                <Stack gap="xs">
+                  <Box>
+                    <Text size="xs" c="dimmed" mb={4}>Расположение кнопок</Text>
+                    <SegmentedControl
+                      size="xs"
+                      fullWidth
+                      data={[
+                        { value: '2x2', label: '2x2' },
+                        { value: '4x1', label: '4x1' },
+                        { value: '1x4', label: '1x4' },
+                      ]}
+                      value={settings.period_buttons_layout || '2x2'}
+                      onChange={v => updateSetting('period_buttons_layout', v)}
+                    />
+                  </Box>
+                  <Switch
+                    label="Показывать цену на кнопках"
+                    size="xs"
+                    checked={settings.period_buttons_show_price !== 'false'}
+                    onChange={e => updateSetting('period_buttons_show_price', e.currentTarget.checked ? 'true' : 'false')}
+                  />
+                </Stack>
+              </Paper>
+
               {/* Telegram Stars */}
               <Paper p="xs" withBorder>
                 <Group justify="space-between" mb="xs">
