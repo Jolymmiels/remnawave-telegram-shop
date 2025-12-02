@@ -74,6 +74,7 @@ const LINK_BUTTONS: LinkButton[] = [
   { id: 'support', label: 'Support', urlKey: 'support_url' },
   { id: 'feedback', label: 'Feedback', urlKey: 'feedback_url' },
   { id: 'channel', label: 'Channel', urlKey: 'channel_url' },
+  { id: 'tos', label: 'TOS', urlKey: 'tos_url' },
 ]
 
 function SortableButton({ id, label, disabled }: { id: string; label: string; disabled: boolean }) {
@@ -719,6 +720,12 @@ const SettingsPage: React.FC = () => {
                 size="xs"
                 value={settings.channel_url || ''}
                 onChange={e => updateSetting('channel_url', e.target.value)}
+              />
+              <TextInput
+                label="Terms of Service"
+                size="xs"
+                value={settings.tos_url || ''}
+                onChange={e => updateSetting('tos_url', e.target.value)}
               />
               <Box>
                 <Text size="xs" fw={500} mb={4}>Расположение кнопок (перетащите для изменения порядка)</Text>

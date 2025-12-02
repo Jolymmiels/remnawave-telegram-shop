@@ -219,11 +219,12 @@ func (h *StartHandler) BuildStartKeyboard(existingCustomer *database.Customer, l
 		"support":       {config.SupportURL(), h.translation.GetText(langCode, "support_button")},
 		"feedback":      {config.FeedbackURL(), h.translation.GetText(langCode, "feedback_button")},
 		"channel":       {config.ChannelURL(), h.translation.GetText(langCode, "channel_button")},
+		"tos":           {config.TosURL(), h.translation.GetText(langCode, "tos_button")},
 	}
 
 	buttonOrder := config.LinkButtonsOrder()
 	if len(buttonOrder) == 0 {
-		buttonOrder = []string{"server_status", "support", "feedback", "channel"}
+		buttonOrder = []string{"server_status", "support", "feedback", "channel", "tos"}
 	}
 
 	var linkButtons []models.InlineKeyboardButton

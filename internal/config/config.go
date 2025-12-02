@@ -307,7 +307,7 @@ func SupportURL() string {
 }
 
 func TosURL() string {
-	return conf.tosURL
+	return getSettingWithDeprecation("tos_url", conf.tosURL, "TOS_URL")
 }
 
 func LinkButtonsLayout() string {
