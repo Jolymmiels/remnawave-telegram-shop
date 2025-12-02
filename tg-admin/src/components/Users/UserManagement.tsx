@@ -227,10 +227,12 @@ const UserManagement: React.FC = () => {
     <Card padding="sm" shadow="sm" withBorder style={{ opacity: user.is_blocked ? 0.6 : 1 }}>
       <Flex justify="space-between" align="flex-start" mb="xs">
         <Box>
-          <Flex gap="xs" align="center">
+          <Group gap="xs" mb={2}>
             <Text fw={500} size="sm">ID: {user.telegram_id}</Text>
+            {getStatusBadge(user)}
+            <Badge variant="light" size="xs">{(user.language || 'en').toUpperCase()}</Badge>
             {user.is_blocked && <Badge color="red" size="xs">Заблокирован</Badge>}
-          </Flex>
+          </Group>
           {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
             <Text size="xs" c="dimmed">
               {user.tg_username && `@${user.tg_username}`}
@@ -238,10 +240,6 @@ const UserManagement: React.FC = () => {
               {[user.tg_first_name, user.tg_last_name].filter(Boolean).join(' ')}
             </Text>
           )}
-          <Group gap={4}>
-            {getStatusBadge(user)}
-            <Badge variant="light" size="xs">{(user.language || 'en').toUpperCase()}</Badge>
-          </Group>
         </Box>
         <Menu shadow="md" width={200}>
           <Menu.Target>
