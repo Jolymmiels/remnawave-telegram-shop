@@ -176,13 +176,26 @@ func (ph *PromoHandler) GetUsages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	usages, err := ph.promoService.GetPromoUsages(ctx, id)
+	page := 1
+	limit := 50
+	if p := r.URL.Query().Get("page"); p != "" {
+		if parsed, err := strconv.Atoi(p); err == nil && parsed > 0 {
+			page = parsed
+		}
+	}
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if parsed, err := strconv.Atoi(l); err == nil && parsed > 0 && parsed <= 100 {
+			limit = parsed
+		}
+	}
+
+	result, err := ph.promoService.GetPromoUsages(ctx, id, page, limit)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	writeJSON(w, http.StatusOK, usages)
+	writeJSON(w, http.StatusOK, result)
 }
 
 func (ph *PromoHandler) GetUserPromos(w http.ResponseWriter, r *http.Request) {

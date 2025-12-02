@@ -255,17 +255,31 @@ type PromoUsageWithCustomer struct {
 	UsedAt      time.Time `json:"used_at"`
 }
 
-// GetPromoUsages returns all usages for a promo with customer telegram IDs
-func (r *PromoRepository) GetPromoUsages(ctx context.Context, promoID int64) ([]PromoUsageWithCustomer, error) {
+// PromoUsagesResult contains paginated usages with total count
+type PromoUsagesResult struct {
+	Usages []PromoUsageWithCustomer `json:"usages"`
+	Total  int                      `json:"total"`
+}
+
+// GetPromoUsages returns paginated usages for a promo with customer telegram IDs
+func (r *PromoRepository) GetPromoUsages(ctx context.Context, promoID int64, page, limit int) (*PromoUsagesResult, error) {
+	var total int
+	countQuery := `SELECT COUNT(*) FROM promo_usage WHERE promo_id = $1`
+	if err := r.db.QueryRow(ctx, countQuery, promoID).Scan(&total); err != nil {
+		return nil, err
+	}
+
+	offset := (page - 1) * limit
 	query := `
 		SELECT pu.id, pu.promo_id, c.telegram_id, c.tg_username, c.tg_first_name, c.tg_last_name, pu.used_at
 		FROM promo_usage pu
 		JOIN customer c ON c.id = pu.customer_id
 		WHERE pu.promo_id = $1
 		ORDER BY pu.used_at DESC
+		LIMIT $2 OFFSET $3
 	`
 
-	rows, err := r.db.Query(ctx, query, promoID)
+	rows, err := r.db.Query(ctx, query, promoID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -280,7 +294,7 @@ func (r *PromoRepository) GetPromoUsages(ctx context.Context, promoID int64) ([]
 		usages = append(usages, u)
 	}
 
-	return usages, rows.Err()
+	return &PromoUsagesResult{Usages: usages, Total: total}, rows.Err()
 }
 
 // CustomerPromoUsage contains promo info used by customer

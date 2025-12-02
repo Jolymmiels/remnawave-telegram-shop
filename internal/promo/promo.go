@@ -124,8 +124,8 @@ func (s *Service) GetPromoByID(ctx context.Context, id int64) (*database.Promo, 
 	return s.repository.GetByID(ctx, id)
 }
 
-func (s *Service) GetPromoUsages(ctx context.Context, promoID int64) ([]database.PromoUsageWithCustomer, error) {
-	return s.repository.GetPromoUsages(ctx, promoID)
+func (s *Service) GetPromoUsages(ctx context.Context, promoID int64, page, limit int) (*database.PromoUsagesResult, error) {
+	return s.repository.GetPromoUsages(ctx, promoID, page, limit)
 }
 
 func (s *Service) GetCustomerPromoUsages(ctx context.Context, telegramID int64) ([]database.CustomerPromoUsage, error) {

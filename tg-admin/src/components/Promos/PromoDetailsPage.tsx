@@ -51,10 +51,11 @@ const PromoDetailsPage: React.FC = () => {
   const { date, time } = useFormat()
   const [promo, setPromo] = useState<Promo | null>(null)
   const [usages, setUsages] = useState<PromoUsage[]>([])
+  const [totalUsages, setTotalUsages] = useState(0)
   const [loading, setLoading] = useState(true)
   const [usagesLoading, setUsagesLoading] = useState(true)
   const [currentPage, setCurrentPage] = useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 50
 
   const goBack = () => {
     navigate('/promos')
@@ -78,9 +79,8 @@ const PromoDetailsPage: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchPromo = async () => {
       if (!promoId) return
-
       try {
         setLoading(true)
         const promos: Promo[] = await http.get('/api/promos')
@@ -93,21 +93,30 @@ const PromoDetailsPage: React.FC = () => {
       } finally {
         setLoading(false)
       }
+    }
+    fetchPromo()
+  }, [promoId])
 
+  useEffect(() => {
+    const fetchUsages = async () => {
+      if (!promoId) return
       try {
         setUsagesLoading(true)
-        const usagesData: PromoUsage[] = await http.get(`/api/promos/${promoId}/usages`)
-        setUsages(usagesData || [])
+        const result: { usages: PromoUsage[], total: number } = await http.get(
+          `/api/promos/${promoId}/usages?page=${currentPage}&limit=${itemsPerPage}`
+        )
+        setUsages(result.usages || [])
+        setTotalUsages(result.total)
       } catch (error) {
         console.error('Failed to fetch usages:', error)
         setUsages([])
+        setTotalUsages(0)
       } finally {
         setUsagesLoading(false)
       }
     }
-
-    fetchData()
-  }, [promoId])
+    fetchUsages()
+  }, [promoId, currentPage])
 
   if (loading) {
     return (
@@ -186,89 +195,84 @@ const PromoDetailsPage: React.FC = () => {
           </Stack>
         ) : usages.length === 0 ? (
           <Alert color="gray">Промокод ещё не использовался</Alert>
-        ) : (() => {
-          const totalPages = Math.ceil(usages.length / itemsPerPage)
-          const paginatedUsages = usages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-          
-          return isMobile ? (
-            <Stack gap="sm">
-              {paginatedUsages.map((usage) => (
-                <Card key={usage.id} padding="sm" withBorder>
-                  <Group justify="space-between" align="flex-start">
-                    <Stack gap={2}>
-                      <Text size="sm" fw={600}>{usage.telegram_id}</Text>
-                      {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
-                        <Text size="xs" c="dimmed">
-                          {usage.tg_username && `@${usage.tg_username}`}
-                          {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
-                          {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
-                        </Text>
-                      )}
-                      <Text size="xs" c="dimmed">{date(usage.used_at)} {time(usage.used_at)}</Text>
-                    </Stack>
-                    <Tooltip label="Подробнее">
-                      <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
-                        <IconEye size={16} />
-                      </ActionIcon>
-                    </Tooltip>
-                  </Group>
-                </Card>
-              ))}
-              {totalPages > 1 && (
-                <Group justify="center" mt="md">
-                  <Pagination value={currentPage} onChange={setCurrentPage} total={totalPages} size="sm" />
+        ) : isMobile ? (
+          <Stack gap="sm">
+            {usages.map((usage) => (
+              <Card key={usage.id} padding="sm" withBorder>
+                <Group justify="space-between" align="flex-start">
+                  <Stack gap={2}>
+                    <Text size="sm" fw={600}>{usage.telegram_id}</Text>
+                    {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
+                      <Text size="xs" c="dimmed">
+                        {usage.tg_username && `@${usage.tg_username}`}
+                        {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
+                        {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
+                      </Text>
+                    )}
+                    <Text size="xs" c="dimmed">{date(usage.used_at)} {time(usage.used_at)}</Text>
+                  </Stack>
+                  <Tooltip label="Подробнее">
+                    <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
+                      <IconEye size={16} />
+                    </ActionIcon>
+                  </Tooltip>
                 </Group>
-              )}
-            </Stack>
-          ) : (
-            <>
-              <ScrollArea>
-                <Table striped highlightOnHover>
-                  <Table.Thead>
-                    <Table.Tr>
-                      <Table.Th>Пользователь</Table.Th>
-                      <Table.Th>Дата использования</Table.Th>
-                      <Table.Th w={40}></Table.Th>
+              </Card>
+            ))}
+            {Math.ceil(totalUsages / itemsPerPage) > 1 && (
+              <Group justify="center" mt="md">
+                <Pagination value={currentPage} onChange={setCurrentPage} total={Math.ceil(totalUsages / itemsPerPage)} size="sm" />
+              </Group>
+            )}
+          </Stack>
+        ) : (
+          <>
+            <ScrollArea>
+              <Table striped highlightOnHover>
+                <Table.Thead>
+                  <Table.Tr>
+                    <Table.Th>Пользователь</Table.Th>
+                    <Table.Th>Дата использования</Table.Th>
+                    <Table.Th w={40}></Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>
+                  {usages.map((usage) => (
+                    <Table.Tr key={usage.id}>
+                      <Table.Td>
+                        <Stack gap={2}>
+                          <Text size="sm" fw={500}>{usage.telegram_id}</Text>
+                          {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
+                            <Text size="xs" c="dimmed">
+                              {usage.tg_username && `@${usage.tg_username}`}
+                              {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
+                              {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
+                            </Text>
+                          )}
+                        </Stack>
+                      </Table.Td>
+                      <Table.Td>
+                        <Text size="sm">{date(usage.used_at)} {time(usage.used_at)}</Text>
+                      </Table.Td>
+                      <Table.Td>
+                        <Tooltip label="Подробнее">
+                          <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
+                            <IconEye size={16} />
+                          </ActionIcon>
+                        </Tooltip>
+                      </Table.Td>
                     </Table.Tr>
-                  </Table.Thead>
-                  <Table.Tbody>
-                    {paginatedUsages.map((usage) => (
-                      <Table.Tr key={usage.id}>
-                        <Table.Td>
-                          <Stack gap={2}>
-                            <Text size="sm" fw={500}>{usage.telegram_id}</Text>
-                            {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
-                              <Text size="xs" c="dimmed">
-                                {usage.tg_username && `@${usage.tg_username}`}
-                                {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
-                                {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
-                              </Text>
-                            )}
-                          </Stack>
-                        </Table.Td>
-                        <Table.Td>
-                          <Text size="sm">{date(usage.used_at)} {time(usage.used_at)}</Text>
-                        </Table.Td>
-                        <Table.Td>
-                          <Tooltip label="Подробнее">
-                            <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
-                              <IconEye size={16} />
-                            </ActionIcon>
-                          </Tooltip>
-                        </Table.Td>
-                      </Table.Tr>
-                    ))}
-                  </Table.Tbody>
-                </Table>
-              </ScrollArea>
-              {totalPages > 1 && (
-                <Group justify="center" mt="md">
-                  <Pagination value={currentPage} onChange={setCurrentPage} total={totalPages} size="sm" />
-                </Group>
-              )}
-            </>
-          )
-        })()}
+                  ))}
+                </Table.Tbody>
+              </Table>
+            </ScrollArea>
+            {Math.ceil(totalUsages / itemsPerPage) > 1 && (
+              <Group justify="center" mt="md">
+                <Pagination value={currentPage} onChange={setCurrentPage} total={Math.ceil(totalUsages / itemsPerPage)} size="sm" />
+              </Group>
+            )}
+          </>
+        )}
       </Paper>
     </Stack>
   )
