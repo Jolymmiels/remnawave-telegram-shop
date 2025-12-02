@@ -49,6 +49,7 @@ interface User {
   subscription_link?: string | null
   language: string
   is_blocked: boolean
+  is_blocked_by_user: boolean
   payments_count: number
   referrals_count: number
   total_spent: number
@@ -225,7 +226,7 @@ const UserManagement: React.FC = () => {
 
   // Mobile Card Component
   const UserCard: React.FC<{ user: User }> = ({ user }) => (
-    <Card padding="sm" shadow="sm" withBorder style={{ opacity: user.is_blocked ? 0.6 : 1 }}>
+    <Card padding="sm" shadow="sm" withBorder style={{ opacity: (user.is_blocked || user.is_blocked_by_user) ? 0.6 : 1 }}>
       <Flex justify="space-between" align="flex-start" mb="xs">
         <Box>
           <Group gap="xs" mb={2}>
@@ -233,6 +234,7 @@ const UserManagement: React.FC = () => {
             {getStatusBadge(user)}
             <Badge variant="light" size="xs">{(user.language || 'en').toUpperCase()}</Badge>
             {user.is_blocked && <Badge color="red" size="xs">Заблокирован</Badge>}
+            {user.is_blocked_by_user && <Badge color="orange" size="xs">Бот заблокирован</Badge>}
           </Group>
           {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
             <Text size="xs" c="dimmed">
@@ -427,12 +429,13 @@ const UserManagement: React.FC = () => {
               </Table.Thead>
               <Table.Tbody>
                 {users.map((user) => (
-                  <Table.Tr key={user.id} style={{ opacity: user.is_blocked ? 0.6 : 1, backgroundColor: user.is_blocked ? 'rgba(250, 82, 82, 0.05)' : 'transparent' }}>
+                  <Table.Tr key={user.id} style={{ opacity: (user.is_blocked || user.is_blocked_by_user) ? 0.6 : 1, backgroundColor: user.is_blocked ? 'rgba(250, 82, 82, 0.05)' : user.is_blocked_by_user ? 'rgba(255, 146, 43, 0.05)' : 'transparent' }}>
                     <Table.Td>
                       <Stack gap={2}>
                         <Group gap="xs">
                           <Text fw={500}>{user.telegram_id}</Text>
                           {user.is_blocked && <Badge color="red" size="sm">Заблокирован</Badge>}
+                          {user.is_blocked_by_user && <Badge color="orange" size="sm">Бот заблокирован</Badge>}
                         </Group>
                         {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
                           <Text size="xs" c="dimmed">

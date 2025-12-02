@@ -128,6 +128,7 @@ func (s *Service) createBroadcastInternal(ctx context.Context, content, broadcas
 func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customers []database.Customer, content string, media *MediaInfo) {
 	stats := BroadcastStats{Total: len(customers)}
 	processed := 0
+	var blockedIDs []int64
 
 	slog.Info("broadcast started", "broadcast_id", broadcastID, "total", stats.Total, "has_media", media != nil)
 
@@ -135,7 +136,9 @@ func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customer
 		select {
 		case <-ctx.Done():
 			slog.Warn("broadcast cancelled due to shutdown", "broadcast_id", broadcastID, "sent", stats.Sent, "remaining", stats.Total-processed)
-			// Use fresh context for DB update since original is cancelled
+			if len(blockedIDs) > 0 {
+				_ = s.customers.SetBlockedByUserBatch(context.Background(), blockedIDs, true)
+			}
 			_ = s.repo.UpdateBroadcastStats(context.Background(), broadcastID, database.BroadcastStatusFailed, stats.Total, stats.Sent, stats.Failed, stats.Blocked)
 			s.notifyAdmin(context.Background(), broadcastID, stats)
 			return
@@ -151,16 +154,19 @@ func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customer
 		if err != nil {
 			if isBlockedError(err) {
 				stats.Blocked++
+				blockedIDs = append(blockedIDs, customer.TelegramID)
 			} else {
 				stats.Failed++
 				slog.Warn("failed to send message", "telegram_id", customer.TelegramID, "error", err)
 			}
 		} else {
 			stats.Sent++
+			if customer.IsBlockedByUser {
+				_ = s.customers.SetBlockedByUser(ctx, customer.TelegramID, false)
+			}
 		}
 		processed++
 
-		// Log progress every N messages
 		if processed%progressLogInterval == 0 {
 			slog.Info("broadcast progress",
 				"broadcast_id", broadcastID,
@@ -173,16 +179,21 @@ func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customer
 			)
 		}
 
-		// Update DB stats every N messages
 		if processed%dbUpdateInterval == 0 {
 			_ = s.repo.UpdateBroadcastStats(ctx, broadcastID, database.BroadcastStatusInProgress, stats.Total, stats.Sent, stats.Failed, stats.Blocked)
+			if len(blockedIDs) > 0 {
+				_ = s.customers.SetBlockedByUserBatch(ctx, blockedIDs, true)
+				blockedIDs = nil
+			}
 		}
 
-		// Rate limiting delay between messages
 		time.Sleep(messageSendDelay)
 	}
 
-	// Final update - mark as completed
+	if len(blockedIDs) > 0 {
+		_ = s.customers.SetBlockedByUserBatch(ctx, blockedIDs, true)
+	}
+
 	_ = s.repo.UpdateBroadcastStats(ctx, broadcastID, database.BroadcastStatusCompleted, stats.Total, stats.Sent, stats.Failed, stats.Blocked)
 
 	slog.Info("broadcast completed",
@@ -193,7 +204,6 @@ func (s *Service) sendBroadcast(ctx context.Context, broadcastID int64, customer
 		"blocked", stats.Blocked,
 	)
 
-	// Send notification to admin
 	s.notifyAdmin(ctx, broadcastID, stats)
 }
 

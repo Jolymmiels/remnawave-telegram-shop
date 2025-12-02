@@ -42,6 +42,7 @@ type UserWithDetails struct {
 	SubscriptionLink *string `json:"subscription_link"`
 	Language         string  `json:"language"`
 	IsBlocked        bool    `json:"is_blocked"`
+	IsBlockedByUser  bool    `json:"is_blocked_by_user"`
 	PaymentsCount    int     `json:"payments_count"`
 	ReferralsCount   int     `json:"referrals_count"`
 	TotalSpent       float64 `json:"total_spent"`
@@ -158,6 +159,7 @@ func (uh *UsersHandler) SearchUsers(w http.ResponseWriter, r *http.Request) {
 			SubscriptionLink: c.SubscriptionLink,
 			Language:         c.Language,
 			IsBlocked:        c.IsBlocked,
+			IsBlockedByUser:  c.IsBlockedByUser,
 			PaymentsCount:    c.PaymentsCount,
 			ReferralsCount:   c.ReferralsCount,
 			TotalSpent:       c.TotalSpent,

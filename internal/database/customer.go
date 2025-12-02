@@ -31,6 +31,7 @@ type Customer struct {
 	SubscriptionLink      *string    `db:"subscription_link" json:"subscription_link"`
 	Language              string     `db:"language" json:"language"`
 	IsBlocked             bool       `db:"is_blocked" json:"is_blocked"`
+	IsBlockedByUser       bool       `db:"is_blocked_by_user" json:"is_blocked_by_user"`
 	TrialUsed             bool       `db:"trial_used" json:"trial_used"`
 	PaymentMethodID       *string    `db:"payment_method_id" json:"payment_method_id"`
 	AutopayEnabled        bool       `db:"autopay_enabled" json:"autopay_enabled"`
@@ -44,7 +45,7 @@ type Customer struct {
 
 var customerColumns = []string{
 	"id", "telegram_id", "expire_at", "created_at", "subscription_link",
-	"language", "is_blocked", "trial_used", "payment_method_id", "autopay_enabled", "autopay_plan_id", "autopay_months", "autopay_failed_attempts",
+	"language", "is_blocked", "is_blocked_by_user", "trial_used", "payment_method_id", "autopay_enabled", "autopay_plan_id", "autopay_months", "autopay_failed_attempts",
 	"tg_username", "tg_first_name", "tg_last_name",
 }
 
@@ -52,7 +53,7 @@ func scanCustomer(row interface{ Scan(dest ...any) error }) (*Customer, error) {
 	var c Customer
 	err := row.Scan(
 		&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
-		&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
+		&c.Language, &c.IsBlocked, &c.IsBlockedByUser, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
 		&c.TgUsername, &c.TgFirstName, &c.TgLastName,
 	)
 	if err != nil {
@@ -154,7 +155,7 @@ func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Custom
 			tg_username = COALESCE(EXCLUDED.tg_username, customer.tg_username),
 			tg_first_name = COALESCE(EXCLUDED.tg_first_name, customer.tg_first_name),
 			tg_last_name = COALESCE(EXCLUDED.tg_last_name, customer.tg_last_name)
-		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked, trial_used, 
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, is_blocked, is_blocked_by_user, trial_used, 
 			payment_method_id, autopay_enabled, autopay_plan_id, autopay_months, autopay_failed_attempts,
 			tg_username, tg_first_name, tg_last_name
 	`
@@ -353,6 +354,36 @@ func (cr *CustomerRepository) DeleteByNotInTelegramIds(ctx context.Context, tele
 
 }
 
+func (cr *CustomerRepository) SetBlocked(ctx context.Context, telegramID int64, blocked bool) error {
+	query := `UPDATE customer SET is_blocked = $1 WHERE telegram_id = $2`
+	_, err := cr.pool.Exec(ctx, query, blocked, telegramID)
+	return err
+}
+
+func (cr *CustomerRepository) SetBlockedBatch(ctx context.Context, telegramIDs []int64, blocked bool) error {
+	if len(telegramIDs) == 0 {
+		return nil
+	}
+	query := `UPDATE customer SET is_blocked = $1 WHERE telegram_id = ANY($2)`
+	_, err := cr.pool.Exec(ctx, query, blocked, telegramIDs)
+	return err
+}
+
+func (cr *CustomerRepository) SetBlockedByUser(ctx context.Context, telegramID int64, blocked bool) error {
+	query := `UPDATE customer SET is_blocked_by_user = $1 WHERE telegram_id = $2`
+	_, err := cr.pool.Exec(ctx, query, blocked, telegramID)
+	return err
+}
+
+func (cr *CustomerRepository) SetBlockedByUserBatch(ctx context.Context, telegramIDs []int64, blocked bool) error {
+	if len(telegramIDs) == 0 {
+		return nil
+	}
+	query := `UPDATE customer SET is_blocked_by_user = $1 WHERE telegram_id = ANY($2)`
+	_, err := cr.pool.Exec(ctx, query, blocked, telegramIDs)
+	return err
+}
+
 type UserGrowthStats struct {
 	NewUsersLastMonth int64 `json:"new_users_last_month"`
 	TotalUsers        int64 `json:"total_users"`
@@ -475,7 +506,7 @@ func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params Customer
 	query := fmt.Sprintf(`
 		SELECT 
 			c.id, c.telegram_id, c.expire_at, c.created_at, c.subscription_link,
-			c.language, c.is_blocked, c.trial_used, c.payment_method_id, c.autopay_enabled, c.autopay_plan_id, c.autopay_months, c.autopay_failed_attempts,
+			c.language, c.is_blocked, c.is_blocked_by_user, c.trial_used, c.payment_method_id, c.autopay_enabled, c.autopay_plan_id, c.autopay_months, c.autopay_failed_attempts,
 			c.tg_username, c.tg_first_name, c.tg_last_name,
 			COALESCE(ps.total_spent, 0) as total_spent,
 			COALESCE(ps.payments_count, 0) as payments_count,
@@ -510,7 +541,7 @@ func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params Customer
 		var c CustomerWithStats
 		err := rows.Scan(
 			&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
-			&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
+			&c.Language, &c.IsBlocked, &c.IsBlockedByUser, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
 			&c.TgUsername, &c.TgFirstName, &c.TgLastName,
 			&c.TotalSpent, &c.PaymentsCount, &c.ReferralsCount,
 		)

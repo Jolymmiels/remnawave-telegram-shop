@@ -43,6 +43,7 @@ interface User {
   subscription_link?: string | null
   language: string
   is_blocked: boolean
+  is_blocked_by_user: boolean
   payments_count: number
   referrals_count: number
   total_spent: number
@@ -339,6 +340,7 @@ const UserDetailsPage: React.FC = () => {
             {getStatusBadge(user)}
             <Badge variant="light" size="sm">{(user.language || 'en').toUpperCase()}</Badge>
             {user.is_blocked && <Badge color="red">Заблокирован</Badge>}
+            {user.is_blocked_by_user && <Badge color="orange">Бот заблокирован</Badge>}
             {user.expire_at && new Date(user.expire_at) > new Date() && (
               <Tooltip label="Отозвать подписку">
                 <ActionIcon
