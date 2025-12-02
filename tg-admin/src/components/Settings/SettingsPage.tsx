@@ -746,9 +746,9 @@ const SettingsPage: React.FC = () => {
                   onDragEnd={(event: DragEndEvent) => {
                     const { active, over } = event
                     if (over && active.id !== over.id) {
-                      const order = settings.link_buttons_order 
-                        ? JSON.parse(settings.link_buttons_order) 
-                        : LINK_BUTTONS.map(b => b.id)
+                      const savedOrder = settings.link_buttons_order ? JSON.parse(settings.link_buttons_order) : []
+                      const allIds = LINK_BUTTONS.map(b => b.id)
+                      const order = [...savedOrder.filter((id: string) => allIds.includes(id)), ...allIds.filter(id => !savedOrder.includes(id))]
                       const oldIndex = order.indexOf(active.id)
                       const newIndex = order.indexOf(over.id)
                       const newOrder = arrayMove(order, oldIndex, newIndex)
@@ -757,9 +757,11 @@ const SettingsPage: React.FC = () => {
                   }}
                 >
                   <SortableContext
-                    items={settings.link_buttons_order 
-                      ? JSON.parse(settings.link_buttons_order) 
-                      : LINK_BUTTONS.map(b => b.id)}
+                    items={(() => {
+                      const savedOrder = settings.link_buttons_order ? JSON.parse(settings.link_buttons_order) : []
+                      const allIds = LINK_BUTTONS.map(b => b.id)
+                      return [...savedOrder.filter((id: string) => allIds.includes(id)), ...allIds.filter(id => !savedOrder.includes(id))]
+                    })()}
                     strategy={rectSortingStrategy}
                   >
                     <SimpleGrid 
@@ -767,21 +769,23 @@ const SettingsPage: React.FC = () => {
                       spacing={4} 
                       mt="xs"
                     >
-                      {(settings.link_buttons_order 
-                        ? JSON.parse(settings.link_buttons_order) 
-                        : LINK_BUTTONS.map(b => b.id)
-                      ).map((id: string) => {
-                        const btn = LINK_BUTTONS.find(b => b.id === id)
-                        if (!btn) return null
-                        return (
-                          <SortableButton
-                            key={btn.id}
-                            id={btn.id}
-                            label={btn.label}
-                            disabled={!settings[btn.urlKey]}
-                          />
-                        )
-                      })}
+                      {(() => {
+                        const savedOrder = settings.link_buttons_order ? JSON.parse(settings.link_buttons_order) : []
+                        const allIds = LINK_BUTTONS.map(b => b.id)
+                        const order = [...savedOrder.filter((id: string) => allIds.includes(id)), ...allIds.filter(id => !savedOrder.includes(id))]
+                        return order.map((id: string) => {
+                          const btn = LINK_BUTTONS.find(b => b.id === id)
+                          if (!btn) return null
+                          return (
+                            <SortableButton
+                              key={btn.id}
+                              id={btn.id}
+                              label={btn.label}
+                              disabled={!settings[btn.urlKey]}
+                            />
+                          )
+                        })
+                      })()}
                     </SimpleGrid>
                   </SortableContext>
                 </DndContext>
