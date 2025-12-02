@@ -9,6 +9,7 @@ interface UserStats {
   total: number
   active: number
   expired: number
+  no_subscription: number
   blocked: number
   blocked_by_user: number
   new_today: number
@@ -186,17 +187,18 @@ const StatsOverviewPage: React.FC = () => {
           color="green"
         />
         <StatCard
-          title="Неактивные"
+          title="Истекла подписка"
           value={formatNumber(users.expired)}
+          subtitle={`${((users.expired / users.total) * 100).toFixed(1)}%`}
           icon={<IconUserX size={20} />}
           color="orange"
         />
         <StatCard
-          title="Новые сегодня"
-          value={formatNumber(users.new_today)}
-          subtitle={`За неделю: ${users.new_this_week}`}
-          icon={<IconTrendingUp size={20} />}
-          color="teal"
+          title="Без подписки"
+          value={formatNumber(users.no_subscription)}
+          subtitle={`${((users.no_subscription / users.total) * 100).toFixed(1)}%`}
+          icon={<IconUserX size={20} />}
+          color="gray"
         />
         <StatCard
           title="Заблокировали бота"
@@ -204,6 +206,13 @@ const StatsOverviewPage: React.FC = () => {
           subtitle={`${((users.blocked_by_user / users.total) * 100).toFixed(1)}%`}
           icon={<IconUserX size={20} />}
           color="red"
+        />
+        <StatCard
+          title="Новые сегодня"
+          value={formatNumber(users.new_today)}
+          subtitle={`За неделю: ${users.new_this_week}`}
+          icon={<IconTrendingUp size={20} />}
+          color="teal"
         />
       </SimpleGrid>
 
