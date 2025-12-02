@@ -287,7 +287,7 @@ func (h *StartHandler) handlePromoFromStart(ctx context.Context, b *bot.Bot, upd
 	if !validation.Valid {
 		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   validation.Message,
+			Text:   h.translation.GetText(langCode, validation.MessageKey),
 		})
 		return
 	}
@@ -311,7 +311,7 @@ func (h *StartHandler) handlePromoFromStart(ctx context.Context, b *bot.Bot, upd
 
 	_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
-		Text:        validation.Message,
+		Text:        fmt.Sprintf(h.translation.GetText(langCode, validation.MessageKey), validation.BonusDays),
 		ReplyMarkup: keyboard,
 	})
 }

@@ -54,24 +54,24 @@ func (s *Service) ValidatePromoCode(ctx context.Context, code string, customerID
 	// Promo code doesn't exist
 	if promo == nil {
 		return &database.ValidatePromoResponse{
-			Valid:   false,
-			Message: "Promo code not found",
+			Valid:      false,
+			MessageKey: "promo_not_found",
 		}, nil
 	}
 
 	// Check if promo is active
 	if !promo.Active {
 		return &database.ValidatePromoResponse{
-			Valid:   false,
-			Message: "Promo code is no longer active",
+			Valid:      false,
+			MessageKey: "promo_inactive",
 		}, nil
 	}
 
 	// Check if promo has expired
 	if promo.ExpiresAt != nil && time.Now().After(*promo.ExpiresAt) {
 		return &database.ValidatePromoResponse{
-			Valid:   false,
-			Message: "Promo code has expired",
+			Valid:      false,
+			MessageKey: "promo_expired",
 		}, nil
 	}
 
@@ -82,25 +82,25 @@ func (s *Service) ValidatePromoCode(ctx context.Context, code string, customerID
 	}
 	if hasUsed {
 		return &database.ValidatePromoResponse{
-			Valid:   false,
-			Message: "You have already used this promo code",
+			Valid:      false,
+			MessageKey: "promo_already_used",
 		}, nil
 	}
 
 	// Check if max uses reached
 	if promo.MaxUses != nil && promo.UsedCount >= *promo.MaxUses {
 		return &database.ValidatePromoResponse{
-			Valid:   false,
-			Message: "Promo code usage limit reached",
+			Valid:      false,
+			MessageKey: "promo_limit_reached",
 		}, nil
 	}
 
 	// All validations passed
 	return &database.ValidatePromoResponse{
-		Valid:     true,
-		BonusDays: promo.BonusDays,
-		Message:   fmt.Sprintf("Promo code applied! +%d bonus days", promo.BonusDays),
-		PromoID:   promo.ID,
+		Valid:      true,
+		BonusDays:  promo.BonusDays,
+		MessageKey: "promo_valid",
+		PromoID:    promo.ID,
 	}, nil
 }
 

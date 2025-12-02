@@ -36,10 +36,10 @@ type CreatePromoRequest struct {
 }
 
 type ValidatePromoResponse struct {
-	Valid     bool   `json:"valid"`
-	BonusDays int    `json:"bonus_days"`
-	Message   string `json:"message"`
-	PromoID   int64  `json:"promo_id,omitempty"`
+	Valid      bool   `json:"valid"`
+	BonusDays  int    `json:"bonus_days"`
+	MessageKey string `json:"message_key"`
+	PromoID    int64  `json:"promo_id,omitempty"`
 }
 
 type PromoRepository struct {

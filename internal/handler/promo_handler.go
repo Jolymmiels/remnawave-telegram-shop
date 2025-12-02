@@ -74,7 +74,7 @@ func (h *PromoHandler) PromoCommandHandler(ctx context.Context, b *bot.Bot, upda
 	if !validation.Valid {
 		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   validation.Message,
+			Text:   h.translation.GetText(customer.Language, validation.MessageKey),
 		})
 		return
 	}
@@ -98,7 +98,7 @@ func (h *PromoHandler) PromoCommandHandler(ctx context.Context, b *bot.Bot, upda
 
 	_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:      update.Message.Chat.ID,
-		Text:        validation.Message,
+		Text:        fmt.Sprintf(h.translation.GetText(customer.Language, validation.MessageKey), validation.BonusDays),
 		ReplyMarkup: keyboard,
 	})
 }
