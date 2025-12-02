@@ -718,21 +718,21 @@ const SettingsPage: React.FC = () => {
           <Accordion.Control>Ссылки</Accordion.Control>
           <Accordion.Panel>
             <Stack gap="xs">
-              <Group gap="xs" align="flex-end">
+              <Box>
+                <Group justify="space-between" mb={4}>
+                  <Text size="xs" fw={500}>Mini App URL</Text>
+                  <Switch
+                    size="xs"
+                    checked={settings.mini_app_enabled === 'true' || settings.mini_app_enabled === undefined || settings.mini_app_enabled === ''}
+                    onChange={e => updateSetting('mini_app_enabled', e.currentTarget.checked)}
+                  />
+                </Group>
                 <TextInput
-                  label="Mini App URL"
                   size="xs"
                   value={settings.mini_app_url || ''}
                   onChange={e => updateSetting('mini_app_url', e.target.value)}
-                  style={{ flex: 1 }}
                 />
-                <Switch
-                  size="xs"
-                  checked={settings.mini_app_enabled === 'true' || settings.mini_app_enabled === undefined || settings.mini_app_enabled === ''}
-                  onChange={e => updateSetting('mini_app_enabled', e.currentTarget.checked)}
-                  label="Вкл"
-                />
-              </Group>
+              </Box>
               <Group gap="xs" align="flex-end">
                 <TextInput
                   label="Server Status"

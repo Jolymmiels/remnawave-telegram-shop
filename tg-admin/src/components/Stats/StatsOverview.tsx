@@ -10,6 +10,7 @@ interface UserStats {
   active: number
   expired: number
   blocked: number
+  blocked_by_user: number
   new_today: number
   new_this_week: number
   new_this_month: number
@@ -196,6 +197,13 @@ const StatsOverviewPage: React.FC = () => {
           subtitle={`За неделю: ${users.new_this_week}`}
           icon={<IconTrendingUp size={20} />}
           color="teal"
+        />
+        <StatCard
+          title="Заблокировали бота"
+          value={formatNumber(users.blocked_by_user)}
+          subtitle={`${((users.blocked_by_user / users.total) * 100).toFixed(1)}%`}
+          icon={<IconUserX size={20} />}
+          color="red"
         />
       </SimpleGrid>
 

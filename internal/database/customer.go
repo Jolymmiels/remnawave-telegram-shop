@@ -783,6 +783,7 @@ func (cr *CustomerRepository) GetUserStats(ctx context.Context) (*stats.UserStat
 			COUNT(*) FILTER (WHERE expire_at > NOW()) as active,
 			COUNT(*) FILTER (WHERE expire_at <= NOW() OR expire_at IS NULL) as expired,
 			COUNT(*) FILTER (WHERE is_blocked = true) as blocked,
+			COUNT(*) FILTER (WHERE is_blocked_by_user = true) as blocked_by_user,
 			COUNT(*) FILTER (WHERE created_at >= $1) as new_today,
 			COUNT(*) FILTER (WHERE created_at >= $2) as new_this_week,
 			COUNT(*) FILTER (WHERE created_at >= $3) as new_this_month
@@ -791,7 +792,7 @@ func (cr *CustomerRepository) GetUserStats(ctx context.Context) (*stats.UserStat
 
 	var s stats.UserStats
 	err := cr.pool.QueryRow(ctx, query, startOfDay, startOfWeek, startOfMonth).Scan(
-		&s.Total, &s.Active, &s.Expired, &s.Blocked, &s.NewToday, &s.NewThisWeek, &s.NewThisMonth,
+		&s.Total, &s.Active, &s.Expired, &s.Blocked, &s.BlockedByUser, &s.NewToday, &s.NewThisWeek, &s.NewThisMonth,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user stats: %w", err)

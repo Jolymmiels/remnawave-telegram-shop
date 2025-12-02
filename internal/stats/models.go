@@ -33,7 +33,8 @@ type UserStats struct {
 	Total       int64 `json:"total"`
 	Active      int64 `json:"active"`
 	Expired     int64 `json:"expired"`
-	Blocked     int64 `json:"blocked"`
+	Blocked       int64 `json:"blocked"`
+	BlockedByUser int64 `json:"blocked_by_user"`
 	NewToday    int64 `json:"new_today"`
 	NewThisWeek int64 `json:"new_this_week"`
 	NewThisMonth int64 `json:"new_this_month"`
