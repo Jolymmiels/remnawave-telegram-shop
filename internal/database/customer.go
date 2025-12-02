@@ -470,6 +470,7 @@ func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params Customer
 		SELECT 
 			c.id, c.telegram_id, c.expire_at, c.created_at, c.subscription_link,
 			c.language, c.is_blocked, c.trial_used, c.payment_method_id, c.autopay_enabled, c.autopay_plan_id, c.autopay_months, c.autopay_failed_attempts,
+			c.tg_username, c.tg_first_name, c.tg_last_name,
 			COALESCE(ps.total_spent, 0) as total_spent,
 			COALESCE(ps.payments_count, 0) as payments_count,
 			COALESCE(rc.referrals_count, 0) as referrals_count
@@ -504,6 +505,7 @@ func (cr *CustomerRepository) FindAllSorted(ctx context.Context, params Customer
 		err := rows.Scan(
 			&c.ID, &c.TelegramID, &c.ExpireAt, &c.CreatedAt, &c.SubscriptionLink,
 			&c.Language, &c.IsBlocked, &c.TrialUsed, &c.PaymentMethodID, &c.AutopayEnabled, &c.AutopayPlanID, &c.AutopayMonths, &c.AutopayFailedAttempts,
+			&c.TgUsername, &c.TgFirstName, &c.TgLastName,
 			&c.TotalSpent, &c.PaymentsCount, &c.ReferralsCount,
 		)
 		if err != nil {

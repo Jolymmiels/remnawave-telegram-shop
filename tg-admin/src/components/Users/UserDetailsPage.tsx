@@ -348,6 +348,7 @@ const UserDetailsPage: React.FC = () => {
           </Stack>
           <Group gap="xs">
             {getStatusBadge(user)}
+            <Badge variant="light" size="sm">{(user.language || 'en').toUpperCase()}</Badge>
             {user.expire_at && new Date(user.expire_at) > new Date() && (
               <Tooltip label="Отозвать подписку">
                 <ActionIcon
@@ -363,7 +364,7 @@ const UserDetailsPage: React.FC = () => {
           </Group>
         </Group>
 
-        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
+        <SimpleGrid cols={{ base: 3, sm: 3 }} spacing="md">
           <Card padding="sm" withBorder>
             <Text size="xs" c="dimmed" mb={4}>Регистрация</Text>
             <Text size="sm" fw={500}>{formatDate(user.created_at)}</Text>
@@ -372,11 +373,6 @@ const UserDetailsPage: React.FC = () => {
           <Card padding="sm" withBorder>
             <Text size="xs" c="dimmed" mb={4}>Подписка до</Text>
             <Text size="sm" fw={500}>{formatDate(user.expire_at)}</Text>
-          </Card>
-
-          <Card padding="sm" withBorder>
-            <Text size="xs" c="dimmed" mb={4}>Язык</Text>
-            <Badge variant="light" size="sm">{(user.language || 'EN').toUpperCase()}</Badge>
           </Card>
 
           <Card padding="sm" withBorder>
