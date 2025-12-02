@@ -364,7 +364,7 @@ const UserDetailsPage: React.FC = () => {
           </Group>
         </Group>
 
-        <SimpleGrid cols={{ base: 3, sm: 3 }} spacing="md">
+        <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
           <Card padding="sm" withBorder>
             <Text size="xs" c="dimmed" mb={4}>Регистрация</Text>
             <Text size="sm" fw={500}>{formatDate(user.created_at)}</Text>
@@ -376,18 +376,11 @@ const UserDetailsPage: React.FC = () => {
           </Card>
 
           <Card padding="sm" withBorder>
-            <Text size="xs" c="dimmed" mb={4}>Потрачено</Text>
-            <Text size="sm" fw={700} c="green">{(user.total_spent ?? 0).toFixed(2)} ₽</Text>
-          </Card>
-        </SimpleGrid>
-
-        <SimpleGrid cols={2} spacing="md" mt="md">
-          <Card padding="sm" withBorder>
             <Group gap={4} mb={4}>
               <IconCoin size={14} />
-              <Text size="xs" c="dimmed">Платежей</Text>
+              <Text size="xs" c="dimmed">Платежи</Text>
             </Group>
-            <Text size="lg" fw={700}>{user.payments_count ?? 0}</Text>
+            <Text size="sm" fw={700}>{user.payments_count ?? 0} · <Text span c="green">{(user.total_spent ?? 0).toFixed(0)} ₽</Text></Text>
           </Card>
 
           <Card padding="sm" withBorder>
@@ -395,7 +388,7 @@ const UserDetailsPage: React.FC = () => {
               <IconUsers size={14} />
               <Text size="xs" c="dimmed">Рефералов</Text>
             </Group>
-            <Text size="lg" fw={700}>{user.referrals_count ?? 0}</Text>
+            <Text size="sm" fw={700}>{user.referrals_count ?? 0}</Text>
           </Card>
         </SimpleGrid>
       </Paper>

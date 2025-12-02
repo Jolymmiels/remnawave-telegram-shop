@@ -238,7 +238,10 @@ const UserManagement: React.FC = () => {
               {[user.tg_first_name, user.tg_last_name].filter(Boolean).join(' ')}
             </Text>
           )}
-          {getStatusBadge(user)}
+          <Group gap={4}>
+            {getStatusBadge(user)}
+            <Badge variant="light" size="xs">{(user.language || 'en').toUpperCase()}</Badge>
+          </Group>
         </Box>
         <Menu shadow="md" width={200}>
           <Menu.Target>
@@ -451,7 +454,10 @@ const UserManagement: React.FC = () => {
                       </Stack>
                     </Table.Td>
                     <Table.Td>
-                      {getStatusBadge(user)}
+                      <Group gap={4}>
+                        {getStatusBadge(user)}
+                        <Badge variant="light" size="sm">{(user.language || 'en').toUpperCase()}</Badge>
+                      </Group>
                     </Table.Td>
                     <Table.Td>
                       {formatDate(user.expire_at)}
