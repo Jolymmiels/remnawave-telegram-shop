@@ -294,13 +294,13 @@ const UserManagement: React.FC = () => {
           <Text size="xs">{formatDate(user.expire_at)}</Text>
         </Group>
         
-        <SimpleGrid cols={3}>
+        <SimpleGrid cols={2}>
           <Box ta="center">
             <Group gap={2} justify="center">
               <IconCoin size={12} />
               <Text size="xs" c="dimmed">Платежи</Text>
             </Group>
-            <Text size="sm" fw={500}>{user.payments_count}</Text>
+            <Text size="sm" fw={500}>{user.payments_count} · <Text span c="green">{user.total_spent.toFixed(0)} ₽</Text></Text>
           </Box>
           
           <Box ta="center">
@@ -309,11 +309,6 @@ const UserManagement: React.FC = () => {
               <Text size="xs" c="dimmed">Рефералы</Text>
             </Group>
             <Text size="sm" fw={500}>{user.referrals_count}</Text>
-          </Box>
-          
-          <Box ta="center">
-            <Text size="xs" c="dimmed">Потратил</Text>
-            <Text size="sm" fw={500}>{user.total_spent.toFixed(2)} ₽</Text>
           </Box>
         </SimpleGrid>
       </Stack>
