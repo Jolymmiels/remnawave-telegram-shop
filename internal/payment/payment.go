@@ -457,15 +457,14 @@ func (s *PaymentService) ExtendSubscription(ctx context.Context, customerID int6
 		return fmt.Errorf("customer not found")
 	}
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer, config.TrafficLimit(), bonusDays, false)
+	newExpireAt, err := s.remnawaveClient.ExtendUserSubscription(ctx, customer.TelegramID, bonusDays)
 	if err != nil {
-		slog.Error("Error creating user", "error", err)
+		slog.Error("Error extending subscription", "error", err)
 		return err
 	}
 
 	customerFilesToUpdate := map[string]interface{}{
-		"subscription_link": user.GetSubscriptionUrl(),
-		"expire_at":         user.GetExpireAt(),
+		"expire_at": newExpireAt,
 	}
 
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)

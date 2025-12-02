@@ -126,6 +126,55 @@ func (r *Client) DecreaseSubscription(ctx context.Context, telegramId int64, tra
 	}
 }
 
+// ExtendUserSubscription adds days to existing user without changing squads/traffic
+func (r *Client) ExtendUserSubscription(ctx context.Context, telegramId int64, days int) (*time.Time, error) {
+	resp, err := r.client.UsersControllerGetUserByTelegramId(ctx, remapi.UsersControllerGetUserByTelegramIdParams{TelegramId: strconv.FormatInt(telegramId, 10)})
+	if err != nil {
+		return nil, err
+	}
+
+	switch v := resp.(type) {
+	case *remapi.UsersControllerGetUserByTelegramIdNotFound:
+		return nil, errors.New("user in remnawave not found")
+	case *remapi.UsersResponse:
+		var existingUser *remapi.UsersResponseResponseItem
+		for _, panelUser := range v.GetResponse() {
+			if strings.Contains(panelUser.Username, fmt.Sprintf("_%d", telegramId)) {
+				existingUser = &panelUser
+			}
+		}
+		if existingUser == nil {
+			existingUser = &v.GetResponse()[0]
+		}
+
+		newExpire := getNewExpire(days, existingUser.ExpireAt)
+
+		userUpdate := &remapi.UpdateUserRequestDto{
+			UUID:     remapi.NewOptUUID(existingUser.UUID),
+			ExpireAt: remapi.NewOptDateTime(newExpire),
+			Status:   remapi.NewOptUpdateUserRequestDtoStatus(remapi.UpdateUserRequestDtoStatusACTIVE),
+		}
+
+		updateResp, err := r.client.UsersControllerUpdateUser(ctx, userUpdate)
+		if err != nil {
+			return nil, err
+		}
+
+		switch resp := updateResp.(type) {
+		case *remapi.UserResponse:
+			slog.Info("extended user subscription", "telegramId", utils.MaskHalfInt64(telegramId), "days", days)
+			expireAt := resp.Response.ExpireAt
+			return &expireAt, nil
+		case *remapi.UsersControllerUpdateUserBadRequest:
+			return nil, fmt.Errorf("bad request updating user: %s", resp.GetMessage().Value)
+		default:
+			return nil, fmt.Errorf("unexpected response type: %T", updateResp)
+		}
+	default:
+		return nil, errors.New("unknown response type")
+	}
+}
+
 func (r *Client) CreateOrUpdateUser(ctx context.Context, customer *database.Customer, trafficLimit int, days int, isTrialUser bool) (*remapi.UserResponseResponse, error) {
 	return r.CreateOrUpdateUserWithPlan(ctx, customer, trafficLimit, days, isTrialUser, nil)
 }
