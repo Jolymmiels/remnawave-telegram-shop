@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Box,
-  Title,
   Text,
   Badge,
   Stack,
@@ -15,10 +15,10 @@ import {
   CopyButton,
   Tooltip,
   SimpleGrid,
-  SegmentedControl
+  SegmentedControl,
 } from '@mantine/core'
 import { notifications } from '@mantine/notifications'
-import { IconTrash, IconCheck, IconX, IconInfoCircle, IconCopy, IconShare } from '@tabler/icons-react'
+import { IconTrash, IconCheck, IconX, IconInfoCircle, IconCopy, IconShare, IconEye } from '@tabler/icons-react'
 import { usePromos, Promo } from '@/context/PromosContext'
 import { useFormat } from '@/hooks/useFormat'
 import { useTelegram } from '@/hooks/useTelegram'
@@ -26,6 +26,7 @@ import CreateForm from './CreateForm'
 import { getTelegramSafeAreaStyles } from '../../lib/telegram-safe-area'
 
 const PromosList: React.FC = () => {
+  const navigate = useNavigate()
   const { items, loading, error, initialized, load, update, delete: deletePromo } = usePromos()
   const { date, time } = useFormat()
   const { hapticFeedback } = useTelegram()
@@ -268,6 +269,21 @@ const PromosList: React.FC = () => {
                   {isPromoExpired(promo) && 'Промокод истек.'}
                   {isPromoLimitReached(promo) && 'Достигнету лимит использований.'}
                 </Alert>
+              )}
+
+              {promo.used_count > 0 && (
+                <Button
+                  variant="light"
+                  size="xs"
+                  mt="md"
+                  leftSection={<IconEye size={14} />}
+                  onClick={() => {
+                    hapticFeedback.soft()
+                    navigate(`/promos/${promo.id}`)
+                  }}
+                >
+                  Подробнее ({promo.used_count})
+                </Button>
               )}
             </Card>
           ))

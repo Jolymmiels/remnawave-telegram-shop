@@ -166,3 +166,39 @@ func (ph *PromoHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	writeJSON(w, http.StatusOK, map[string]string{"status": "deleted"})
 }
+
+func (ph *PromoHandler) GetUsages(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	idStr := r.PathValue("id")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid id")
+		return
+	}
+
+	usages, err := ph.promoService.GetPromoUsages(ctx, id)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, usages)
+}
+
+func (ph *PromoHandler) GetUserPromos(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	telegramIDStr := r.PathValue("telegramID")
+	telegramID, err := strconv.ParseInt(telegramIDStr, 10, 64)
+	if err != nil {
+		writeErr(w, http.StatusBadRequest, "invalid telegram_id")
+		return
+	}
+
+	usages, err := ph.promoService.GetCustomerPromoUsages(ctx, telegramID)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	writeJSON(w, http.StatusOK, usages)
+}

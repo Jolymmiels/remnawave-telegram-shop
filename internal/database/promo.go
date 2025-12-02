@@ -243,3 +243,76 @@ func (r *PromoRepository) RecordPromoUsage(ctx context.Context, promoID, custome
 
 	return tx.Commit(ctx)
 }
+
+// PromoUsageWithCustomer contains usage info with customer telegram_id
+type PromoUsageWithCustomer struct {
+	ID         int64     `json:"id"`
+	PromoID    int64     `json:"promo_id"`
+	TelegramID int64     `json:"telegram_id"`
+	UsedAt     time.Time `json:"used_at"`
+}
+
+// GetPromoUsages returns all usages for a promo with customer telegram IDs
+func (r *PromoRepository) GetPromoUsages(ctx context.Context, promoID int64) ([]PromoUsageWithCustomer, error) {
+	query := `
+		SELECT pu.id, pu.promo_id, c.telegram_id, pu.used_at
+		FROM promo_usage pu
+		JOIN customer c ON c.id = pu.customer_id
+		WHERE pu.promo_id = $1
+		ORDER BY pu.used_at DESC
+	`
+
+	rows, err := r.db.Query(ctx, query, promoID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var usages []PromoUsageWithCustomer
+	for rows.Next() {
+		var u PromoUsageWithCustomer
+		if err := rows.Scan(&u.ID, &u.PromoID, &u.TelegramID, &u.UsedAt); err != nil {
+			return nil, err
+		}
+		usages = append(usages, u)
+	}
+
+	return usages, rows.Err()
+}
+
+// CustomerPromoUsage contains promo info used by customer
+type CustomerPromoUsage struct {
+	PromoID   int64     `json:"promo_id"`
+	Code      string    `json:"code"`
+	BonusDays int       `json:"bonus_days"`
+	UsedAt    time.Time `json:"used_at"`
+}
+
+// GetCustomerPromoUsages returns all promos used by a customer
+func (r *PromoRepository) GetCustomerPromoUsages(ctx context.Context, telegramID int64) ([]CustomerPromoUsage, error) {
+	query := `
+		SELECT p.id, p.code, p.bonus_days, pu.used_at
+		FROM promo_usage pu
+		JOIN promo p ON p.id = pu.promo_id
+		JOIN customer c ON c.id = pu.customer_id
+		WHERE c.telegram_id = $1
+		ORDER BY pu.used_at DESC
+	`
+
+	rows, err := r.db.Query(ctx, query, telegramID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var usages []CustomerPromoUsage
+	for rows.Next() {
+		var u CustomerPromoUsage
+		if err := rows.Scan(&u.PromoID, &u.Code, &u.BonusDays, &u.UsedAt); err != nil {
+			return nil, err
+		}
+		usages = append(usages, u)
+	}
+
+	return usages, rows.Err()
+}

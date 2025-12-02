@@ -8,6 +8,7 @@ const PurchasesView = React.lazy(() => import('./components/Stats/PurchasesView'
 const UsersView = React.lazy(() => import('./components/Stats/UsersView'))
 const BroadcastsView = React.lazy(() => import('./components/Broadcasts/List'))
 const PromosView = React.lazy(() => import('./components/Promos/List'))
+const PromoDetailsPage = React.lazy(() => import('./components/Promos/PromoDetailsPage'))
 const UserManagement = React.lazy(() => import('./components/Users/UserManagement'))
 const UserDetailsPage = React.lazy(() => import('./components/Users/UserDetailsPage'))
 const SettingsPage = React.lazy(() => import('./components/Settings/SettingsPage'))
@@ -60,6 +61,15 @@ export const router = createHashRouter([
           </Suspense>
         ),
         handle: { title: 'Промокоды' }
+      },
+      { 
+        path: '/promos/:promoId', 
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <PromoDetailsPage />
+          </Suspense>
+        ),
+        handle: { title: 'Детали промокода' }
       },
       { 
         path: '/user-management', 

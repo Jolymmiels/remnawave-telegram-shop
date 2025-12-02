@@ -149,6 +149,20 @@ func NewServer(sh *handler.StatsHandler, pool *pgxpool.Pool, remnawaveClient *re
 			w.WriteHeader(http.StatusMethodNotAllowed)
 		}
 	}))
+	mux.HandleFunc("/api/promos/{id}/usages", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			promoH.GetUsages(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
+	mux.HandleFunc("/api/users/{telegramID}/promos", authHandler.RequireAdmin(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			promoH.GetUserPromos(w, r)
+		} else {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+		}
+	}))
 
 	// Settings endpoints - require admin privileges
 	settingsH := handler.NewSettingsHandler(settingsRepository, remnawaveClient)

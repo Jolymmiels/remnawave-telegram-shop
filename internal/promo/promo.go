@@ -123,3 +123,11 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 func (s *Service) GetPromoByID(ctx context.Context, id int64) (*database.Promo, error) {
 	return s.repository.GetByID(ctx, id)
 }
+
+func (s *Service) GetPromoUsages(ctx context.Context, promoID int64) ([]database.PromoUsageWithCustomer, error) {
+	return s.repository.GetPromoUsages(ctx, promoID)
+}
+
+func (s *Service) GetCustomerPromoUsages(ctx context.Context, telegramID int64) ([]database.CustomerPromoUsage, error) {
+	return s.repository.GetCustomerPromoUsages(ctx, telegramID)
+}

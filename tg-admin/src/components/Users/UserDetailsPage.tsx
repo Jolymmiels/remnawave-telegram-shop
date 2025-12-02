@@ -28,6 +28,7 @@ import {
   IconExternalLink,
   IconDeviceMobile,
   IconTrash,
+  IconTicket,
 } from '@tabler/icons-react'
 import { http } from '../../lib/http'
 import { backButton } from '@telegram-apps/sdk'
@@ -86,6 +87,13 @@ interface ReferralBonus {
   referee_telegram_id: number
 }
 
+interface CustomerPromoUsage {
+  promo_id: number
+  code: string
+  bonus_days: number
+  used_at: string
+}
+
 const UserDetailsPage: React.FC = () => {
   const { telegramId } = useParams<{ telegramId: string }>()
   const navigate = useNavigate()
@@ -94,10 +102,12 @@ const UserDetailsPage: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([])
   const [devices, setDevices] = useState<Device[]>([])
   const [referralBonuses, setReferralBonuses] = useState<ReferralBonus[]>([])
+  const [promoUsages, setPromoUsages] = useState<CustomerPromoUsage[]>([])
   const [loading, setLoading] = useState(true)
   const [paymentsLoading, setPaymentsLoading] = useState(true)
   const [devicesLoading, setDevicesLoading] = useState(true)
   const [referralBonusesLoading, setReferralBonusesLoading] = useState(true)
+  const [promoUsagesLoading, setPromoUsagesLoading] = useState(true)
   const [deleteModalOpened, setDeleteModalOpened] = useState(false)
   const [deviceToDelete, setDeviceToDelete] = useState<Device | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -172,6 +182,17 @@ const UserDetailsPage: React.FC = () => {
         setReferralBonuses([])
       } finally {
         setReferralBonusesLoading(false)
+      }
+
+      try {
+        setPromoUsagesLoading(true)
+        const promosData: CustomerPromoUsage[] = await http.get(`/api/users/${telegramId}/promos`)
+        setPromoUsages(promosData || [])
+      } catch (error) {
+        console.error('Failed to fetch promo usages:', error)
+        setPromoUsages([])
+      } finally {
+        setPromoUsagesLoading(false)
       }
     }
 
@@ -269,6 +290,7 @@ const UserDetailsPage: React.FC = () => {
       case 'pending':
         return <Badge color="yellow" size="xs">Ожидание</Badge>
       case 'cancelled':
+      case 'canceled':
         return <Badge color="red" size="xs">Отменен</Badge>
       default:
         return <Badge color="gray" size="xs">{status}</Badge>
@@ -719,6 +741,63 @@ const UserDetailsPage: React.FC = () => {
                     </Table.Td>
                     <Table.Td>
                       <Text size="sm">{bonus.referee_telegram_id}</Text>
+                    </Table.Td>
+                  </Table.Tr>
+                ))}
+              </Table.Tbody>
+            </Table>
+          </ScrollArea>
+        )}
+      </Paper>
+
+      <Paper p="md" radius="md">
+        <Group gap="xs" mb="md">
+          <IconTicket size={20} />
+          <Text size="lg" fw={600}>Использованные промокоды</Text>
+        </Group>
+
+        {promoUsagesLoading ? (
+          <Stack align="center" py="xl">
+            <Loader size="sm" />
+          </Stack>
+        ) : promoUsages.length === 0 ? (
+          <Alert color="gray">Промокоды не использовались</Alert>
+        ) : isMobile ? (
+          <Stack gap="sm">
+            {promoUsages.map((promo) => (
+              <Card key={promo.promo_id} padding="sm">
+                <Group justify="space-between" mb="xs">
+                  <Text size="sm" fw={600}>{promo.code}</Text>
+                  <Badge color="green" size="sm">+{promo.bonus_days} дней</Badge>
+                </Group>
+                <Group gap={4} wrap="nowrap">
+                  <Text size="xs" c="dimmed">Дата:</Text>
+                  <Text size="xs">{formatDate(promo.used_at)}</Text>
+                </Group>
+              </Card>
+            ))}
+          </Stack>
+        ) : (
+          <ScrollArea>
+            <Table striped highlightOnHover>
+              <Table.Thead>
+                <Table.Tr>
+                  <Table.Th>Код</Table.Th>
+                  <Table.Th>Бонус</Table.Th>
+                  <Table.Th>Дата использования</Table.Th>
+                </Table.Tr>
+              </Table.Thead>
+              <Table.Tbody>
+                {promoUsages.map((promo) => (
+                  <Table.Tr key={promo.promo_id}>
+                    <Table.Td>
+                      <Text size="sm" fw={600}>{promo.code}</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="sm" fw={600} c="green">+{promo.bonus_days} дней</Text>
+                    </Table.Td>
+                    <Table.Td>
+                      <Text size="xs">{formatDate(promo.used_at)}</Text>
                     </Table.Td>
                   </Table.Tr>
                 ))}
