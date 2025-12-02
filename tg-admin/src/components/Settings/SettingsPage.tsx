@@ -327,16 +327,14 @@ const SettingsPage: React.FC = () => {
             <Stack gap="md">
               <Group justify="space-between">
                 <Group gap="xs">
-                  <NumberInput
+                  <TextInput
                     label="Курс Stars"
                     description="RUB × курс = Stars"
                     size="xs"
-                    value={Number(settings.stars_exchange_rate) || 1.5}
-                    onChange={v => updateSetting('stars_exchange_rate', v || 1.5)}
-                    min={0.1}
-                    step={0.1}
-                    decimalScale={2}
+                    value={settings.stars_exchange_rate ?? '1.5'}
+                    onChange={e => updateSetting('stars_exchange_rate', e.target.value)}
                     w={140}
+                    placeholder="1.5"
                   />
                 </Group>
                 <Button size="xs" leftSection={<IconPlus size={14} />} onClick={openCreatePlan}>
