@@ -15,6 +15,7 @@ import {
   ActionIcon,
   Tooltip,
   Button,
+  Pagination,
 } from '@mantine/core'
 import { IconArrowLeft, IconTicket, IconEye } from '@tabler/icons-react'
 import { http } from '@/lib/http'
@@ -52,6 +53,8 @@ const PromoDetailsPage: React.FC = () => {
   const [usages, setUsages] = useState<PromoUsage[]>([])
   const [loading, setLoading] = useState(true)
   const [usagesLoading, setUsagesLoading] = useState(true)
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 10
 
   const goBack = () => {
     navigate('/promos')
@@ -183,74 +186,89 @@ const PromoDetailsPage: React.FC = () => {
           </Stack>
         ) : usages.length === 0 ? (
           <Alert color="gray">Промокод ещё не использовался</Alert>
-        ) : isMobile ? (
-          <Stack gap="sm">
-            {usages.map((usage) => (
-              <Card key={usage.id} padding="sm" withBorder>
-                <Group justify="space-between">
-                  <Stack gap={2}>
-                    <Group gap="xs">
+        ) : (() => {
+          const totalPages = Math.ceil(usages.length / itemsPerPage)
+          const paginatedUsages = usages.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
+          
+          return isMobile ? (
+            <Stack gap="sm">
+              {paginatedUsages.map((usage) => (
+                <Card key={usage.id} padding="sm" withBorder>
+                  <Group justify="space-between" align="flex-start">
+                    <Stack gap={2}>
                       <Text size="sm" fw={600}>{usage.telegram_id}</Text>
-                      <Tooltip label="Подробнее">
-                        <ActionIcon size="xs" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
-                          <IconEye size={14} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Group>
-                    {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
-                      <Text size="xs" c="dimmed">
-                        {usage.tg_username && `@${usage.tg_username}`}
-                        {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
-                        {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
-                      </Text>
-                    )}
-                  </Stack>
-                  <Text size="xs" c="dimmed">{date(usage.used_at)} {time(usage.used_at)}</Text>
+                      {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
+                        <Text size="xs" c="dimmed">
+                          {usage.tg_username && `@${usage.tg_username}`}
+                          {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
+                          {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
+                        </Text>
+                      )}
+                      <Text size="xs" c="dimmed">{date(usage.used_at)} {time(usage.used_at)}</Text>
+                    </Stack>
+                    <Tooltip label="Подробнее">
+                      <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
+                        <IconEye size={16} />
+                      </ActionIcon>
+                    </Tooltip>
+                  </Group>
+                </Card>
+              ))}
+              {totalPages > 1 && (
+                <Group justify="center" mt="md">
+                  <Pagination value={currentPage} onChange={setCurrentPage} total={totalPages} size="sm" />
                 </Group>
-              </Card>
-            ))}
-          </Stack>
-        ) : (
-          <ScrollArea>
-            <Table striped highlightOnHover>
-              <Table.Thead>
-                <Table.Tr>
-                  <Table.Th>Пользователь</Table.Th>
-                  <Table.Th>Дата использования</Table.Th>
-                  <Table.Th w={40}></Table.Th>
-                </Table.Tr>
-              </Table.Thead>
-              <Table.Tbody>
-                {usages.map((usage) => (
-                  <Table.Tr key={usage.id}>
-                    <Table.Td>
-                      <Stack gap={2}>
-                        <Text size="sm" fw={500}>{usage.telegram_id}</Text>
-                        {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
-                          <Text size="xs" c="dimmed">
-                            {usage.tg_username && `@${usage.tg_username}`}
-                            {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
-                            {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
-                          </Text>
-                        )}
-                      </Stack>
-                    </Table.Td>
-                    <Table.Td>
-                      <Text size="sm">{date(usage.used_at)} {time(usage.used_at)}</Text>
-                    </Table.Td>
-                    <Table.Td>
-                      <Tooltip label="Подробнее">
-                        <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
-                          <IconEye size={16} />
-                        </ActionIcon>
-                      </Tooltip>
-                    </Table.Td>
-                  </Table.Tr>
-                ))}
-              </Table.Tbody>
-            </Table>
-          </ScrollArea>
-        )}
+              )}
+            </Stack>
+          ) : (
+            <>
+              <ScrollArea>
+                <Table striped highlightOnHover>
+                  <Table.Thead>
+                    <Table.Tr>
+                      <Table.Th>Пользователь</Table.Th>
+                      <Table.Th>Дата использования</Table.Th>
+                      <Table.Th w={40}></Table.Th>
+                    </Table.Tr>
+                  </Table.Thead>
+                  <Table.Tbody>
+                    {paginatedUsages.map((usage) => (
+                      <Table.Tr key={usage.id}>
+                        <Table.Td>
+                          <Stack gap={2}>
+                            <Text size="sm" fw={500}>{usage.telegram_id}</Text>
+                            {(usage.tg_username || usage.tg_first_name || usage.tg_last_name) && (
+                              <Text size="xs" c="dimmed">
+                                {usage.tg_username && `@${usage.tg_username}`}
+                                {usage.tg_username && (usage.tg_first_name || usage.tg_last_name) && ' · '}
+                                {[usage.tg_first_name, usage.tg_last_name].filter(Boolean).join(' ')}
+                              </Text>
+                            )}
+                          </Stack>
+                        </Table.Td>
+                        <Table.Td>
+                          <Text size="sm">{date(usage.used_at)} {time(usage.used_at)}</Text>
+                        </Table.Td>
+                        <Table.Td>
+                          <Tooltip label="Подробнее">
+                            <ActionIcon size="sm" variant="subtle" onClick={() => navigate(`/user/${usage.telegram_id}`)}>
+                              <IconEye size={16} />
+                            </ActionIcon>
+                          </Tooltip>
+                        </Table.Td>
+                      </Table.Tr>
+                    ))}
+                  </Table.Tbody>
+                </Table>
+              </ScrollArea>
+              {totalPages > 1 && (
+                <Group justify="center" mt="md">
+                  <Pagination value={currentPage} onChange={setCurrentPage} total={totalPages} size="sm" />
+                </Group>
+              )}
+            </>
+          )
+        })()}
       </Paper>
     </Stack>
   )
