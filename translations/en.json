@@ -41,7 +41,7 @@
   "trial_text": "Your trial version is active",
   "activate_trial_button": "Activate trial version",
   "referral_button": "🤝 Referrals",
-  "referral_text": "Invited: %d",
+  "referral_text": "Invited: %d\n\nReceived days: %d",
   "referral_bonus_granted": "You have received a referral bonus!",
   "referee_bonus_granted": "You have received a bonus for signing up via referral link!",
   "stars_button": " ⭐Telegram Stars",

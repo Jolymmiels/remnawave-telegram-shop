@@ -41,7 +41,7 @@
   "trial_text": "Ваша пробная версия действует",
   "activate_trial_button": "Активировать пробную версию",
   "referral_button": "🤝 Рефералы",
-  "referral_text": "Приглашено: %d",
+  "referral_text": "Приглашено: %d\n\nПолучено дней: %d",
   "referral_bonus_granted": "Вы получили бонус за реферала!",
   "referee_bonus_granted": "Вы получили бонус за регистрацию по реферальной ссылке!",
   "stars_button": " ⭐Telegram Stars",
