@@ -159,7 +159,7 @@ func main() {
 	config.SetBotURL(fmt.Sprintf("https://t.me/%s", me.Username))
 
 	// Register command handlers
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, startHandler.StartCommandHandler, middleware.SuspiciousUserFilterMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, startHandler.StartCommandHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/connect", bot.MatchTypeExact, connectHandler.ConnectCommandHandler, middleware.SuspiciousUserFilterMiddleware, middleware.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/sync", bot.MatchTypeExact, syncHandler.SyncUsersCommandHandler, isAdminMiddleware)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/admin", bot.MatchTypeExact, adminHandler.AdminCommandHandler, isAdminMiddleware)
