@@ -332,23 +332,12 @@ const UserDetailsPage: React.FC = () => {
   return (
     <Stack gap="md">
       <Paper p="xs" shadow="sm">
-        <Group justify="space-between" mb="md">
-          <Stack gap={4}>
-            <Group gap="xs">
-              <Text size="xl" fw={700}>ID: {user.telegram_id}</Text>
-              {user.is_blocked && <Badge color="red">Заблокирован</Badge>}
-            </Group>
-            {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
-              <Text size="sm" c="dimmed">
-                {user.tg_username && `@${user.tg_username}`}
-                {user.tg_username && (user.tg_first_name || user.tg_last_name) && ' · '}
-                {[user.tg_first_name, user.tg_last_name].filter(Boolean).join(' ')}
-              </Text>
-            )}
-          </Stack>
+        <Stack gap={4} mb="md">
           <Group gap="xs">
+            <Text size="xl" fw={700}>ID: {user.telegram_id}</Text>
             {getStatusBadge(user)}
             <Badge variant="light" size="sm">{(user.language || 'en').toUpperCase()}</Badge>
+            {user.is_blocked && <Badge color="red">Заблокирован</Badge>}
             {user.expire_at && new Date(user.expire_at) > new Date() && (
               <Tooltip label="Отозвать подписку">
                 <ActionIcon
@@ -362,7 +351,14 @@ const UserDetailsPage: React.FC = () => {
               </Tooltip>
             )}
           </Group>
-        </Group>
+          {(user.tg_username || user.tg_first_name || user.tg_last_name) && (
+            <Text size="sm" c="dimmed">
+              {user.tg_username && `@${user.tg_username}`}
+              {user.tg_username && (user.tg_first_name || user.tg_last_name) && ' · '}
+              {[user.tg_first_name, user.tg_last_name].filter(Boolean).join(' ')}
+            </Text>
+          )}
+        </Stack>
 
         <SimpleGrid cols={{ base: 2, sm: 4 }} spacing="md">
           <Card padding="sm" withBorder>

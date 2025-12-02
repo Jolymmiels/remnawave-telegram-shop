@@ -34,6 +34,7 @@ import {
   IconRefresh,
   IconSortDescending,
   IconSortAscending,
+  IconCalendar,
 } from '@tabler/icons-react'
 import { http } from '../../lib/http'
 import { useDisclosure } from '@mantine/hooks'
@@ -288,7 +289,10 @@ const UserManagement: React.FC = () => {
 
       <Stack gap="xs">
         <Group justify="space-between">
-          <Text size="xs" c="dimmed">Истекает</Text>
+          <Group gap={4}>
+            <IconCalendar size={12} color="var(--mantine-color-dimmed)" />
+            <Text size="xs" c="dimmed">Истекает</Text>
+          </Group>
           <Text size="xs">{formatDate(user.expire_at)}</Text>
         </Group>
         
