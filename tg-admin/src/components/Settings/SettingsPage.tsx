@@ -67,14 +67,15 @@ interface LinkButton {
   id: string
   label: string
   urlKey: string
+  enabledKey: string
 }
 
 const LINK_BUTTONS: LinkButton[] = [
-  { id: 'server_status', label: 'Status', urlKey: 'server_status_url' },
-  { id: 'support', label: 'Support', urlKey: 'support_url' },
-  { id: 'feedback', label: 'Feedback', urlKey: 'feedback_url' },
-  { id: 'channel', label: 'Channel', urlKey: 'channel_url' },
-  { id: 'tos', label: 'TOS', urlKey: 'tos_url' },
+  { id: 'server_status', label: 'Status', urlKey: 'server_status_url', enabledKey: 'server_status_enabled' },
+  { id: 'support', label: 'Support', urlKey: 'support_url', enabledKey: 'support_enabled' },
+  { id: 'feedback', label: 'Feedback', urlKey: 'feedback_url', enabledKey: 'feedback_enabled' },
+  { id: 'channel', label: 'Channel', urlKey: 'channel_url', enabledKey: 'channel_enabled' },
+  { id: 'tos', label: 'TOS', urlKey: 'tos_url', enabledKey: 'tos_enabled' },
 ]
 
 function SortableButton({ id, label, disabled }: { id: string; label: string; disabled: boolean }) {
@@ -723,36 +724,81 @@ const SettingsPage: React.FC = () => {
                 value={settings.mini_app_url || ''}
                 onChange={e => updateSetting('mini_app_url', e.target.value)}
               />
-              <TextInput
-                label="Server Status"
-                size="xs"
-                value={settings.server_status_url || ''}
-                onChange={e => updateSetting('server_status_url', e.target.value)}
-              />
-              <TextInput
-                label="Support"
-                size="xs"
-                value={settings.support_url || ''}
-                onChange={e => updateSetting('support_url', e.target.value)}
-              />
-              <TextInput
-                label="Feedback"
-                size="xs"
-                value={settings.feedback_url || ''}
-                onChange={e => updateSetting('feedback_url', e.target.value)}
-              />
-              <TextInput
-                label="Channel"
-                size="xs"
-                value={settings.channel_url || ''}
-                onChange={e => updateSetting('channel_url', e.target.value)}
-              />
-              <TextInput
-                label="Terms of Service"
-                size="xs"
-                value={settings.tos_url || ''}
-                onChange={e => updateSetting('tos_url', e.target.value)}
-              />
+              <Group gap="xs" align="flex-end">
+                <TextInput
+                  label="Server Status"
+                  size="xs"
+                  value={settings.server_status_url || ''}
+                  onChange={e => updateSetting('server_status_url', e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Switch
+                  size="xs"
+                  checked={settings.server_status_enabled !== 'false'}
+                  onChange={e => updateSetting('server_status_enabled', e.currentTarget.checked)}
+                  label="Вкл"
+                />
+              </Group>
+              <Group gap="xs" align="flex-end">
+                <TextInput
+                  label="Support"
+                  size="xs"
+                  value={settings.support_url || ''}
+                  onChange={e => updateSetting('support_url', e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Switch
+                  size="xs"
+                  checked={settings.support_enabled !== 'false'}
+                  onChange={e => updateSetting('support_enabled', e.currentTarget.checked)}
+                  label="Вкл"
+                />
+              </Group>
+              <Group gap="xs" align="flex-end">
+                <TextInput
+                  label="Feedback"
+                  size="xs"
+                  value={settings.feedback_url || ''}
+                  onChange={e => updateSetting('feedback_url', e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Switch
+                  size="xs"
+                  checked={settings.feedback_enabled !== 'false'}
+                  onChange={e => updateSetting('feedback_enabled', e.currentTarget.checked)}
+                  label="Вкл"
+                />
+              </Group>
+              <Group gap="xs" align="flex-end">
+                <TextInput
+                  label="Channel"
+                  size="xs"
+                  value={settings.channel_url || ''}
+                  onChange={e => updateSetting('channel_url', e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Switch
+                  size="xs"
+                  checked={settings.channel_enabled !== 'false'}
+                  onChange={e => updateSetting('channel_enabled', e.currentTarget.checked)}
+                  label="Вкл"
+                />
+              </Group>
+              <Group gap="xs" align="flex-end">
+                <TextInput
+                  label="Terms of Service"
+                  size="xs"
+                  value={settings.tos_url || ''}
+                  onChange={e => updateSetting('tos_url', e.target.value)}
+                  style={{ flex: 1 }}
+                />
+                <Switch
+                  size="xs"
+                  checked={settings.tos_enabled !== 'false'}
+                  onChange={e => updateSetting('tos_enabled', e.currentTarget.checked)}
+                  label="Вкл"
+                />
+              </Group>
               <Box>
                 <Text size="xs" fw={500} mb={4}>Расположение кнопок (перетащите для изменения порядка)</Text>
                 <SegmentedControl
@@ -807,7 +853,7 @@ const SettingsPage: React.FC = () => {
                               key={btn.id}
                               id={btn.id}
                               label={btn.label}
-                              disabled={!settings[btn.urlKey]}
+                              disabled={!settings[btn.urlKey] || settings[btn.enabledKey] === 'false'}
                             />
                           )
                         })

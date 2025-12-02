@@ -310,6 +310,41 @@ func TosURL() string {
 	return getSettingWithDeprecation("tos_url", conf.tosURL, "TOS_URL")
 }
 
+func ServerStatusEnabled() bool {
+	if settingsProvider != nil {
+		return settingsProvider.Get("server_status_enabled") != "false"
+	}
+	return true
+}
+
+func SupportEnabled() bool {
+	if settingsProvider != nil {
+		return settingsProvider.Get("support_enabled") != "false"
+	}
+	return true
+}
+
+func FeedbackEnabled() bool {
+	if settingsProvider != nil {
+		return settingsProvider.Get("feedback_enabled") != "false"
+	}
+	return true
+}
+
+func ChannelEnabled() bool {
+	if settingsProvider != nil {
+		return settingsProvider.Get("channel_enabled") != "false"
+	}
+	return true
+}
+
+func TosEnabled() bool {
+	if settingsProvider != nil {
+		return settingsProvider.Get("tos_enabled") != "false"
+	}
+	return true
+}
+
 func LinkButtonsLayout() string {
 	if settingsProvider != nil {
 		return settingsProvider.Get("link_buttons_layout")

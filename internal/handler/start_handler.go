@@ -212,14 +212,15 @@ func (h *StartHandler) BuildStartKeyboard(existingCustomer *database.Customer, l
 	}
 
 	buttonConfigs := map[string]struct {
-		url  string
-		text string
+		url     string
+		text    string
+		enabled bool
 	}{
-		"server_status": {config.ServerStatusURL(), h.translation.GetText(langCode, "server_status_button")},
-		"support":       {config.SupportURL(), h.translation.GetText(langCode, "support_button")},
-		"feedback":      {config.FeedbackURL(), h.translation.GetText(langCode, "feedback_button")},
-		"channel":       {config.ChannelURL(), h.translation.GetText(langCode, "channel_button")},
-		"tos":           {config.TosURL(), h.translation.GetText(langCode, "tos_button")},
+		"server_status": {config.ServerStatusURL(), h.translation.GetText(langCode, "server_status_button"), config.ServerStatusEnabled()},
+		"support":       {config.SupportURL(), h.translation.GetText(langCode, "support_button"), config.SupportEnabled()},
+		"feedback":      {config.FeedbackURL(), h.translation.GetText(langCode, "feedback_button"), config.FeedbackEnabled()},
+		"channel":       {config.ChannelURL(), h.translation.GetText(langCode, "channel_button"), config.ChannelEnabled()},
+		"tos":           {config.TosURL(), h.translation.GetText(langCode, "tos_button"), config.TosEnabled()},
 	}
 
 	buttonOrder := config.LinkButtonsOrder()
@@ -229,7 +230,7 @@ func (h *StartHandler) BuildStartKeyboard(existingCustomer *database.Customer, l
 
 	var linkButtons []models.InlineKeyboardButton
 	for _, id := range buttonOrder {
-		if cfg, ok := buttonConfigs[id]; ok && cfg.url != "" {
+		if cfg, ok := buttonConfigs[id]; ok && cfg.url != "" && cfg.enabled {
 			linkButtons = append(linkButtons, models.InlineKeyboardButton{Text: cfg.text, URL: cfg.url})
 		}
 	}
