@@ -345,6 +345,13 @@ func TosEnabled() bool {
 	return true
 }
 
+func MiniAppEnabled() bool {
+	if settingsProvider != nil {
+		return settingsProvider.Get("mini_app_enabled") != "false"
+	}
+	return true
+}
+
 func LinkButtonsLayout() string {
 	if settingsProvider != nil {
 		return settingsProvider.Get("link_buttons_layout")

@@ -177,7 +177,7 @@ func (h *StartHandler) StartCallbackHandler(ctx context.Context, b *bot.Bot, upd
 func (h *StartHandler) ResolveConnectButton(lang string) []models.InlineKeyboardButton {
 	var inlineKeyboard []models.InlineKeyboardButton
 
-	if config.GetMiniAppURL() != "" {
+	if config.GetMiniAppURL() != "" && config.MiniAppEnabled() {
 		inlineKeyboard = []models.InlineKeyboardButton{
 			{Text: h.translation.GetText(lang, "connect_button"), WebApp: &models.WebAppInfo{
 				URL: config.GetMiniAppURL(),
