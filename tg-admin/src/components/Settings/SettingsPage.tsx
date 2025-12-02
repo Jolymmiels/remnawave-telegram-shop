@@ -734,7 +734,7 @@ const SettingsPage: React.FC = () => {
                 />
                 <Switch
                   size="xs"
-                  checked={settings.server_status_enabled !== 'false'}
+                  checked={settings.server_status_enabled === 'true' || settings.server_status_enabled === undefined || settings.server_status_enabled === ''}
                   onChange={e => updateSetting('server_status_enabled', e.currentTarget.checked)}
                   label="Вкл"
                 />

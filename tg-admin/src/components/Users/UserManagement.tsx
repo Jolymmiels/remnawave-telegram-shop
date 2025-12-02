@@ -447,10 +447,7 @@ const UserManagement: React.FC = () => {
                       </Stack>
                     </Table.Td>
                     <Table.Td>
-                      <Group gap={4}>
-                        {getStatusBadge(user)}
-                        <Badge variant="light" size="sm">{(user.language || 'en').toUpperCase()}</Badge>
-                      </Group>
+                      {getStatusBadge(user)}
                     </Table.Td>
                     <Table.Td>
                       {formatDate(user.expire_at)}
