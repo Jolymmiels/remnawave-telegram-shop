@@ -4,6 +4,7 @@
   "connect_button": "🔌 Connect",
   "back_button": "🔙 Back",
   "pricing_info": "Russian bank cards and cryptocurrency are accepted for payment",
+  "payments_disabled": "⚠️ Payment acceptance is temporarily disabled at the moment. Please try again later.",
   "month_1": "1 month",
   "month_3": "3 months",
   "month_6": "6 months",
@@ -37,5 +38,11 @@
   "web_app_button_text": "Connect",
   "tribute_button": "Tribute",
   "tribute_cancelled" : "Tribute cancelled",
-  "access_denied": "⚠️ Access denied. Please update your profile information."
+  "access_denied": "⚠️ Access denied. Please update your profile information.",
+  "button_yes": "✅ Yes",
+  "button_no": "❌ No",
+  "broadcast_started": "⏳ <b>Broadcast started!</b>\n\nMessage text:\n\n<pre>%s</pre>\n\nA final report will be sent upon completion.",
+  "broadcast_report": "✅ <b>Broadcast completed!</b>\n\nTotal recipients: %d\nSuccessfully sent: %d\nFailed to send: %d",
+  "broadcast_empty_text_error": "❌ <b>Error!</b>\nMessage text cannot be empty.",
+  "broadcast_database_error": "❌ <b>Database error!</b>\nFailed to retrieve the user list for broadcasting."
 }
