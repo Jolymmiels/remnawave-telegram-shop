@@ -31,6 +31,7 @@ type config struct {
 	isYookasaEnabled                                          bool
 	isCryptoEnabled                                           bool
 	isTelegramStarsEnabled                                    bool
+	isPaymentsEnabled                                         bool
 	adminTelegramId                                           int64
 	trialDays                                                 int
 	trialRemnawaveTag                                         string
@@ -250,6 +251,10 @@ func IsTelegramStarsEnabled() bool {
 	return conf.isTelegramStarsEnabled
 }
 
+func IsPaymentsEnabled() bool {
+	return conf.isPaymentsEnabled
+}
+
 func RequirePaidPurchaseForStars() bool {
 	return conf.requirePaidPurchaseForStars
 }
@@ -377,6 +382,7 @@ func InitConfig() {
 	conf.price6 = mustEnvInt("PRICE_6")
 	conf.price12 = mustEnvInt("PRICE_12")
 
+	conf.isPaymentsEnabled = envBool("PAYMENTS_ENABLED")
 	conf.isTelegramStarsEnabled = envBool("TELEGRAM_STARS_ENABLED")
 	if conf.isTelegramStarsEnabled {
 		conf.starsPrice1 = envIntDefault("STARS_PRICE_1", conf.price1)

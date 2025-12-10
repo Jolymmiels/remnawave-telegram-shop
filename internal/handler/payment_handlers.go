@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
@@ -86,6 +87,28 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 
 	var keyboard [][]models.InlineKeyboardButton
 
+	if !config.IsPaymentsEnabled() && callback.Chat.ID != config.GetAdminTelegramId() {
+		_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    callback.Chat.ID,
+			MessageID: callback.ID,
+			ParseMode: models.ParseModeHTML,
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					{
+						{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+					},
+				},
+			},
+			Text: h.translation.GetText(langCode, "payments_disabled"),
+		})
+
+		if err != nil {
+			slog.Error("Error updating sell message", err)
+		}
+
+		return
+	}
+
 	if config.IsCryptoPayEnabled() {
 		keyboard = append(keyboard, []models.InlineKeyboardButton{
 			{Text: h.translation.GetText(langCode, "crypto_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeCrypto, amount)},
@@ -153,8 +176,31 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	callback := update.CallbackQuery.Message.Message
 	callbackQuery := parseCallbackData(update.CallbackQuery.Data)
 	month, err := strconv.Atoi(callbackQuery["month"])
+	langCode := update.CallbackQuery.From.LanguageCode
 	if err != nil {
 		slog.Error("Error getting month from query", "error", err)
+		return
+	}
+
+	if !config.IsPaymentsEnabled() && callback.Chat.ID != config.GetAdminTelegramId() {
+		_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+			ChatID:    callback.Chat.ID,
+			MessageID: callback.ID,
+			ParseMode: models.ParseModeHTML,
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: [][]models.InlineKeyboardButton{
+					{
+						{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+					},
+				},
+			},
+			Text: h.translation.GetText(langCode, "payments_disabled"),
+		})
+
+		if err != nil {
+			slog.Error("Error updating sell message", err)
+		}
+
 		return
 	}
 
@@ -185,8 +231,6 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		slog.Error("Error creating payment", "error", err)
 		return
 	}
-
-	langCode := update.CallbackQuery.From.LanguageCode
 
 	message, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
 		ChatID:    callback.Chat.ID,

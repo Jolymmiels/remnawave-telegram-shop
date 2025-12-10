@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	sq "github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v4"
-	"github.com/jackc/pgx/v4/pgxpool"
 	"log/slog"
 	"remnawave-tg-shop-bot/utils"
 	"time"
+
+	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v4"
+	"github.com/jackc/pgx/v4/pgxpool"
 )
 
 type CustomerRepository struct {
@@ -336,4 +337,35 @@ func (cr *CustomerRepository) DeleteByNotInTelegramIds(ctx context.Context, tele
 
 	return nil
 
+}
+
+func (cr *CustomerRepository) GetAllTelegramIDs(ctx context.Context) ([]int64, error) {
+	buildSelect := sq.Select("telegram_id").From("customer").Where(sq.NotEq{"telegram_id": nil}).PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := buildSelect.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("failed to build select query for all IDs: %w", err)
+	}
+
+	rows, err := cr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query all customer telegram_id: %w", err)
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			slog.Error("Error scanning customer telegram_id during broadcast fetch", "error", err)
+			continue
+		}
+		ids = append(ids, id)
+	}
+
+	if rows.Err() != nil {
+		return nil, fmt.Errorf("error iterating over customer rows: %w", rows.Err())
+	}
+
+	return ids, nil
 }
