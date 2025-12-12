@@ -100,19 +100,20 @@ func main() {
 		},
 	})
 
-	if err != nil {
-		panic(err)
-	}
+	// Set bot commands for Russian
 	_, err = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
 		Commands: []models.BotCommand{
 			{Command: "start", Description: "Начать работу с ботом"},
+			{Command: "connect", Description: "Подключиться"},
 		},
 		LanguageCode: "ru",
 	})
 
+	// Set bot commands for English
 	_, err = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
 		Commands: []models.BotCommand{
 			{Command: "start", Description: "Start using the bot"},
+			{Command: "connect", Description: "Connect"},
 		},
 		LanguageCode: "en",
 	})

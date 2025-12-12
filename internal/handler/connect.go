@@ -29,6 +29,22 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 
 	langCode := update.Message.From.LanguageCode
 
+	var markup [][]models.InlineKeyboardButton
+	if config.GetMiniAppURL() != "" {
+		markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
+			WebApp: &models.WebAppInfo{
+				URL: config.GetMiniAppURL(),
+			}}})
+	} else if config.IsWepAppLinkEnabled() {
+		if customer.SubscriptionLink != nil && customer.ExpireAt.After(time.Now()) {
+			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
+				WebApp: &models.WebAppInfo{
+					URL: *customer.SubscriptionLink,
+				}}})
+		}
+	}
+	markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}})
+
 	isDisabled := true
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
@@ -38,9 +54,7 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 			IsDisabled: &isDisabled,
 		},
 		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: [][]models.InlineKeyboardButton{
-				{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}},
-			},
+			InlineKeyboard: markup,
 		},
 	})
 
@@ -65,7 +79,12 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	langCode := update.CallbackQuery.From.LanguageCode
 
 	var markup [][]models.InlineKeyboardButton
-	if config.IsWepAppLinkEnabled() {
+	if config.GetMiniAppURL() != "" {
+		markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
+			WebApp: &models.WebAppInfo{
+				URL: config.GetMiniAppURL(),
+			}}})
+	} else if config.IsWepAppLinkEnabled() {
 		if customer.SubscriptionLink != nil && customer.ExpireAt.After(time.Now()) {
 			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
 				WebApp: &models.WebAppInfo{
@@ -109,7 +128,7 @@ func buildConnectText(customer *database.Customer, langCode string) string {
 			info.WriteString(fmt.Sprintf(subscriptionActiveText, formattedDate))
 
 			if customer.SubscriptionLink != nil && *customer.SubscriptionLink != "" {
-				if config.IsWepAppLinkEnabled() {
+				if config.GetMiniAppURL() != "" || config.IsWepAppLinkEnabled() {
 				} else {
 					subscriptionLinkText := tm.GetText(langCode, "subscription_link")
 					info.WriteString(fmt.Sprintf(subscriptionLinkText, *customer.SubscriptionLink))
