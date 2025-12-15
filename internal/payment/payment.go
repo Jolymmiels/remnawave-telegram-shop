@@ -159,7 +159,7 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	})
 
 	// Отправка чека в МойНалог только при оплате через Юкассу
-	slog.Debug("Checking conditions for Moynalog receipt", "invoice_type", purchase.InvoiceType, "moynalog_client", s.moynalogClient != nil)
+	slog.Info("Checking conditions for Moynalog receipt", "invoice_type", purchase.InvoiceType, "moynalog_client", s.moynalogClient != nil)
 	if purchase.InvoiceType == database.InvoiceTypeYookasa && s.moynalogClient != nil {
 		slog.Info("Attempting to send receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", purchase.Amount, "month", purchase.Month)
 		go func() {
