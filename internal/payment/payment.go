@@ -9,6 +9,7 @@ import (
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/moynalog"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/yookasa"
@@ -29,6 +30,7 @@ type PaymentService struct {
 	yookasaClient      *yookasa.Client
 	referralRepository *database.ReferralRepository
 	cache              *cache.Cache
+	moynalogClient     *moynalog.Client
 }
 
 func NewPaymentService(
@@ -41,6 +43,7 @@ func NewPaymentService(
 	yookasaClient *yookasa.Client,
 	referralRepository *database.ReferralRepository,
 	cache *cache.Cache,
+	moynalogClient *moynalog.Client,
 ) *PaymentService {
 	return &PaymentService{
 		purchaseRepository: purchaseRepository,
@@ -52,6 +55,7 @@ func NewPaymentService(
 		yookasaClient:      yookasaClient,
 		referralRepository: referralRepository,
 		cache:              cache,
+		moynalogClient:     moynalogClient,
 	}
 }
 
@@ -153,6 +157,17 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 			InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
 		},
 	})
+
+	// Отправка чека в МойНалог только при оплате через Юкассу
+	if purchase.InvoiceType == database.InvoiceTypeYookasa && s.moynalogClient != nil {
+		go func() {
+			err := s.sendReceiptToMoynalog(purchase)
+			if err != nil {
+				slog.Error("Error sending receipt to Moynalog", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+			}
+		}()
+	}
+
 	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
 
 	return nil
@@ -429,4 +444,23 @@ func (s PaymentService) createTributeInvoice(ctx context.Context, amount float64
 	}
 
 	return "", purchaseId, nil
+}
+
+func (s PaymentService) sendReceiptToMoynalog(purchase *database.Purchase) error {
+	if s.moynalogClient == nil {
+		return fmt.Errorf("Moynalog client not initialized")
+	}
+
+	// Подготовка данных для чека
+	comment := fmt.Sprintf("Подписка на %d месяцев", purchase.Month)
+	amount := purchase.Amount
+
+	// Вызов метода для создания чека
+	_, err := s.moynalogClient.CreateIncome(amount, comment)
+	if err != nil {
+		return fmt.Errorf("failed to create income in Moynalog: %w", err)
+	}
+
+	slog.Info("Receipt sent to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", amount, "comment", comment)
+	return nil
 }

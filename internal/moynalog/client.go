@@ -12,13 +12,22 @@ import (
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
+	token      string
 }
 
-func NewClient() *Client {
-	return &Client{
+func NewClient(baseURL, username, password string) (*Client, error) {
+	client := &Client{
 		httpClient: &http.Client{},
-		baseURL:    "https://lknpd.nalog.ru/api/v1",
+		baseURL:    baseURL,
 	}
+
+	authResp, err := client.Authenticate(username, password)
+	if err != nil {
+		return nil, fmt.Errorf("authentication failed: %w", err)
+	}
+
+	client.token = authResp.Token
+	return client, nil
 }
 
 func (c *Client) Authenticate(username, password string) (*AuthResponse, error) {
@@ -74,7 +83,7 @@ func (c *Client) Authenticate(username, password string) (*AuthResponse, error) 
 	return &authResp, nil
 }
 
-func (c *Client) CreateIncome(token string, amount float64, comment string) (*CreateIncomeResponse, error) {
+func (c *Client) CreateIncome(amount float64, comment string) (*CreateIncomeResponse, error) {
 	incomeURL := fmt.Sprintf("%s/income", c.baseURL)
 
 	formattedTime := getFormattedTime()
@@ -114,7 +123,7 @@ func (c *Client) CreateIncome(token string, amount float64, comment string) (*Cr
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 YaBrowser/24.12.0.0 Safari/537.36")
 
 	resp, err := c.httpClient.Do(req)
