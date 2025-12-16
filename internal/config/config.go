@@ -22,6 +22,7 @@ type config struct {
 	cryptoPayURL, cryptoPayToken                              string
 	botURL                                                    string
 	yookasaURL, yookasaShopId, yookasaSecretKey, yookasaEmail string
+	moynalogURL, moynalogUsername, moynalogPassword           string
 	trafficLimit, trialTrafficLimit                           int
 	feedbackURL                                               string
 	channelURL                                                string
@@ -31,6 +32,7 @@ type config struct {
 	isYookasaEnabled                                          bool
 	isCryptoEnabled                                           bool
 	isTelegramStarsEnabled                                    bool
+	isMoynalogEnabled                                         bool
 	adminTelegramId                                           int64
 	trialDays                                                 int
 	trialRemnawaveTag                                         string
@@ -279,6 +281,22 @@ func TrafficLimitResetStrategy() string {
 }
 
 const bytesInGigabyte = 1073741824
+
+func MoynalogUrl() string {
+	return conf.moynalogURL
+}
+
+func MoynalogUsername() string {
+	return conf.moynalogUsername
+}
+
+func MoynalogPassword() string {
+	return conf.moynalogPassword
+}
+
+func IsMoynalogEnabled() bool {
+	return conf.isMoynalogEnabled
+}
 
 func mustEnv(key string) string {
 	v := os.Getenv(key)
@@ -551,4 +569,11 @@ func InitConfig() {
 		}
 		return map[string]string{}
 	}()
+
+	conf.isMoynalogEnabled = envBool("MOYNALOG_ENABLED")
+	if conf.isMoynalogEnabled {
+		conf.moynalogURL = envStringDefault("MOYNALOG_URL", "https://moynalog.ru/api/v1")
+		conf.moynalogUsername = mustEnv("MOYNALOG_USERNAME")
+		conf.moynalogPassword = mustEnv("MOYNALOG_PASSWORD")
+	}
 }
