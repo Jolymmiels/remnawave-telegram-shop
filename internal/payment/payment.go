@@ -116,23 +116,23 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	if err != nil {
 		return err
 	}
-	// Отправка чека в МойНалог только при оплате через Юкассу
-	slog.Info("Checking conditions for Moynalog receipt", "invoice_type", purchase.InvoiceType, "moynalog_client", s.moynalogClient != nil)
+
+	slog.Info("checking conditions for Moynalog receipt", "invoice_type", purchase.InvoiceType, "moynalog_client", s.moynalogClient != nil)
 	if purchase.InvoiceType == database.InvoiceTypeYookasa && s.moynalogClient != nil {
-		slog.Info("Attempting to send receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", purchase.Amount, "month", purchase.Month)
+		slog.Info("attempting to send receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", purchase.Amount, "month", purchase.Month)
 		go func() {
 			err := s.sendReceiptToMoynalog(purchase)
 			if err != nil {
-				slog.Error("Error sending receipt to Moynalog", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+				slog.Error("error sending receipt to Moynalog", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
 			} else {
-				slog.Info("Successfully sent receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID))
+				slog.Info("successfully sent receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID))
 			}
 		}()
 	} else {
 		if purchase.InvoiceType != database.InvoiceTypeYookasa {
-			slog.Info("Not sending receipt to Moynalog - not a Yookasa invoice", "invoice_type", purchase.InvoiceType, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+			slog.Info("not sending receipt to Moynalog - not a Yookasa invoice", "invoice_type", purchase.InvoiceType, "purchase_id", utils.MaskHalfInt64(purchase.ID))
 		} else if s.moynalogClient == nil {
-			slog.Error("Not sending receipt to Moynalog - client is nil", "purchase_id", utils.MaskHalfInt64(purchase.ID))
+			slog.Error("not sending receipt to Moynalog - client is nil", "purchase_id", utils.MaskHalfInt64(purchase.ID))
 		}
 	}
 
@@ -457,11 +457,21 @@ func (s PaymentService) createTributeInvoice(ctx context.Context, amount float64
 
 func (s PaymentService) sendReceiptToMoynalog(purchase *database.Purchase) error {
 	if s.moynalogClient == nil {
-		return fmt.Errorf("Moynalog client not initialized")
+		return fmt.Errorf("moynalog client not initialized")
 	}
 
 	// Подготовка данных для чека
-	comment := fmt.Sprintf("Подписка на %d месяцев", purchase.Month)
+	// Используем описание из Юкассы, как в функции createYookasaInvoice
+	var monthString string
+	switch purchase.Month {
+	case 1:
+		monthString = "месяц"
+	case 3, 4:
+		monthString = "месяца"
+	default:
+		monthString = "месяцев"
+	}
+	comment := fmt.Sprintf("Подписка на %d %s", purchase.Month, monthString)
 	amount := purchase.Amount
 
 	// Вызов метода для создания чека
