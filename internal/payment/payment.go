@@ -116,6 +116,25 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	if err != nil {
 		return err
 	}
+	// Отправка чека в МойНалог только при оплате через Юкассу
+	slog.Info("Checking conditions for Moynalog receipt", "invoice_type", purchase.InvoiceType, "moynalog_client", s.moynalogClient != nil)
+	if purchase.InvoiceType == database.InvoiceTypeYookasa && s.moynalogClient != nil {
+		slog.Info("Attempting to send receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", purchase.Amount, "month", purchase.Month)
+		go func() {
+			err := s.sendReceiptToMoynalog(purchase)
+			if err != nil {
+				slog.Error("Error sending receipt to Moynalog", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+			} else {
+				slog.Info("Successfully sent receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID))
+			}
+		}()
+	} else {
+		if purchase.InvoiceType != database.InvoiceTypeYookasa {
+			slog.Info("Not sending receipt to Moynalog - not a Yookasa invoice", "invoice_type", purchase.InvoiceType, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+		} else if s.moynalogClient == nil {
+			slog.Error("Not sending receipt to Moynalog - client is nil", "purchase_id", utils.MaskHalfInt64(purchase.ID))
+		}
+	}
 
 	ctxReferee := context.Background()
 	referee, err := s.referralRepository.FindByReferee(ctxReferee, customer.TelegramID)
@@ -157,26 +176,6 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 			InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
 		},
 	})
-
-	// Отправка чека в МойНалог только при оплате через Юкассу
-	slog.Info("Checking conditions for Moynalog receipt", "invoice_type", purchase.InvoiceType, "moynalog_client", s.moynalogClient != nil)
-	if purchase.InvoiceType == database.InvoiceTypeYookasa && s.moynalogClient != nil {
-		slog.Info("Attempting to send receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", purchase.Amount, "month", purchase.Month)
-		go func() {
-			err := s.sendReceiptToMoynalog(purchase)
-			if err != nil {
-				slog.Error("Error sending receipt to Moynalog", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
-			} else {
-				slog.Info("Successfully sent receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID))
-			}
-		}()
-	} else {
-		if purchase.InvoiceType != database.InvoiceTypeYookasa {
-			slog.Info("Not sending receipt to Moynalog - not a Yookasa invoice", "invoice_type", purchase.InvoiceType, "purchase_id", utils.MaskHalfInt64(purchase.ID))
-		} else if s.moynalogClient == nil {
-			slog.Error("Not sending receipt to Moynalog - client is nil", "purchase_id", utils.MaskHalfInt64(purchase.ID))
-		}
-	}
 
 	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
 
