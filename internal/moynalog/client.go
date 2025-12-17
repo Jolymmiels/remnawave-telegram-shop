@@ -3,146 +3,229 @@ package moynalog
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"time"
+)
+
+var (
+	ErrAuth      = errors.New("authentication error")
+	ErrRetryable = errors.New("retryable error")
+	ErrClient    = errors.New("client error")
 )
 
 type Client struct {
 	httpClient *http.Client
 	baseURL    string
-	token      string
+
+	username string
+	password string
+
+	token atomic.Value
+
+	authMu       sync.Mutex
+	authInFlight bool
+	authCond     *sync.Cond
 }
 
 func NewClient(baseURL, username, password string) (*Client, error) {
-	client := &Client{
+	c := &Client{
 		httpClient: &http.Client{},
 		baseURL:    baseURL,
+		username:   username,
+		password:   password,
+	}
+	c.authCond = sync.NewCond(&c.authMu)
+
+	c.token.Store("")
+
+	if err := c.authenticate(); err != nil {
+		return nil, fmt.Errorf("initial auth failed: %w", err)
 	}
 
-	authResp, err := client.Authenticate(username, password)
-	if err != nil {
-		return nil, fmt.Errorf("authentication failed: %w", err)
-	}
-
-	client.token = authResp.Token
-	return client, nil
+	return c, nil
 }
 
-func (c *Client) Authenticate(username, password string) (*AuthResponse, error) {
+func (c *Client) authenticate() error {
+	c.authMu.Lock()
+
+	for c.authInFlight {
+		c.authCond.Wait()
+	}
+
+	if c.token.Load().(string) != "" {
+		c.authMu.Unlock()
+		return nil
+	}
+
+	c.authInFlight = true
+	c.authMu.Unlock()
+
+	err := c.authenticateOnce()
+
+	c.authMu.Lock()
+	c.authInFlight = false
+	c.authCond.Broadcast()
+	c.authMu.Unlock()
+
+	return err
+}
+
+func (c *Client) authenticateOnce() error {
 	authURL := fmt.Sprintf("%s/auth/lkfl", c.baseURL)
 
-	deviceInfo := DeviceInfo{
-		SourceDeviceId: "*",
-		SourceType:     "WEB",
-		AppVersion:     "1.0.0",
-		MetaDetails: MetaDetails{
-			UserAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 YaBrowser/24.12.0 Safari/537.36",
+	reqBody, err := json.Marshal(AuthRequest{
+		Username: c.username,
+		Password: c.password,
+		DeviceInfo: DeviceInfo{
+			SourceDeviceId: "*",
+			SourceType:     "WEB",
+			AppVersion:     "1.0.0",
 		},
-	}
-
-	authRequest := AuthRequest{
-		Username:   username,
-		Password:   password,
-		DeviceInfo: deviceInfo,
-	}
-
-	reqBody, err := json.Marshal(authRequest)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal auth request: %w", err)
+		return err
 	}
 
 	req, err := http.NewRequest("POST", authURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return err
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json, text/plain, */*")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		return err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("error reading response body: %w", err)
-		}
-		return nil, fmt.Errorf("authentication failed with status %d: %s", resp.StatusCode, string(body))
+		b, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("%w: status %d: %s", ErrAuth, resp.StatusCode, b)
 	}
 
 	var authResp AuthResponse
 	if err := json.NewDecoder(resp.Body).Decode(&authResp); err != nil {
-		return nil, fmt.Errorf("failed to decode auth response: %w", err)
+		return err
 	}
 
-	return &authResp, nil
+	c.token.Store(authResp.Token)
+	return nil
 }
 
 func (c *Client) CreateIncome(amount float64, comment string) (*CreateIncomeResponse, error) {
-	incomeURL := fmt.Sprintf("%s/income", c.baseURL)
+	const (
+		maxRetries     = 3
+		baseDelay      = 500 * time.Millisecond
+		maxAuthRetries = 1
+	)
 
+	var (
+		lastErr     error
+		authRetries int
+	)
+
+	for attempt := 1; attempt <= maxRetries; attempt++ {
+		resp, err := c.createIncomeOnce(amount, comment)
+		if err == nil {
+			return resp, nil
+		}
+
+		if errors.Is(err, ErrAuth) {
+			if authRetries >= maxAuthRetries {
+				return nil, err
+			}
+
+			c.token.Store("")
+
+			if err := c.authenticate(); err != nil {
+				return nil, fmt.Errorf("reauth failed: %w", err)
+			}
+
+			authRetries++
+			continue
+		}
+
+		if !errors.Is(err, ErrRetryable) {
+			return nil, err
+		}
+
+		lastErr = err
+		time.Sleep(baseDelay * time.Duration(1<<(attempt-1)))
+	}
+
+	return nil, fmt.Errorf("create income failed after retries: %w", lastErr)
+}
+
+func (c *Client) createIncomeOnce(amount float64, comment string) (*CreateIncomeResponse, error) {
+	incomeURL := fmt.Sprintf("%s/income", c.baseURL)
 	formattedTime := getFormattedTime()
 
-	service := Service{
-		Name:     comment,
-		Amount:   amount,
-		Quantity: 1,
-	}
-
-	client := IncomeClient{
-		ContactPhone: nil,
-		DisplayName:  nil,
-		INN:          nil,
-		IncomeType:   "FROM_INDIVIDUAL",
-	}
-
-	incomeRequest := CreateIncomeRequest{
-		OperationTime:                   parseTimeString(formattedTime),
-		RequestTime:                     parseTimeString(formattedTime),
-		Services:                        []Service{service},
-		TotalAmount:                     fmt.Sprintf("%.2f", amount),
-		Client:                          client,
+	reqBody, err := json.Marshal(CreateIncomeRequest{
+		OperationTime: parseTimeString(formattedTime),
+		RequestTime:   parseTimeString(formattedTime),
+		Services: []Service{
+			{
+				Name:     comment,
+				Amount:   amount,
+				Quantity: 1,
+			},
+		},
+		TotalAmount: fmt.Sprintf("%.2f", amount),
+		Client: IncomeClient{
+			IncomeType: "FROM_INDIVIDUAL",
+		},
 		PaymentType:                     "CASH",
 		IgnoreMaxTotalIncomeRestriction: false,
-	}
-
-	reqBody, err := json.Marshal(incomeRequest)
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal income request: %w", err)
+		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", incomeURL, bytes.NewBuffer(reqBody))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
+		return nil, err
 	}
+
+	token := c.token.Load().(string)
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/plain, */*")
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", c.token))
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	req.Header.Set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 YaBrowser/24.12.0.0 Safari/537.36")
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("failed to send request: %w", err)
+		var netErr net.Error
+		if errors.As(err, &netErr) {
+			return nil, fmt.Errorf("%w: %v", ErrRetryable, err)
+		}
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("error reading response body: %w", err)
-		}
-		return nil, fmt.Errorf("create income failed with status %d: %s", resp.StatusCode, string(body))
+	switch {
+	case resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden:
+		return nil, fmt.Errorf("%w: status %d", ErrAuth, resp.StatusCode)
+
+	case resp.StatusCode >= 500:
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("%w: status %d: %s", ErrRetryable, resp.StatusCode, b)
+
+	case resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated:
+		b, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("%w: status %d: %s", ErrClient, resp.StatusCode, b)
 	}
 
 	var incomeResp CreateIncomeResponse
 	if err := json.NewDecoder(resp.Body).Decode(&incomeResp); err != nil {
-		return nil, fmt.Errorf("failed to decode income response: %w", err)
+		return nil, err
 	}
 
 	return &incomeResp, nil
@@ -151,10 +234,8 @@ func (c *Client) CreateIncome(amount float64, comment string) (*CreateIncomeResp
 func parseTimeString(timeStr string) time.Time {
 	t, err := time.Parse("2006-01-02T15:04:05-07:00", timeStr)
 	if err != nil {
-		// Если формат не соответствует, пробуем другой формат
 		t, err = time.Parse("2006-01-02T15:04:05", timeStr)
 		if err != nil {
-			// Если оба формата не подходят, возвращаем текущее время
 			return time.Now()
 		}
 	}

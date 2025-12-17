@@ -467,8 +467,6 @@ func (s PaymentService) sendReceiptToMoynalog(purchase *database.Purchase) error
 		return fmt.Errorf("moynalog client not initialized")
 	}
 
-	// Подготовка данных для чека
-	// Используем описание из Юкассы, как в функции createYookasaInvoice
 	var monthString string
 	switch purchase.Month {
 	case 1:
@@ -481,7 +479,6 @@ func (s PaymentService) sendReceiptToMoynalog(purchase *database.Purchase) error
 	comment := fmt.Sprintf("Подписка на %d %s", purchase.Month, monthString)
 	amount := purchase.Amount
 
-	// Вызов метода для создания чека
 	_, err := s.moynalogClient.CreateIncome(amount, comment)
 	if err != nil {
 		return fmt.Errorf("failed to create income in Moynalog: %w", err)
