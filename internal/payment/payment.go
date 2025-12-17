@@ -124,6 +124,13 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 			err := s.sendReceiptToMoynalog(purchase)
 			if err != nil {
 				slog.Error("error sending receipt to Moynalog", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+				_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+					ChatID: config.GetAdminTelegramId(),
+					Text:   "Ошибка при отправки чека в Мой налог. Проверье логи.",
+				})
+				if err != nil {
+					slog.Error("error while sending moy nalog error message", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+				}
 			} else {
 				slog.Info("successfully sent receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID))
 			}
