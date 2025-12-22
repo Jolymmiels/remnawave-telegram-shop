@@ -481,7 +481,25 @@ func (s PaymentService) sendReceiptToMoynalog(purchase *database.Purchase) error
 
 	_, err := s.moynalogClient.CreateIncome(amount, comment)
 	if err != nil {
-		return fmt.Errorf("failed to create income in Moynalog: %w", err)
+		slog.Warn("first attempt to send receipt to Moynalog failed, retrying with re-authentication", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+
+		// Повторная аутентификация
+		newClient, authErr := moynalog.NewClient(config.MoynalogUrl(), config.MoynalogUsername(), config.MoynalogPassword())
+		if authErr != nil {
+			return fmt.Errorf("authentication failed after error: %w", authErr)
+		}
+
+		// Обновляем клиент в сервисе
+		s.moynalogClient = newClient
+
+		// Повторная попытка отправки чека
+		_, retryErr := s.moynalogClient.CreateIncome(amount, comment)
+		if retryErr != nil {
+			return fmt.Errorf("failed to create income in Moynalog after re-authentication: %w", retryErr)
+		}
+
+		slog.Info("Receipt successfully sent to Moynalog after re-authentication", "purchase_id", utils.MaskHalfInt64(purchase.ID))
+		return nil
 	}
 
 	slog.Info("Receipt sent to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", amount, "comment", comment)
