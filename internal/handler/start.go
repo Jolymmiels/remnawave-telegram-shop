@@ -105,12 +105,6 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	if err != nil {
 		slog.Error("Error sending /start message", "error", err)
 	}
-
-	if existingCustomer != nil {
-	    h.announcementService.SendActiveAnnouncementsToNewUser(ctx, update.Message.Chat.ID, existingCustomer.ID)
-	} else {
-	    slog.Error("Customer is nil when trying to send announcements")
-	}
 }
 
 func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {

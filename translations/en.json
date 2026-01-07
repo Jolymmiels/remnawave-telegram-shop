@@ -57,33 +57,5 @@
 	"month_september": "September",
 	"month_october": "October",
 	"month_november": "November",
-	"month_december": "December",
-	"announce_command_help": "❌ Invalid command format.\n\nUse: /announce \"title\" \"message\" [hours]\n\nExample: /announce \"Important Announcement\" \"Announcement text\" 24\n\nIf hours are not specified, the announcement will be permanent.",
-	"announce_parse_error": "❌ Error parsing command: %s",
-	"announce_created": "✅ Announcement created and sent to all users!",
-	"announce_created_message": "✅ Announcement created!\n\n📢 %s\n\n%s%s\n\n🆔 ID: %d",
-	"announce_expiry_time": "\n\n⏰ Expires in %s",
-	"announce_permanent": "\n\n⏰ Permanent announcement",
-
-	"announce_delete_help": "❌ Invalid command format.\n\nUse: /delete_announcement [ID]\n\nExample: /delete_announcement 123",
-	"announce_invalid_id": "❌ Invalid announcement ID",
-	"announce_delete_error": "❌ Error deleting announcement",
-	"announce_deleted": "✅ Announcement #%d has been deleted for all users",
-
-	"announce_list_error": "❌ Error retrieving announcements",
-	"announce_no_active": "📋 No active announcements",
-	"announce_active_list": "📋 <b>Active announcements:</b>\n\n",
-	"announce_list_message": "🆔 <b>ID:</b> %d\n📢 <b>Title:</b> %s\n📝 <b>Message:</b> %s\n📅 <b>Created:</b> %s",
-	"announce_expires_at": "\n⏰ <b>Expires:</b> %s\n",
-	"announce_permanent_status": "\n⏰ <b>Permanent</b>\n",
-
-	"announce_parse_error_missing_quotes": "quotation marks must be used for the title and message",
-	"announce_parse_error_empty_title": "title cannot be empty",
-	"announce_parse_error_empty_message": "message cannot be empty",
-	"announce_parse_error_invalid_hours": "invalid hours format: %s",
-
-	"announce_delete_all_start": "🔄 Starting deletion of all announcements...",
-	"announce_delete_all_complete": "✅ Announcement deletion completed\n\n📊 Statistics:\n✅ Successfully deleted: %d\n❌ Errors: %d",
-	"announce_delete_all_error": "❌ Error deleting all announcements",
-	"announce_delete_all_help": "❌ To delete all announcements, use the command /delete_all_announcements without additional parameters"
+	"month_december": "December"
 }

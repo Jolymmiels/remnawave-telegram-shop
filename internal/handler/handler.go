@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"remnawave-tg-shop-bot/internal/announcement"
 	"remnawave-tg-shop-bot/internal/cache"
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
@@ -12,37 +11,34 @@ import (
 )
 
 type Handler struct {
-	customerRepository  *database.CustomerRepository
-	purchaseRepository  *database.PurchaseRepository
-	cryptoPayClient     *cryptopay.Client
-	yookasaClient       *yookasa.Client
-	translation         *translation.Manager
-	paymentService      *payment.PaymentService
-	announcementService *announcement.AnnouncementService
-	syncService         *sync.SyncService
-	referralRepository  *database.ReferralRepository
-	cache               *cache.Cache
+	customerRepository *database.CustomerRepository
+	purchaseRepository *database.PurchaseRepository
+	cryptoPayClient    *cryptopay.Client
+	yookasaClient      *yookasa.Client
+	translation        *translation.Manager
+	paymentService     *payment.PaymentService
+	syncService        *sync.SyncService
+	referralRepository *database.ReferralRepository
+	cache              *cache.Cache
 }
 
 func NewHandler(
 	syncService *sync.SyncService,
 	paymentService *payment.PaymentService,
-	announcementService *announcement.AnnouncementService,
 	translation *translation.Manager,
 	customerRepository *database.CustomerRepository,
 	purchaseRepository *database.PurchaseRepository,
 	cryptoPayClient *cryptopay.Client,
 	yookasaClient *yookasa.Client, referralRepository *database.ReferralRepository, cache *cache.Cache) *Handler {
 	return &Handler{
-		syncService:         syncService,
-		paymentService:      paymentService,
-		customerRepository:  customerRepository,
-		purchaseRepository:  purchaseRepository,
-		cryptoPayClient:     cryptoPayClient,
-		yookasaClient:       yookasaClient,
-		translation:         translation,
-		announcementService: announcementService,
-		referralRepository:  referralRepository,
-		cache:               cache,
+		syncService:        syncService,
+		paymentService:     paymentService,
+		customerRepository: customerRepository,
+		purchaseRepository: purchaseRepository,
+		cryptoPayClient:    cryptoPayClient,
+		yookasaClient:      yookasaClient,
+		translation:        translation,
+		referralRepository: referralRepository,
+		cache:              cache,
 	}
 }
