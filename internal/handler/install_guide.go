@@ -28,13 +28,13 @@ func (h *Handler) InstallGuideCallbackHandler(ctx context.Context, b *bot.Bot, u
 			{Text: h.translation.GetText(langCode, "android_button"), URL: "https://play.google.com/store/apps/details?id=com.happproxy"},
 		},
 		{
-			{Text: h.translation.GetText(langCode, "windows_button"), URL: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x86.exe"},
+			{Text: h.translation.GetText(langCode, "windows_button"), URL: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/setup-Happ.x64.exe"},
 		},
 		{
 			{Text: h.translation.GetText(langCode, "macos_button"), URL: "https://apps.apple.com/ru/app/happ-proxy-utility-plus/id6746188973"},
 		},
 		{
-			{Text: h.translation.GetText(langCode, "linux_button"), URL: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/Happ.linux.x86.AppImage.zip"},
+			{Text: h.translation.GetText(langCode, "linux_button"), URL: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/Happ.linux.x64.deb"},
 		},
 		{
 			{Text: h.translation.GetText(langCode, "back_button"), CallbackData: backCallback},
