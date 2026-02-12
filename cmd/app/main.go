@@ -16,6 +16,7 @@ import (
 	"remnawave-tg-shop-bot/internal/moynalog"
 	"remnawave-tg-shop-bot/internal/notification"
 	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/platega"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/translation"
@@ -79,14 +80,28 @@ func main() {
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
 	yookasaClient := yookasa.NewClient(config.YookasaUrl(), config.YookasaShopId(), config.YookasaSecretKey())
+
+	var plategaClient *platega.Client
+	if config.IsPlategaEnabled() {
+		plategaClient = platega.NewClient(
+			config.PlategaMerchantID(),
+			config.PlategaAPIKey(),
+			config.PlategaReturnURL(),
+			config.PlategaFailedURL(),
+			config.PlategaCurrency(),
+			config.PlategaPaymentMethod(),
+		)
+		slog.Info("Platega client initialized")
+	}
+
 	b, err := bot.New(config.TelegramToken(), bot.WithWorkers(3))
 	if err != nil {
 		panic(err)
 	}
 
-	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, moynalogClient)
+	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, plategaClient, referralRepository, cache, moynalogClient)
 
-	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
+	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient, plategaClient)
 	if cronScheduler != nil {
 		cronScheduler.Start()
 		defer cronScheduler.Stop()
@@ -262,8 +277,9 @@ func setupInvoiceChecker(
 	purchaseRepository *database.PurchaseRepository,
 	cryptoPayClient *cryptopay.Client,
 	paymentService *payment.PaymentService,
-	yookasaClient *yookasa.Client) *cron.Cron {
-	if !config.IsYookasaEnabled() && !config.IsCryptoPayEnabled() {
+	yookasaClient *yookasa.Client,
+	plategaClient *platega.Client) *cron.Cron {
+	if !config.IsYookasaEnabled() && !config.IsCryptoPayEnabled() && !config.IsPlategaEnabled() {
 		return nil
 	}
 	c := cron.New(cron.WithSeconds())
@@ -283,6 +299,17 @@ func setupInvoiceChecker(
 		_, err := c.AddFunc("*/5 * * * * *", func() {
 			ctx := context.Background()
 			checkYookasaInvoice(ctx, purchaseRepository, yookasaClient, paymentService)
+		})
+
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if config.IsPlategaEnabled() && plategaClient != nil {
+		_, err := c.AddFunc("*/5 * * * * *", func() {
+			ctx := context.Background()
+			checkPlategaInvoice(ctx, purchaseRepository, plategaClient, paymentService)
 		})
 
 		if err != nil {
@@ -402,4 +429,76 @@ func checkCryptoPayInvoice(
 		}
 	}
 
+}
+
+func checkPlategaInvoice(
+	ctx context.Context,
+	purchaseRepository *database.PurchaseRepository,
+	plategaClient *platega.Client,
+	paymentService *payment.PaymentService,
+) {
+	pendingPurchases, err := purchaseRepository.FindByInvoiceTypeAndStatus(
+		ctx,
+		database.InvoiceTypePlatega,
+		database.PurchaseStatusPending,
+	)
+	if err != nil {
+		log.Printf("Error finding pending Platega purchases: %v", err)
+		return
+	}
+	if len(*pendingPurchases) == 0 {
+		return
+	}
+
+	for _, purchase := range *pendingPurchases {
+		if purchase.PlategaID == nil {
+			continue
+		}
+
+		if time.Since(purchase.CreatedAt) > 15*time.Minute {
+			err = purchaseRepository.UpdateFields(ctx, purchase.ID, map[string]interface{}{
+				"status": database.PurchaseStatusCancel,
+			})
+			if err != nil {
+				slog.Error("Error canceling expired Platega purchase", "purchaseId", purchase.ID, "error", err)
+			} else {
+				slog.Info("Platega purchase expired and canceled", "purchaseId", purchase.ID)
+			}
+			continue
+		}
+
+		transaction, err := plategaClient.GetTransaction(ctx, *purchase.PlategaID)
+		if err != nil {
+			slog.Error("Error getting Platega transaction", "transactionId", *purchase.PlategaID, "error", err)
+			continue
+		}
+
+		switch transaction.Status {
+		case platega.StatusConfirmed:
+			payload := strings.Split(transaction.Payload, "&")
+			var username string
+			for _, part := range payload {
+				if strings.HasPrefix(part, "username=") {
+					username = strings.TrimPrefix(part, "username=")
+					break
+				}
+			}
+			ctxWithUsername := context.WithValue(ctx, "username", username)
+			err = paymentService.ProcessPurchaseById(ctxWithUsername, purchase.ID)
+			if err != nil {
+				slog.Error("Error processing Platega invoice", "transactionId", *purchase.PlategaID, "purchaseId", purchase.ID, "error", err)
+			} else {
+				slog.Info("Platega invoice processed", "transactionId", *purchase.PlategaID, "purchaseId", purchase.ID)
+			}
+		case platega.StatusCanceled, platega.StatusChargebacked:
+			err = purchaseRepository.UpdateFields(ctx, purchase.ID, map[string]interface{}{
+				"status": database.PurchaseStatusCancel,
+			})
+			if err != nil {
+				slog.Error("Error canceling Platega purchase", "transactionId", *purchase.PlategaID, "purchaseId", purchase.ID, "error", err)
+			} else {
+				slog.Info("Platega purchase canceled", "transactionId", *purchase.PlategaID, "purchaseId", purchase.ID, "status", transaction.Status)
+			}
+		}
+	}
 }

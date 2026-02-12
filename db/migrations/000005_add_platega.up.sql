@@ -1,0 +1,2 @@
+ALTER TABLE purchase ADD COLUMN IF NOT EXISTS platega_url TEXT;
+ALTER TABLE purchase ADD COLUMN IF NOT EXISTS platega_id TEXT;

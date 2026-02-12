@@ -10,6 +10,7 @@ import (
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/moynalog"
+	"remnawave-tg-shop-bot/internal/platega"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/yookasa"
@@ -28,6 +29,7 @@ type PaymentService struct {
 	translation        *translation.Manager
 	cryptoPayClient    *cryptopay.Client
 	yookasaClient      *yookasa.Client
+	plategaClient      *platega.Client
 	referralRepository *database.ReferralRepository
 	cache              *cache.Cache
 	moynalogClient     *moynalog.Client
@@ -41,6 +43,7 @@ func NewPaymentService(
 	telegramBot *bot.Bot,
 	cryptoPayClient *cryptopay.Client,
 	yookasaClient *yookasa.Client,
+	plategaClient *platega.Client,
 	referralRepository *database.ReferralRepository,
 	cache *cache.Cache,
 	moynalogClient *moynalog.Client,
@@ -53,6 +56,7 @@ func NewPaymentService(
 		translation:        translation,
 		cryptoPayClient:    cryptoPayClient,
 		yookasaClient:      yookasaClient,
+		plategaClient:      plategaClient,
 		referralRepository: referralRepository,
 		cache:              cache,
 		moynalogClient:     moynalogClient,
@@ -222,6 +226,8 @@ func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, mont
 		return s.createTelegramInvoice(ctx, amount, months, customer)
 	case database.InvoiceTypeTribute:
 		return s.createTributeInvoice(ctx, amount, months, customer)
+	case database.InvoiceTypePlatega:
+		return s.createPlategaInvoice(ctx, amount, months, customer)
 	default:
 		return "", 0, fmt.Errorf("unknown invoice type: %s", invoiceType)
 	}
@@ -488,4 +494,51 @@ func (s PaymentService) sendReceiptToMoynalog(ctx context.Context, purchase *dat
 
 	slog.Info("Receipt sent to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID), "amount", amount, "comment", comment)
 	return nil
+}
+
+func (s PaymentService) createPlategaInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
+	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
+		InvoiceType: database.InvoiceTypePlatega,
+		Status:      database.PurchaseStatusNew,
+		Amount:      amount,
+		Currency:    "RUB",
+		CustomerID:  customer.ID,
+		Month:       months,
+	})
+	if err != nil {
+		slog.Error("Error creating purchase", "error", err)
+		return "", 0, err
+	}
+
+	var monthString string
+	switch months {
+	case 1:
+		monthString = "месяц"
+	case 3, 4:
+		monthString = "месяца"
+	default:
+		monthString = "месяцев"
+	}
+	description := fmt.Sprintf("Подписка на %d %s", months, monthString)
+	payload := fmt.Sprintf("purchaseId=%d&username=%s", purchaseId, ctx.Value("username"))
+
+	transaction, err := s.plategaClient.CreateTransaction(ctx, int(amount), description, payload)
+	if err != nil {
+		slog.Error("Error creating Platega transaction", "error", err)
+		return "", 0, err
+	}
+
+	updates := map[string]interface{}{
+		"platega_url": transaction.Redirect,
+		"platega_id":  transaction.GetTransactionID(),
+		"status":      database.PurchaseStatusPending,
+	}
+
+	err = s.purchaseRepository.UpdateFields(ctx, purchaseId, updates)
+	if err != nil {
+		slog.Error("Error updating purchase", "error", err)
+		return "", 0, err
+	}
+
+	return transaction.Redirect, purchaseId, nil
 }
