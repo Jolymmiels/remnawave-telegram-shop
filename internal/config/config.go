@@ -42,7 +42,11 @@ type config struct {
 	enableAutoPayment                                         bool
 	healthCheckPort                                           int
 	tributeWebhookUrl, tributeAPIKey, tributePaymentUrl       string
-	isWebAppLinkEnabled                                       bool
+	plategaMerchantID, plategaAPIKey, plategaCurrency          string
+	plategaReturnURL, plategaFailedURL                         string
+	plategaPaymentMethod                                       int
+	isPlategaEnabled                                           bool
+	isWebAppLinkEnabled                                        bool
 	daysInMonth                                               int
 	externalSquadUUID                                         uuid.UUID
 	blockedTelegramIds                                        map[int64]bool
@@ -296,6 +300,34 @@ func MoynalogPassword() string {
 
 func IsMoynalogEnabled() bool {
 	return conf.isMoynalogEnabled
+}
+
+func IsPlategaEnabled() bool {
+	return conf.isPlategaEnabled
+}
+
+func PlategaMerchantID() string {
+	return conf.plategaMerchantID
+}
+
+func PlategaAPIKey() string {
+	return conf.plategaAPIKey
+}
+
+func PlategaCurrency() string {
+	return conf.plategaCurrency
+}
+
+func PlategaReturnURL() string {
+	return conf.plategaReturnURL
+}
+
+func PlategaFailedURL() string {
+	return conf.plategaFailedURL
+}
+
+func PlategaPaymentMethod() int {
+	return conf.plategaPaymentMethod
 }
 
 func mustEnv(key string) string {
@@ -575,5 +607,15 @@ func InitConfig() {
 		conf.moynalogURL = envStringDefault("MOYNALOG_URL", "https://moynalog.ru/api/v1")
 		conf.moynalogUsername = mustEnv("MOYNALOG_USERNAME")
 		conf.moynalogPassword = mustEnv("MOYNALOG_PASSWORD")
+	}
+
+	conf.isPlategaEnabled = envBool("PLATEGA_ENABLED")
+	if conf.isPlategaEnabled {
+		conf.plategaMerchantID = mustEnv("PLATEGA_MERCHANT_ID")
+		conf.plategaAPIKey = mustEnv("PLATEGA_API_KEY")
+		conf.plategaCurrency = envStringDefault("PLATEGA_CURRENCY", "RUB")
+		conf.plategaReturnURL = mustEnv("PLATEGA_RETURN_URL")
+		conf.plategaFailedURL = envStringDefault("PLATEGA_FAILED_URL", conf.plategaReturnURL)
+		conf.plategaPaymentMethod = envIntDefault("PLATEGA_PAYMENT_METHOD", 2)
 	}
 }

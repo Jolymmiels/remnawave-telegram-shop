@@ -98,6 +98,12 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 		})
 	}
 
+	if config.IsPlategaEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			{Text: h.translation.GetText(langCode, "platega_button"), CallbackData: fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlatega, amount)},
+		})
+	}
+
 	if config.IsTelegramStarsEnabled() {
 		shouldShowStarsButton := true
 
