@@ -116,3 +116,18 @@ func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.Handle
 		next(ctx, b, update)
 	}
 }
+
+func (h Handler) AnswerCallbackQueryMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+		next(ctx, b, update)
+		if update.CallbackQuery != nil {
+			_, err := b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+				CallbackQueryID: update.CallbackQuery.ID,
+			})
+
+			if err != nil {
+				slog.Error("error answering callback query", "error", err)
+			}
+		}
+	}
+}
