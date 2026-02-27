@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"remnawave-tg-shop-bot/internal/config"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v4/pgxpool"
 	_ "github.com/lib/pq"
-	"log/slog"
-	"os"
-	"path/filepath"
-	"remnawave-tg-shop-bot/internal/config"
 )
 
 type MigrationConfig struct {
@@ -35,7 +36,7 @@ func RunMigrations(ctx context.Context, migrationConfig *MigrationConfig, pool *
 		return fmt.Errorf("migrations directory does not exist: %s", absPath)
 	}
 
-	db, err := sql.Open("postgres", config.DadaBaseUrl())
+	db, err := sql.Open("postgres", config.DataBaseUrl())
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
@@ -117,7 +118,7 @@ func RunMigrations(ctx context.Context, migrationConfig *MigrationConfig, pool *
 	return nil
 }
 func GetMigrationVersion(migrationsPath string) (uint, bool, error) {
-	db, err := sql.Open("postgres", config.DadaBaseUrl())
+	db, err := sql.Open("postgres", config.DataBaseUrl())
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to connect to database: %w", err)
 	}

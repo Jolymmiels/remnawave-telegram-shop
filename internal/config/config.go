@@ -206,7 +206,7 @@ func TelegramToken() string {
 func RemnawaveUrl() string {
 	return conf.remnawaveUrl
 }
-func DadaBaseUrl() string {
+func DataBaseUrl() string {
 	return conf.databaseURL
 }
 func RemnawaveToken() string {
