@@ -8,6 +8,10 @@ import (
 	"time"
 )
 
+type ContextKey string
+
+const ContextKeyUsername ContextKey = "username"
+
 func MaskHalfInt(input int) string {
 	return MaskHalf(strconv.Itoa(input))
 }

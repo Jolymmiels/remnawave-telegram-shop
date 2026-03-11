@@ -39,7 +39,7 @@ func RunMigrations(ctx context.Context, migrationConfig *MigrationConfig, pool *
 	if err != nil {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {
@@ -121,7 +121,7 @@ func GetMigrationVersion(migrationsPath string) (uint, bool, error) {
 	if err != nil {
 		return 0, false, fmt.Errorf("failed to connect to database: %w", err)
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	driver, err := postgres.WithInstance(db, &postgres.Config{})
 	if err != nil {

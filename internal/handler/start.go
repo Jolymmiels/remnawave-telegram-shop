@@ -39,8 +39,8 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 
 		if strings.Contains(update.Message.Text, "ref_") {
 			arg := strings.Split(update.Message.Text, " ")[1]
-			if strings.HasPrefix(arg, "ref_") {
-				code := strings.TrimPrefix(arg, "ref_")
+			if after, ok := strings.CutPrefix(arg, "ref_"); ok {
+				code := after
 				referrerId, err := strconv.ParseInt(code, 10, 64)
 				if err != nil {
 					slog.Error("error parsing referrer id", "error", err)

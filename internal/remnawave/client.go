@@ -177,7 +177,7 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 
 	squadId := make([]uuid.UUID, 0, len(selectedSquads))
 	for _, squad := range squads.GetInternalSquads() {
-		if selectedSquads != nil && len(selectedSquads) > 0 {
+		if len(selectedSquads) > 0 {
 			if _, isExist := selectedSquads[squad.UUID]; !isExist {
 				continue
 			} else {
@@ -208,8 +208,8 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 	}
 
 	var username string
-	if ctx.Value("username") != nil {
-		username = ctx.Value("username").(string)
+	if ctx.Value(utils.ContextKeyUsername) != nil {
+		username = ctx.Value(utils.ContextKeyUsername).(string)
 		userUpdate.Description = remapi.NewOptNilString(username)
 	} else {
 		username = ""
@@ -246,7 +246,7 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 
 	squadId := make([]uuid.UUID, 0, len(selectedSquads))
 	for _, squad := range squads.GetInternalSquads() {
-		if selectedSquads != nil && len(selectedSquads) > 0 {
+		if len(selectedSquads) > 0 {
 			if _, isExist := selectedSquads[squad.UUID]; !isExist {
 				continue
 			} else {
@@ -288,9 +288,9 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 	}
 
 	var tgUsername string
-	if ctx.Value("username") != nil {
-		tgUsername = ctx.Value("username").(string)
-		createUserRequestDto.Description = remapi.NewOptString(ctx.Value("username").(string))
+	if ctx.Value(utils.ContextKeyUsername) != nil {
+		tgUsername = ctx.Value(utils.ContextKeyUsername).(string)
+		createUserRequestDto.Description = remapi.NewOptString(ctx.Value(utils.ContextKeyUsername).(string))
 	} else {
 		tgUsername = ""
 	}

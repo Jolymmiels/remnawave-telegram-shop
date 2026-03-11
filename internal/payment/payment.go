@@ -177,7 +177,7 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return err
 	}
 	slog.Info("Granted referral bonus", "customer_id", utils.MaskHalfInt64(refereeCustomer.ID))
-	_, err = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
+	_, _ = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
 		ChatID:    refereeCustomer.TelegramID,
 		ParseMode: models.ParseModeHTML,
 		Text:      s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
@@ -292,7 +292,7 @@ func (s PaymentService) createCryptoInvoice(ctx context.Context, amount float64,
 		Fiat:           "RUB",
 		Amount:         fmt.Sprintf("%d", int(amount)),
 		AcceptedAssets: "USDT",
-		Payload:        fmt.Sprintf("purchaseId=%d&username=%s", purchaseId, ctx.Value("username")),
+		Payload:        fmt.Sprintf("purchaseId=%d&username=%s", purchaseId, ctx.Value(utils.ContextKeyUsername)),
 		Description:    fmt.Sprintf("Subscription on %d month", months),
 		PaidBtnName:    "callback",
 		PaidBtnUrl:     config.BotURL(),
@@ -376,8 +376,12 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 			},
 		},
 		Description: s.translation.GetText(customer.Language, "invoice_description"),
-		Payload:     fmt.Sprintf("%d&%s", purchaseId, ctx.Value("username")),
+		Payload:     fmt.Sprintf("%d&%s", purchaseId, ctx.Value(utils.ContextKeyUsername)),
 	})
+	if err != nil {
+		slog.Error("Error creating invoice link", "error", err)
+		return "", 0, err
+	}
 
 	updates := map[string]interface{}{
 		"status": database.PurchaseStatusPending,

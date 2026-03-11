@@ -76,16 +76,6 @@ var (
 		"spam":         true,
 		"report":       true,
 	}
-
-	dangerousKeywords = map[string]bool{
-		"telegram": true,
-		"service":  true,
-		"system":   true,
-		"security": true,
-		"safety":   true,
-		"support":  true,
-	}
-
 	dangerousCombinations = [][]string{
 		{"telegram", "support"},
 		{"telegram", "admin"},
@@ -261,9 +251,9 @@ func DisplayNameOrFallback(firstName *string, fallback string) string {
 // containsAlphanumeric checks if string contains any letter or digit
 func containsAlphanumeric(s string) bool {
 	for _, r := range s {
-		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || 
-		   (r >= '0' && r <= '9') || (r >= 'а' && r <= 'я') || 
-		   (r >= 'А' && r <= 'Я') {
+		if (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') || (r >= 'а' && r <= 'я') ||
+			(r >= 'А' && r <= 'Я') {
 			return true
 		}
 	}

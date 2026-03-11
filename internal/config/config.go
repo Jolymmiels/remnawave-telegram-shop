@@ -103,7 +103,7 @@ func GetWhitelistedTelegramIds() map[int64]bool {
 }
 
 func TrialInternalSquads() map[uuid.UUID]uuid.UUID {
-	if conf.trialInternalSquads != nil && len(conf.trialInternalSquads) > 0 {
+	if len(conf.trialInternalSquads) > 0 {
 		return conf.trialInternalSquads
 	}
 	return conf.squadUUIDs

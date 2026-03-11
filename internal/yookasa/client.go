@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/utils"
 	"strconv"
 	"time"
 
@@ -74,7 +75,7 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 	metaData := map[string]any{
 		"customerId": customerId,
 		"purchaseId": purchaseId,
-		"username":   ctx.Value("username"),
+		"username":   ctx.Value(utils.ContextKeyUsername),
 	}
 
 	paymentRequest := NewPaymentRequest(
@@ -116,7 +117,7 @@ func (c *Client) CreatePayment(ctx context.Context, request PaymentRequest, idem
 	if err != nil {
 		return nil, fmt.Errorf("failed to send request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
 		body, err := io.ReadAll(resp.Body)
@@ -154,7 +155,7 @@ func (c *Client) GetPayment(ctx context.Context, paymentID uuid.UUID) (*Payment,
 		if err != nil {
 			return nil, fmt.Errorf("failed to send request: %w", err)
 		}
-		defer resp.Body.Close()
+		defer func() { _ = resp.Body.Close() }()
 
 		if resp.StatusCode == http.StatusOK {
 			payment = new(Payment)

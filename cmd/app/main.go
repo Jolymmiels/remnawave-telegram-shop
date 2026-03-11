@@ -21,6 +21,7 @@ import (
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/tribute"
 	"remnawave-tg-shop-bot/internal/yookasa"
+	"remnawave-tg-shop-bot/utils"
 	"strconv"
 	"strings"
 	"time"
@@ -107,14 +108,14 @@ func main() {
 		panic(err)
 	}
 
-	_, err = b.SetChatMenuButton(ctx, &bot.SetChatMenuButtonParams{
+	_, _ = b.SetChatMenuButton(ctx, &bot.SetChatMenuButtonParams{
 		MenuButton: &models.MenuButtonCommands{
 			Type: models.MenuButtonTypeCommands,
 		},
 	})
 
 	// Set bot commands for Russian
-	_, err = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
+	_, _ = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
 		Commands: []models.BotCommand{
 			{Command: "start", Description: "Начать работу с ботом"},
 			{Command: "connect", Description: "Подключиться"},
@@ -123,7 +124,7 @@ func main() {
 	})
 
 	// Set bot commands for English
-	_, err = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
+	_, _ = b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
 		Commands: []models.BotCommand{
 			{Command: "start", Description: "Start using the bot"},
 			{Command: "connect", Description: "Connect"},
@@ -218,7 +219,7 @@ func fullHealthHandler(pool *pgxpool.Pool, rw *remnawave.Client) http.Handler {
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		fmt.Fprintf(w, `{"status":"%s","db":"%s","remnawave":"%s","time":"%s","version":"%s","commit":"%s","buildDate":"%s"}`,
+		_, _ = fmt.Fprintf(w, `{"status":"%s","db":"%s","remnawave":"%s","time":"%s","version":"%s","commit":"%s","buildDate":"%s"}`,
 			status["status"], status["db"], status["rw"], status["time"], Version, Commit, BuildDate)
 	})
 }
@@ -340,7 +341,7 @@ func checkYookasaInvoice(
 		if err != nil {
 			slog.Error("Error parsing purchaseId", "invoiceId", invoice.ID, "error", err)
 		}
-		ctxWithValue := context.WithValue(ctx, "username", invoice.Metadata["username"])
+		ctxWithValue := context.WithValue(ctx, utils.ContextKeyUsername, invoice.Metadata["username"])
 		err = paymentService.ProcessPurchaseById(ctxWithValue, int64(purchaseId))
 		if err != nil {
 			slog.Error("Error processing invoice", "invoiceId", invoice.ID, "purchaseId", purchaseId, "error", err)
@@ -393,8 +394,12 @@ func checkCryptoPayInvoice(
 		if invoice.InvoiceID != nil && invoice.IsPaid() {
 			payload := strings.Split(invoice.Payload, "&")
 			purchaseID, err := strconv.Atoi(strings.Split(payload[0], "=")[1])
+			if err != nil {
+				slog.Error("Error parsing purchaseId from payload", "payload", invoice.Payload, "error", err)
+				continue
+			}
 			username := strings.Split(payload[1], "=")[1]
-			ctxWithUsername := context.WithValue(ctx, "username", username)
+			ctxWithUsername := context.WithValue(ctx, utils.ContextKeyUsername, username)
 			err = paymentService.ProcessPurchaseById(ctxWithUsername, int64(purchaseID))
 			if err != nil {
 				slog.Error("Error processing invoice", "invoiceId", invoice.InvoiceID, "error", err)

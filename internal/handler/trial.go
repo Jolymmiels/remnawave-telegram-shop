@@ -61,8 +61,11 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 		return
 	}
 	callback := update.CallbackQuery.Message.Message
-	ctxWithUsername := context.WithValue(ctx, "username", update.CallbackQuery.From.Username)
-	_, err = h.paymentService.ActivateTrial(ctxWithUsername, update.CallbackQuery.From.ID)
+	ctxWithUsername := context.WithValue(ctx, utils.ContextKeyUsername, update.CallbackQuery.From.Username)
+	if _, err = h.paymentService.ActivateTrial(ctxWithUsername, update.CallbackQuery.From.ID); err != nil {
+		slog.Error("Error activating trial", "error", err)
+		return
+	}
 	langCode := update.CallbackQuery.From.LanguageCode
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
 		ChatID:      callback.Chat.ID,

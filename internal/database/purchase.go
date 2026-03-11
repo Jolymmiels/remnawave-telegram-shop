@@ -302,7 +302,6 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 	return p, nil
 }
 
-
 func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.Context, customerID int64) (*Purchase, error) {
 	query := sq.Select("*").
 		From("purchase").

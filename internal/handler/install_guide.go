@@ -49,6 +49,6 @@ func (h *Handler) InstallGuideCallbackHandler(ctx context.Context, b *bot.Bot, u
 		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: keyboard},
 	})
 	if err != nil {
-		slog.Error("Error sending referral message", err)
+		slog.Error("Error sending referral message", "error", err)
 	}
 }

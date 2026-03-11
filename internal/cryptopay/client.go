@@ -46,7 +46,7 @@ func (c *Client) CreateInvoice(invoiceReq *InvoiceRequest) (*InvoiceResponse, er
 	if err != nil {
 		return nil, fmt.Errorf("error while making invoice req: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -109,7 +109,7 @@ func (c *Client) GetInvoices(status, fiat, asset, invoiceIds string, offset, lim
 	if err != nil {
 		return nil, fmt.Errorf("error while making query: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
