@@ -12,7 +12,7 @@
 	"card_button": "💳 Bank card",
 	"pay_button": "💸 Pay",
 	"subscription_active": "Your subscription is active until: <b>%s</b>",
-	"subscription_link": "\n\n🔗 <b>Your connection link:</b>\n\n<code>%s</code>\n\n💡 <i>Click the link above to copy</i>\n\n📲 For installation guide click the button below",
+	"subscription_link": "\n\n🔗 <b>Your connection link:</b>\n\n<code>%s</code>\n\n💡 <i>Click the link above to copy</i>",
 	"no_subscription": "You have no active subscription",
 	"subscription_activated": "🎉 Your subscription has been successfully activated!\n\n🔒 Now you can enjoy full access to wowblvck VPN without any restrictions",
 	"install_guide_button": "📲 Installation guide",

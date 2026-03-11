@@ -128,14 +128,11 @@ func buildConnectText(customer *database.Customer, langCode string) string {
 			formattedDate := utils.FormatDateByLanguage(*customer.ExpireAt, langCode)
 
 			subscriptionActiveText := tm.GetText(langCode, "subscription_active")
-			info.WriteString(fmt.Sprintf(subscriptionActiveText, formattedDate))
+			fmt.Fprintf(&info, subscriptionActiveText, formattedDate)
 
 			if customer.SubscriptionLink != nil && *customer.SubscriptionLink != "" {
-				if config.GetMiniAppURL() != "" || config.IsWepAppLinkEnabled() {
-				} else {
-					subscriptionLinkText := tm.GetText(langCode, "subscription_link")
-					info.WriteString(fmt.Sprintf(subscriptionLinkText, *customer.SubscriptionLink))
-				}
+				subscriptionLinkText := tm.GetText(langCode, "subscription_link")
+				fmt.Fprintf(&info, subscriptionLinkText, *customer.SubscriptionLink)
 			}
 		} else {
 			noSubscriptionText := tm.GetText(langCode, "no_subscription")
