@@ -1,14 +1,14 @@
 package handler
 
 const (
-	CallbackBuy           = "buy"
-	CallbackSell          = "sell"
-	CallbackStart         = "start"
-	CallbackConnect       = "connect"
-	CallbackPayment       = "payment"
-	CallbackTrial         = "trial"
-	CallbackActivateTrial = "activate_trial"
-	CallbackReferral      = "referral"
-	CallbackInstallGuide        = "install_guide"
-	CallbackCheckSubscription   = "check_subscription"
+	CallbackBuy               = "buy"
+	CallbackSell              = "sell"
+	CallbackStart             = "start"
+	CallbackConnect           = "connect"
+	CallbackPayment           = "payment"
+	CallbackTrial             = "trial"
+	CallbackActivateTrial     = "activate_trial"
+	CallbackReferral          = "referral"
+	CallbackInstallGuide      = "install_guide"
+	CallbackCheckSubscription = "check_subscription"
 )
