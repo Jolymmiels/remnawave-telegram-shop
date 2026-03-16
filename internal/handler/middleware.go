@@ -167,6 +167,12 @@ func (h Handler) CheckChannelSubscriptionMiddleware(next bot.HandlerFunc) bot.Ha
 						URL:  config.ChannelURL(),
 					},
 				},
+				{
+					{
+						Text:         h.translation.GetText(langCode, "check_subscription_button"),
+						CallbackData: CallbackCheckSubscription,
+					},
+				},
 			},
 		}
 

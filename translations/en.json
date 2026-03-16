@@ -41,6 +41,7 @@
 	"access_denied": "⚠️ Access denied. Please update your profile information.",
 	"not_subscribed": "📢 To use the bot, you need to subscribe to our channel.",
 	"subscribe_button": "📢 Subscribe",
+	"check_subscription_button": "✅ I've subscribed",
 	"install_guide_title": "📲 <b>Installation Guide</b>",
 	"install_guide_text": "To connect to the VPN, use the <b>Happ Proxy</b> app\n\n<b>Connection steps:</b>\n1️⃣ Download the app for your device\n2️⃣ Open the app\n3️⃣ Click \"Add configuration\"\n4️⃣ Paste your connection link\n5️⃣ Click the \"Connect\" button\n\n📱 <b>Select your device:</b>",
 	"ios_button": "📱 iOS (iPhone/iPad)",

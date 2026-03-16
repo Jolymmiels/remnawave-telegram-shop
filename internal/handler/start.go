@@ -107,6 +107,53 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 }
 
+func (h Handler) CheckSubscriptionCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	callback := update.CallbackQuery
+	langCode := callback.From.LanguageCode
+
+	member, err := b.GetChatMember(ctx, &bot.GetChatMemberParams{
+		ChatID: config.RequiredChannelID(),
+		UserID: callback.From.ID,
+	})
+	if err != nil {
+		slog.Error("error checking channel subscription", "error", err)
+		return
+	}
+
+	if member.Type != models.ChatMemberTypeMember &&
+		member.Type != models.ChatMemberTypeOwner &&
+		member.Type != models.ChatMemberTypeAdministrator &&
+		member.Type != models.ChatMemberTypeRestricted {
+		_, _ = b.AnswerCallbackQuery(ctx, &bot.AnswerCallbackQueryParams{
+			CallbackQueryID: callback.ID,
+			Text:            h.translation.GetText(langCode, "not_subscribed"),
+			ShowAlert:       true,
+		})
+		return
+	}
+
+	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, callback.From.ID)
+	if err != nil {
+		slog.Error("error finding customer by telegram id", "error", err)
+		return
+	}
+
+	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
+
+	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+		ChatID:    callback.Message.Message.Chat.ID,
+		MessageID: callback.Message.Message.ID,
+		ParseMode: models.ParseModeHTML,
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: inlineKeyboard,
+		},
+		Text: h.translation.GetText(langCode, "greeting"),
+	})
+	if err != nil {
+		slog.Error("error editing message after subscription check", "error", err)
+	}
+}
+
 func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
