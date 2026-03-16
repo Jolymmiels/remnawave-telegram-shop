@@ -26,6 +26,7 @@ type config struct {
 	trafficLimit, trialTrafficLimit                           int
 	feedbackURL                                               string
 	channelURL                                                string
+	requiredChannelID                                         string
 	serverStatusURL                                           string
 	supportURL                                                string
 	tosURL                                                    string
@@ -129,6 +130,14 @@ func FeedbackURL() string {
 
 func ChannelURL() string {
 	return conf.channelURL
+}
+
+func RequiredChannelID() string {
+	return conf.requiredChannelID
+}
+
+func IsChannelSubscriptionRequired() bool {
+	return conf.requiredChannelID != ""
 }
 
 func ServerStatusURL() string {
@@ -446,6 +455,7 @@ func InitConfig() {
 	conf.supportURL = os.Getenv("SUPPORT_URL")
 	conf.feedbackURL = os.Getenv("FEEDBACK_URL")
 	conf.channelURL = os.Getenv("CHANNEL_URL")
+	conf.requiredChannelID = os.Getenv("REQUIRED_CHANNEL_ID")
 	conf.tosURL = os.Getenv("TOS_URL")
 
 	conf.squadUUIDs = func() map[uuid.UUID]uuid.UUID {

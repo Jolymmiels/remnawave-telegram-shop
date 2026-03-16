@@ -117,6 +117,71 @@ func (h Handler) SuspiciousUserFilterMiddleware(next bot.HandlerFunc) bot.Handle
 	}
 }
 
+func (h Handler) CheckChannelSubscriptionMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
+	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
+		if !config.IsChannelSubscriptionRequired() {
+			next(ctx, b, update)
+			return
+		}
+
+		var userID int64
+		var chatID int64
+		var langCode string
+
+		if update.Message != nil {
+			userID = update.Message.From.ID
+			chatID = update.Message.Chat.ID
+			langCode = update.Message.From.LanguageCode
+		} else if update.CallbackQuery != nil {
+			userID = update.CallbackQuery.From.ID
+			chatID = update.CallbackQuery.Message.Message.Chat.ID
+			langCode = update.CallbackQuery.From.LanguageCode
+		} else {
+			next(ctx, b, update)
+			return
+		}
+
+		member, err := b.GetChatMember(ctx, &bot.GetChatMemberParams{
+			ChatID: config.RequiredChannelID(),
+			UserID: userID,
+		})
+		if err != nil {
+			slog.Error("error checking channel subscription", "error", err)
+			next(ctx, b, update)
+			return
+		}
+
+		if member.Type == models.ChatMemberTypeMember ||
+			member.Type == models.ChatMemberTypeOwner ||
+			member.Type == models.ChatMemberTypeAdministrator ||
+			member.Type == models.ChatMemberTypeRestricted {
+			next(ctx, b, update)
+			return
+		}
+
+		kb := &models.InlineKeyboardMarkup{
+			InlineKeyboard: [][]models.InlineKeyboardButton{
+				{
+					{
+						Text: h.translation.GetText(langCode, "subscribe_button"),
+						URL:  config.ChannelURL(),
+					},
+				},
+			},
+		}
+
+		_, err = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:      chatID,
+			Text:        h.translation.GetText(langCode, "not_subscribed"),
+			ParseMode:   models.ParseModeHTML,
+			ReplyMarkup: kb,
+		})
+		if err != nil {
+			slog.Error("error sending not subscribed message", "error", err)
+		}
+	}
+}
+
 func (h Handler) AnswerCallbackQueryMiddleware(next bot.HandlerFunc) bot.HandlerFunc {
 	return func(ctx context.Context, b *bot.Bot, update *models.Update) {
 		next(ctx, b, update)

@@ -134,22 +134,22 @@ func main() {
 
 	config.SetBotURL(fmt.Sprintf("https://t.me/%s", me.Username))
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, h.StartCommandHandler, h.SuspiciousUserFilterMiddleware)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/connect", bot.MatchTypeExact, h.ConnectCommandHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypePrefix, h.StartCommandHandler, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/connect", bot.MatchTypeExact, h.ConnectCommandHandler, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/sync", bot.MatchTypeExact, h.SyncUsersCommandHandler, isAdminMiddleware)
 
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
-	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackInstallGuide, bot.MatchTypePrefix, h.InstallGuideCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackReferral, bot.MatchTypeExact, h.ReferralCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackBuy, bot.MatchTypeExact, h.BuyCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackTrial, bot.MatchTypeExact, h.TrialCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackActivateTrial, bot.MatchTypeExact, h.ActivateTrialCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackStart, bot.MatchTypeExact, h.StartCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackSell, bot.MatchTypePrefix, h.SellCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackConnect, bot.MatchTypeExact, h.ConnectCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackPayment, bot.MatchTypePrefix, h.PaymentCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	b.RegisterHandler(bot.HandlerTypeCallbackQueryData, handler.CallbackInstallGuide, bot.MatchTypePrefix, h.InstallGuideCallbackHandler, h.AnswerCallbackQueryMiddleware, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.PreCheckoutQuery != nil
-	}, h.PreCheckoutCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CreateCustomerIfNotExistMiddleware)
+	}, h.PreCheckoutCallbackHandler, h.SuspiciousUserFilterMiddleware, h.CheckChannelSubscriptionMiddleware, h.CreateCustomerIfNotExistMiddleware)
 
 	b.RegisterHandlerMatchFunc(func(update *models.Update) bool {
 		return update.Message != nil && update.Message.SuccessfulPayment != nil
