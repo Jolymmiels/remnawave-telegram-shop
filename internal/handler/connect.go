@@ -32,13 +32,13 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 
 	var markup [][]models.InlineKeyboardButton
 	if config.GetMiniAppURL() != "" {
-		markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
+		markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"), Style: "success",
 			WebApp: &models.WebAppInfo{
 				URL: config.GetMiniAppURL(),
 			}}})
 	} else if config.IsWepAppLinkEnabled() {
 		if customer.SubscriptionLink != nil && customer.ExpireAt.After(time.Now()) {
-			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
+			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"), Style: "success",
 				WebApp: &models.WebAppInfo{
 					URL: *customer.SubscriptionLink,
 				}}})
@@ -82,20 +82,20 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 
 	var markup [][]models.InlineKeyboardButton
 	if config.GetMiniAppURL() != "" {
-		markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
+		markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"), Style: "success",
 			WebApp: &models.WebAppInfo{
 				URL: config.GetMiniAppURL(),
 			}}})
 	} else if config.IsWepAppLinkEnabled() {
 		if customer.SubscriptionLink != nil && customer.ExpireAt.After(time.Now()) {
-			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"),
+			markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "connect_button"), Style: "success",
 				WebApp: &models.WebAppInfo{
 					URL: *customer.SubscriptionLink,
 				}}})
 		}
 	}
-	markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "install_guide_button"), CallbackData: fmt.Sprintf("%s?from=%s", CallbackInstallGuide, CallbackConnect)}})
-	markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart}})
+	markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "install_guide_button"), CallbackData: fmt.Sprintf("%s?from=%s", CallbackInstallGuide, CallbackConnect), Style: "primary"}})
+	markup = append(markup, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart, Style: "danger"}})
 
 	isDisabled := true
 	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{

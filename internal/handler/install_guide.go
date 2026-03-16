@@ -37,7 +37,7 @@ func (h *Handler) InstallGuideCallbackHandler(ctx context.Context, b *bot.Bot, u
 			{Text: h.translation.GetText(langCode, "linux_button"), URL: "https://github.com/Happ-proxy/happ-desktop/releases/latest/download/Happ.linux.x64.deb"},
 		},
 		{
-			{Text: h.translation.GetText(langCode, "back_button"), CallbackData: backCallback},
+			{Text: h.translation.GetText(langCode, "back_button"), Style: "danger", CallbackData: backCallback},
 		},
 	}
 

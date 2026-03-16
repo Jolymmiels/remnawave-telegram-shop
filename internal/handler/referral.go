@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 )
 
 func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -29,10 +30,10 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 		ParseMode: models.ParseModeHTML,
 		ReplyMarkup: models.InlineKeyboardMarkup{InlineKeyboard: [][]models.InlineKeyboardButton{
 			{
-				{Text: h.translation.GetText(langCode, "share_referral_button"), URL: refLink},
+				{Text: h.translation.GetText(langCode, "share_referral_button"), URL: refLink, Style: "success"},
 			},
 			{
-				{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+				{Text: h.translation.GetText(langCode, "back_button"), Style: "danger", CallbackData: CallbackStart},
 			},
 		}},
 	})

@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
@@ -25,6 +26,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	if config.Price1() > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
 			Text:         h.translation.GetText(langCode, "month_1"),
+			Style:        "primary",
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 1, config.Price1()),
 		})
 	}
@@ -32,6 +34,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	if config.Price3() > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
 			Text:         h.translation.GetText(langCode, "month_3"),
+			Style:        "primary",
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 3, config.Price3()),
 		})
 	}
@@ -39,6 +42,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	if config.Price6() > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
 			Text:         h.translation.GetText(langCode, "month_6"),
+			Style:        "primary",
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 6, config.Price6()),
 		})
 	}
@@ -46,6 +50,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	if config.Price12() > 0 {
 		priceButtons = append(priceButtons, models.InlineKeyboardButton{
 			Text:         h.translation.GetText(langCode, "month_12"),
+			Style:        "primary",
 			CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, 12, config.Price12()),
 		})
 	}
@@ -60,7 +65,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 	}
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
-		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackStart},
+		{Text: h.translation.GetText(langCode, "back_button"), Style: "danger", CallbackData: CallbackStart},
 	})
 
 	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
@@ -134,7 +139,7 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 	}
 
 	keyboard = append(keyboard, []models.InlineKeyboardButton{
-		{Text: h.translation.GetText(langCode, "back_button"), CallbackData: CallbackBuy},
+		{Text: h.translation.GetText(langCode, "back_button"), Style: "danger", CallbackData: CallbackBuy},
 	})
 
 	_, err := b.EditMessageReplyMarkup(ctx, &bot.EditMessageReplyMarkupParams{
@@ -195,8 +200,8 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 		ReplyMarkup: models.InlineKeyboardMarkup{
 			InlineKeyboard: [][]models.InlineKeyboardButton{
 				{
-					{Text: h.translation.GetText(langCode, "pay_button"), URL: paymentURL},
-					{Text: h.translation.GetText(langCode, "back_button"), CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, price)},
+					{Text: h.translation.GetText(langCode, "pay_button"), URL: paymentURL, Style: "primary"},
+					{Text: h.translation.GetText(langCode, "back_button"), Style: "danger", CallbackData: fmt.Sprintf("%s?month=%d&amount=%d", CallbackSell, month, price)},
 				},
 			},
 		},

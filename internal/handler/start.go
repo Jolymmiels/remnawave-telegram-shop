@@ -188,13 +188,13 @@ func (h Handler) resolveConnectButton(lang string) []models.InlineKeyboardButton
 
 	if config.GetMiniAppURL() != "" {
 		inlineKeyboard = []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(lang, "connect_button"), WebApp: &models.WebAppInfo{
+			{Text: h.translation.GetText(lang, "connect_button"), Style: "success", WebApp: &models.WebAppInfo{
 				URL: config.GetMiniAppURL(),
 			}},
 		}
 	} else {
 		inlineKeyboard = []models.InlineKeyboardButton{
-			{Text: h.translation.GetText(lang, "connect_button"), CallbackData: CallbackConnect},
+			{Text: h.translation.GetText(lang, "connect_button"), Style: "success", CallbackData: CallbackConnect},
 		}
 	}
 	return inlineKeyboard
@@ -204,10 +204,10 @@ func (h Handler) buildStartKeyboard(existingCustomer *database.Customer, langCod
 	var inlineKeyboard [][]models.InlineKeyboardButton
 
 	if existingCustomer.SubscriptionLink == nil && config.TrialDays() > 0 {
-		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "trial_button"), CallbackData: CallbackTrial}})
+		inlineKeyboard = append(inlineKeyboard, []models.InlineKeyboardButton{{Text: h.translation.GetText(langCode, "trial_button"), CallbackData: CallbackTrial, Style: "danger"}})
 	}
 
-	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{{{Text: h.translation.GetText(langCode, "buy_button"), CallbackData: CallbackBuy}}}...)
+	inlineKeyboard = append(inlineKeyboard, [][]models.InlineKeyboardButton{{{Text: h.translation.GetText(langCode, "buy_button"), Style: "primary", CallbackData: CallbackBuy}}}...)
 
 	if existingCustomer.SubscriptionLink != nil && existingCustomer.ExpireAt.After(time.Now()) {
 		inlineKeyboard = append(inlineKeyboard, h.resolveConnectButton(langCode))
