@@ -65,17 +65,17 @@ func (r *Client) Ping(ctx context.Context) error {
 	return err
 }
 
-func (r *Client) GetUsers(ctx context.Context) (*[]remapi.User, error) {
+func (r *Client) GetUsers(ctx context.Context) (*[]remapi.UserItemInfo, error) {
 	pager := remapi.NewPaginationHelper(250)
-	users := make([]remapi.User, 0)
+	users := make([]remapi.UserItemInfo, 0)
 
 	for {
-		resp, err := r.client.Users().GetAllUsers(ctx, float64(pager.Limit), float64(pager.Offset))
+		resp, err := r.client.Users().GetAllUsers(ctx, pager.Limit, pager.Offset)
 		if err != nil {
 			return nil, err
 		}
 
-		response := resp.(*remapi.GetAllUsersResponseDto).GetResponse()
+		response := resp.(*remapi.GetAllUsersResponse).GetResponse()
 		users = append(users, response.Users...)
 
 		if len(response.Users) < pager.Limit {
@@ -107,7 +107,7 @@ func (r *Client) DecreaseSubscription(ctx context.Context, telegramId int64, tra
 		return nil, fmt.Errorf("user with telegramId %d not found", telegramId)
 	}
 
-	var existingUser *remapi.User
+	var existingUser *remapi.UserItemInfo
 	suffix := fmt.Sprintf("_%d", telegramId)
 
 	for i := range users {
@@ -129,7 +129,7 @@ func (r *Client) DecreaseSubscription(ctx context.Context, telegramId int64, tra
 	return &updated.ExpireAt, nil
 }
 
-func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.User, error) {
+func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.UserItemInfo, error) {
 	resp, err := r.client.Users().GetUserByTelegramId(ctx, strconv.FormatInt(telegramId, 10))
 	if err != nil {
 		return nil, err
@@ -145,7 +145,7 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 		return r.createUser(ctx, customerId, telegramId, trafficLimit, days, isTrialUser)
 	}
 
-	var existingUser *remapi.User
+	var existingUser *remapi.UserItemInfo
 	suffix := fmt.Sprintf("_%d", telegramId)
 
 	for i := range users {
@@ -162,7 +162,7 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 	return r.updateUser(ctx, existingUser, trafficLimit, days)
 }
 
-func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, trafficLimit int, days int) (*remapi.User, error) {
+func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UserItemInfo, trafficLimit int, days int) (*remapi.UserItemInfo, error) {
 
 	newExpire := getNewExpire(days, existingUser.ExpireAt)
 
@@ -188,13 +188,13 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 		}
 	}
 
-	userUpdate := &remapi.UpdateUserRequestDto{
+	userUpdate := &remapi.UpdateUserRequest{
 		UUID:                 remapi.NewOptUUID(existingUser.UUID),
 		ExpireAt:             remapi.NewOptDateTime(newExpire),
-		Status:               remapi.NewOptUpdateUserRequestDtoStatus(remapi.UpdateUserRequestDtoStatusACTIVE),
+		Status:               remapi.NewOptUpdateUserRequestStatus(remapi.UpdateUserRequestStatusACTIVE),
 		TrafficLimitBytes:    remapi.NewOptInt(trafficLimit),
 		ActiveInternalSquads: squadId,
-		TrafficLimitStrategy: remapi.NewOptUpdateUserRequestDtoTrafficLimitStrategy(getUpdateStrategy(config.TrafficLimitResetStrategy())),
+		TrafficLimitStrategy: remapi.NewOptUpdateUserRequestTrafficLimitStrategy(getUpdateStrategy(config.TrafficLimitResetStrategy())),
 	}
 
 	externalSquad := config.ExternalSquadUUID()
@@ -225,10 +225,11 @@ func (r *Client) updateUser(ctx context.Context, existingUser *remapi.User, traf
 
 	tgid, _ := existingUser.TelegramId.Get()
 	slog.Info("updated user", "telegramId", utils.MaskHalf(strconv.Itoa(tgid)), "username", utils.MaskHalf(username), "days", days)
-	return &updateUser.(*remapi.UserResponse).Response, nil
+	resp2 := updateUser.(*remapi.UserResponse).Response
+	return &resp2, nil
 }
 
-func (r *Client) createUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.User, error) {
+func (r *Client) createUser(ctx context.Context, customerId int64, telegramId int64, trafficLimit int, days int, isTrialUser bool) (*remapi.UserItemInfo, error) {
 	expireAt := time.Now().UTC().AddDate(0, 0, days)
 	username := generateUsername(customerId, telegramId)
 
@@ -267,13 +268,13 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		strategy = config.TrialTrafficLimitResetStrategy()
 	}
 
-	createUserRequestDto := remapi.CreateUserRequestDto{
+	createUserRequestDto := remapi.CreateUserRequest{
 		Username:             username,
 		ActiveInternalSquads: squadId,
-		Status:               remapi.NewOptCreateUserRequestDtoStatus(remapi.CreateUserRequestDtoStatusACTIVE),
+		Status:               remapi.NewOptCreateUserRequestStatus(remapi.CreateUserRequestStatusACTIVE),
 		TelegramId:           remapi.NewOptNilInt(int(telegramId)),
 		ExpireAt:             expireAt,
-		TrafficLimitStrategy: remapi.NewOptCreateUserRequestDtoTrafficLimitStrategy(getCreateStrategy(strategy)),
+		TrafficLimitStrategy: remapi.NewOptCreateUserRequestTrafficLimitStrategy(getCreateStrategy(strategy)),
 		TrafficLimitBytes:    remapi.NewOptInt(trafficLimit),
 	}
 	if externalSquad != uuid.Nil {
@@ -300,7 +301,8 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		return nil, err
 	}
 	slog.Info("created user", "telegramId", utils.MaskHalf(strconv.FormatInt(telegramId, 10)), "username", utils.MaskHalf(tgUsername), "days", days)
-	return &userCreate.(*remapi.UserResponse).Response, nil
+	resp2 := userCreate.(*remapi.UserResponse).Response
+	return &resp2, nil
 }
 
 func generateUsername(customerId int64, telegramId int64) string {
@@ -323,28 +325,28 @@ func getNewExpire(daysToAdd int, currentExpire time.Time) time.Time {
 	return currentExpire.AddDate(0, 0, daysToAdd)
 }
 
-func getCreateStrategy(s string) remapi.CreateUserRequestDtoTrafficLimitStrategy {
+func getCreateStrategy(s string) remapi.CreateUserRequestTrafficLimitStrategy {
 	switch s {
 	case "DAY":
-		return remapi.CreateUserRequestDtoTrafficLimitStrategyDAY
+		return remapi.CreateUserRequestTrafficLimitStrategyDAY
 	case "WEEK":
-		return remapi.CreateUserRequestDtoTrafficLimitStrategyWEEK
+		return remapi.CreateUserRequestTrafficLimitStrategyWEEK
 	case "NO_RESET":
-		return remapi.CreateUserRequestDtoTrafficLimitStrategyNORESET
+		return remapi.CreateUserRequestTrafficLimitStrategyNORESET
 	default:
-		return remapi.CreateUserRequestDtoTrafficLimitStrategyMONTH
+		return remapi.CreateUserRequestTrafficLimitStrategyMONTH
 	}
 }
 
-func getUpdateStrategy(s string) remapi.UpdateUserRequestDtoTrafficLimitStrategy {
+func getUpdateStrategy(s string) remapi.UpdateUserRequestTrafficLimitStrategy {
 	switch s {
 	case "DAY":
-		return remapi.UpdateUserRequestDtoTrafficLimitStrategyDAY
+		return remapi.UpdateUserRequestTrafficLimitStrategyDAY
 	case "WEEK":
-		return remapi.UpdateUserRequestDtoTrafficLimitStrategyWEEK
+		return remapi.UpdateUserRequestTrafficLimitStrategyWEEK
 	case "NO_RESET":
-		return remapi.UpdateUserRequestDtoTrafficLimitStrategyNORESET
+		return remapi.UpdateUserRequestTrafficLimitStrategyNORESET
 	default:
-		return remapi.UpdateUserRequestDtoTrafficLimitStrategyMONTH
+		return remapi.UpdateUserRequestTrafficLimitStrategyMONTH
 	}
 }
