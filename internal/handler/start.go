@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -21,6 +22,14 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	ctxWithTime, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	langCode := update.Message.From.LanguageCode
+
+	if startArg := parseStartArgument(update.Message.Text); startArg != "" {
+		if token, ok := strings.CutPrefix(startArg, "link_"); ok {
+			h.handleTelegramLinkStart(ctxWithTime, b, update, token, langCode)
+			return
+		}
+	}
+
 	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("error finding customer by telegram id", "error", err)
@@ -37,9 +46,8 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 			return
 		}
 
-		if strings.Contains(update.Message.Text, "ref_") {
-			arg := strings.Split(update.Message.Text, " ")[1]
-			if after, ok := strings.CutPrefix(arg, "ref_"); ok {
+		if startArg := parseStartArgument(update.Message.Text); startArg != "" {
+			if after, ok := strings.CutPrefix(startArg, "ref_"); ok {
 				code := after
 				referrerId, err := strconv.ParseInt(code, 10, 64)
 				if err != nil {
@@ -104,6 +112,72 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	})
 	if err != nil {
 		slog.Error("Error sending /start message", "error", err)
+	}
+}
+
+func parseStartArgument(text string) string {
+	parts := strings.Fields(text)
+	if len(parts) < 2 {
+		return ""
+	}
+
+	return parts[1]
+}
+
+func (h Handler) handleTelegramLinkStart(
+	ctx context.Context,
+	b *bot.Bot,
+	update *models.Update,
+	token string,
+	langCode string,
+) {
+	if h.telegramLinkService == nil {
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   h.translation.GetText(langCode, "telegram_link_invalid"),
+		})
+		return
+	}
+
+	customer, err := h.telegramLinkService.ConsumeLink(ctx, token, update.Message.Chat.ID, langCode)
+	if err != nil {
+		textKey := "telegram_link_invalid"
+		switch {
+		case errors.Is(err, database.ErrTelegramAlreadyLinked):
+			textKey = "telegram_link_conflict"
+		case errors.Is(err, database.ErrTelegramMergeNotAllowed):
+			textKey = "telegram_link_merge_not_allowed"
+		case errors.Is(err, database.ErrCustomerAlreadyLinked):
+			textKey = "telegram_link_customer_already_bound"
+		case errors.Is(err, database.ErrTelegramLinkInvalid),
+			errors.Is(err, database.ErrTelegramLinkExpired),
+			errors.Is(err, database.ErrTelegramLinkUsed),
+			errors.Is(err, database.ErrTelegramLinkCustomerAbsent):
+			textKey = "telegram_link_invalid"
+		default:
+			textKey = "telegram_link_internal_error"
+			slog.Error("telegram link error", "error", err)
+		}
+
+		_, _ = b.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: update.Message.Chat.ID,
+			Text:   h.translation.GetText(langCode, textKey),
+		})
+		return
+	}
+
+	inlineKeyboard := h.buildStartKeyboard(customer, langCode)
+
+	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    update.Message.Chat.ID,
+		ParseMode: models.ParseModeHTML,
+		ReplyMarkup: models.InlineKeyboardMarkup{
+			InlineKeyboard: inlineKeyboard,
+		},
+		Text: h.translation.GetText(langCode, "telegram_link_success"),
+	})
+	if err != nil {
+		slog.Error("error sending telegram link success message", "error", err)
 	}
 }
 

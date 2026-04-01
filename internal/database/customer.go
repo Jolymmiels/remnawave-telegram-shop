@@ -22,16 +22,59 @@ func NewCustomerRepository(poll *pgxpool.Pool) *CustomerRepository {
 }
 
 type Customer struct {
-	ID               int64      `db:"id"`
-	TelegramID       int64      `db:"telegram_id"`
-	ExpireAt         *time.Time `db:"expire_at"`
-	CreatedAt        time.Time  `db:"created_at"`
-	SubscriptionLink *string    `db:"subscription_link"`
-	Language         string     `db:"language"`
+	ID                   int64      `db:"id"`
+	TelegramID           int64      `db:"telegram_id"`
+	ExpireAt             *time.Time `db:"expire_at"`
+	CreatedAt            time.Time  `db:"created_at"`
+	SubscriptionLink     *string    `db:"subscription_link"`
+	Language             string     `db:"language"`
+	Login                *string    `db:"login"`
+	PasswordHash         *string    `db:"password_hash"`
+	AuthType             string     `db:"auth_type"`
+	RemnawaveUserUUID    *string    `db:"remnawave_user_uuid"`
+	IsActive             bool       `db:"is_active"`
+	LastLoginAt          *time.Time `db:"last_login_at"`
+	MergedIntoCustomerID *int64     `db:"merged_into_customer_id"`
 }
 
+type customerScanner interface {
+	Scan(dest ...interface{}) error
+}
+
+func scanCustomer(scanner customerScanner, customer *Customer) error {
+	var telegramID *int64
+
+	if err := scanner.Scan(
+		&customer.ID,
+		&telegramID,
+		&customer.ExpireAt,
+		&customer.CreatedAt,
+		&customer.SubscriptionLink,
+		&customer.Language,
+		&customer.Login,
+		&customer.PasswordHash,
+		&customer.AuthType,
+		&customer.RemnawaveUserUUID,
+		&customer.IsActive,
+		&customer.LastLoginAt,
+		&customer.MergedIntoCustomerID,
+	); err != nil {
+		return err
+	}
+
+	if telegramID != nil {
+		customer.TelegramID = *telegramID
+	} else {
+		customer.TelegramID = 0
+	}
+
+	return nil
+}
+
+const customerSelectColumns = "id, telegram_id, expire_at, created_at, subscription_link, language, login, password_hash, auth_type, remnawave_user_uuid, is_active, last_login_at, merged_into_customer_id"
+
 func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDate, endDate time.Time) (*[]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "login", "password_hash", "auth_type", "remnawave_user_uuid", "is_active", "last_login_at", "merged_into_customer_id").
 		From("customer").
 		Where(
 			sq.And{
@@ -56,14 +99,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 	var customers []Customer
 	for rows.Next() {
 		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-		)
+		err := scanCustomer(rows, &customer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
 		}
@@ -78,7 +114,7 @@ func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDa
 }
 
 func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "login", "password_hash", "auth_type", "remnawave_user_uuid", "is_active", "last_login_at", "merged_into_customer_id").
 		From("customer").
 		Where(sq.Eq{"id": id}).
 		PlaceholderFormat(sq.Dollar)
@@ -90,14 +126,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 
 	var customer Customer
 
-	err = cr.pool.QueryRow(ctx, sql, args...).Scan(
-		&customer.ID,
-		&customer.TelegramID,
-		&customer.ExpireAt,
-		&customer.CreatedAt,
-		&customer.SubscriptionLink,
-		&customer.Language,
-	)
+	err = scanCustomer(cr.pool.QueryRow(ctx, sql, args...), &customer)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -108,7 +137,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 }
 
 func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId int64) (*Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "login", "password_hash", "auth_type", "remnawave_user_uuid", "is_active", "last_login_at", "merged_into_customer_id").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramId}).
 		PlaceholderFormat(sq.Dollar)
@@ -120,14 +149,7 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 
 	var customer Customer
 
-	err = cr.pool.QueryRow(ctx, sql, args...).Scan(
-		&customer.ID,
-		&customer.TelegramID,
-		&customer.ExpireAt,
-		&customer.CreatedAt,
-		&customer.SubscriptionLink,
-		&customer.Language,
-	)
+	err = scanCustomer(cr.pool.QueryRow(ctx, sql, args...), &customer)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -146,19 +168,12 @@ func (cr *CustomerRepository) FindOrCreate(ctx context.Context, customer *Custom
 		INSERT INTO customer (telegram_id, expire_at, language)
 		VALUES ($1, $2, $3)
 		ON CONFLICT (telegram_id) DO UPDATE SET telegram_id = customer.telegram_id
-		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, login, password_hash, auth_type, remnawave_user_uuid, is_active, last_login_at, merged_into_customer_id
 	`
 
 	row := cr.pool.QueryRow(ctx, query, customer.TelegramID, customer.ExpireAt, customer.Language)
 	var result Customer
-	if err := row.Scan(
-		&result.ID,
-		&result.TelegramID,
-		&result.ExpireAt,
-		&result.CreatedAt,
-		&result.SubscriptionLink,
-		&result.Language,
-	); err != nil {
+	if err := scanCustomer(row, &result); err != nil {
 		return nil, fmt.Errorf("failed to find or create customer: %w", err)
 	}
 
@@ -209,7 +224,7 @@ func (cr *CustomerRepository) UpdateFields(ctx context.Context, id int64, update
 }
 
 func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs []int64) ([]Customer, error) {
-	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language").
+	buildSelect := sq.Select("id", "telegram_id", "expire_at", "created_at", "subscription_link", "language", "login", "password_hash", "auth_type", "remnawave_user_uuid", "is_active", "last_login_at", "merged_into_customer_id").
 		From("customer").
 		Where(sq.Eq{"telegram_id": telegramIDs}).
 		PlaceholderFormat(sq.Dollar)
@@ -228,14 +243,7 @@ func (cr *CustomerRepository) FindByTelegramIds(ctx context.Context, telegramIDs
 	var customers []Customer
 	for rows.Next() {
 		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-		)
+		err := scanCustomer(rows, &customer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer row: %w", err)
 		}
@@ -341,7 +349,7 @@ func (cr *CustomerRepository) DeleteByNotInTelegramIds(ctx context.Context, tele
 
 func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) {
 	query := `
-		SELECT id, telegram_id, expire_at, created_at, subscription_link, language
+		SELECT id, telegram_id, expire_at, created_at, subscription_link, language, login, password_hash, auth_type, remnawave_user_uuid, is_active, last_login_at, merged_into_customer_id
 		FROM customer
 		ORDER BY created_at DESC
 	`
@@ -355,14 +363,7 @@ func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) 
 	var customers []Customer
 	for rows.Next() {
 		var customer Customer
-		err := rows.Scan(
-			&customer.ID,
-			&customer.TelegramID,
-			&customer.ExpireAt,
-			&customer.CreatedAt,
-			&customer.SubscriptionLink,
-			&customer.Language,
-		)
+		err := scanCustomer(rows, &customer)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan customer: %w", err)
 		}
@@ -374,4 +375,43 @@ func (cr *CustomerRepository) FindAll(ctx context.Context) (*[]Customer, error) 
 	}
 
 	return &customers, nil
+}
+
+func (cr *CustomerRepository) FindByLogin(ctx context.Context, login string) (*Customer, error) {
+	query := fmt.Sprintf("SELECT %s FROM customer WHERE login = $1", customerSelectColumns)
+
+	var customer Customer
+	err := scanCustomer(cr.pool.QueryRow(ctx, query, login), &customer)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to query customer by login: %w", err)
+	}
+
+	return &customer, nil
+}
+
+func (cr *CustomerRepository) CreateWebCustomer(ctx context.Context, customer *Customer) (*Customer, error) {
+	query := `
+		INSERT INTO customer (login, password_hash, language, auth_type, is_active)
+		VALUES ($1, $2, $3, $4, $5)
+		RETURNING id, telegram_id, expire_at, created_at, subscription_link, language, login, password_hash, auth_type, remnawave_user_uuid, is_active, last_login_at, merged_into_customer_id
+	`
+
+	var result Customer
+	err := scanCustomer(cr.pool.QueryRow(
+		ctx,
+		query,
+		customer.Login,
+		customer.PasswordHash,
+		customer.Language,
+		customer.AuthType,
+		customer.IsActive,
+	), &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create web customer: %w", err)
+	}
+
+	return &result, nil
 }

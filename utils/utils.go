@@ -11,6 +11,7 @@ import (
 type ContextKey string
 
 const ContextKeyUsername ContextKey = "username"
+const ContextKeyReturnURL ContextKey = "return_url"
 
 func MaskHalfInt(input int) string {
 	return MaskHalf(strconv.Itoa(input))

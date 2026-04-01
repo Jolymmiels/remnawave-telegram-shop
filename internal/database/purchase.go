@@ -337,3 +337,71 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 
 	return p, nil
 }
+
+func (pr *PurchaseRepository) FindLatestByCustomer(ctx context.Context, customerID int64) (*Purchase, error) {
+	query := sq.Select("*").
+		From("purchase").
+		Where(sq.Eq{"customer_id": customerID}).
+		OrderBy("created_at DESC").
+		Limit(1).
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build query: %w", err)
+	}
+
+	p := &Purchase{}
+	err = pr.pool.QueryRow(ctx, sql, args...).Scan(
+		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
+		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
+		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
+	)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("query purchase: %w", err)
+	}
+
+	return p, nil
+}
+
+func (pr *PurchaseRepository) FindByCustomer(ctx context.Context, customerID int64) (*[]Purchase, error) {
+	query := sq.Select("*").
+		From("purchase").
+		Where(sq.Eq{"customer_id": customerID}).
+		OrderBy("created_at DESC", "id DESC").
+		PlaceholderFormat(sq.Dollar)
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, fmt.Errorf("build query: %w", err)
+	}
+
+	rows, err := pr.pool.Query(ctx, sql, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query purchases: %w", err)
+	}
+	defer rows.Close()
+
+	purchases := make([]Purchase, 0)
+	for rows.Next() {
+		var p Purchase
+		if err := rows.Scan(
+			&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
+			&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
+			&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
+		); err != nil {
+			return nil, fmt.Errorf("scan purchase: %w", err)
+		}
+
+		purchases = append(purchases, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate rows: %w", err)
+	}
+
+	return &purchases, nil
+}

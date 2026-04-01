@@ -1,0 +1,73 @@
+services:
+  bot:
+    image: ${IMAGE_REGISTRY:-ghcr.io/wowblvck}/remnawave-telegram-shop-bot:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - remnawave-telegram-shop
+      - remnawave-network
+
+  web-api:
+    image: ${IMAGE_REGISTRY:-ghcr.io/wowblvck}/remnawave-telegram-shop-web-api:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${WEB_API_PUBLIC_PORT:-8090}:8090"
+    networks:
+      - remnawave-telegram-shop
+
+  frontend:
+    image: ${IMAGE_REGISTRY:-ghcr.io/wowblvck}/remnawave-telegram-shop-frontend:${IMAGE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - web-api
+    ports:
+      - "${FRONTEND_PUBLIC_PORT:-4321}:4321"
+    networks:
+      - remnawave-telegram-shop
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - TZ=UTC
+    expose:
+      - 5432
+    volumes:
+      - remnawave-telegram-shop-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 3s
+      timeout: 10s
+      retries: 3
+    networks:
+      - remnawave-telegram-shop
+
+volumes:
+  remnawave-telegram-shop-db-data:
+    driver: local
+    external: false
+    name: remnawave-telegram-shop-db-data
+
+networks:
+  remnawave-telegram-shop:
+    driver: bridge
+    name: remnawave-telegram-shop
+  remnawave-network:
+    external: true

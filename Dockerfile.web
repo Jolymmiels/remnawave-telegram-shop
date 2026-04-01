@@ -1,0 +1,34 @@
+FROM --platform=$BUILDPLATFORM golang:1.25.3-alpine AS modules
+WORKDIR /modules
+COPY go.mod go.sum ./
+RUN go mod download
+
+FROM --platform=$BUILDPLATFORM golang:1.25.3-alpine AS builder
+WORKDIR /app
+
+COPY --from=modules /go/pkg /go/pkg
+COPY . .
+
+RUN apk update && apk add --no-cache ca-certificates tzdata
+RUN update-ca-certificates
+
+ARG TARGETOS
+ARG TARGETARCH
+
+RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64} go build \
+    -ldflags="-w -s" \
+    -o /bin/web ./cmd/web
+
+FROM scratch
+
+COPY --from=builder /usr/share/zoneinfo /usr/share/zoneinfo
+COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+COPY --from=builder /bin/web /app/web
+COPY --from=builder /app/db /db
+COPY --from=builder /app/translations /translations
+
+USER 1000
+
+ENV DISABLE_ENV_FILE=true
+
+CMD ["/app/web"]

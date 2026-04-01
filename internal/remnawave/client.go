@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/utils"
 	"strconv"
 	"strings"
@@ -162,6 +163,34 @@ func (r *Client) CreateOrUpdateUser(ctx context.Context, customerId int64, teleg
 	return r.updateUser(ctx, existingUser, trafficLimit, days)
 }
 
+func (r *Client) CreateOrUpdateCustomer(
+	ctx context.Context,
+	customer *database.Customer,
+	trafficLimit int,
+	days int,
+	isTrialUser bool,
+) (*remapi.UserItemInfo, error) {
+	if customer == nil {
+		return nil, errors.New("customer is nil")
+	}
+
+	if customer.RemnawaveUserUUID != nil && *customer.RemnawaveUserUUID != "" {
+		resp, err := r.client.Users().GetUserByUuid(ctx, *customer.RemnawaveUserUUID)
+		if err == nil {
+			if userResp, ok := resp.(*remapi.UserResponse); ok {
+				user := userResp.GetResponse()
+				return r.updateUser(ctx, &user, trafficLimit, days)
+			}
+		}
+	}
+
+	if customer.TelegramID != 0 {
+		return r.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, trafficLimit, days, isTrialUser)
+	}
+
+	return r.createUser(ctx, customer.ID, 0, trafficLimit, days, isTrialUser)
+}
+
 func (r *Client) updateUser(ctx context.Context, existingUser *remapi.UserItemInfo, trafficLimit int, days int) (*remapi.UserItemInfo, error) {
 
 	newExpire := getNewExpire(days, existingUser.ExpireAt)
@@ -272,10 +301,12 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		Username:             username,
 		ActiveInternalSquads: squadId,
 		Status:               remapi.NewOptCreateUserRequestStatus(remapi.CreateUserRequestStatusACTIVE),
-		TelegramId:           remapi.NewOptNilInt(int(telegramId)),
 		ExpireAt:             expireAt,
 		TrafficLimitStrategy: remapi.NewOptCreateUserRequestTrafficLimitStrategy(getCreateStrategy(strategy)),
 		TrafficLimitBytes:    remapi.NewOptInt(trafficLimit),
+	}
+	if telegramId != 0 {
+		createUserRequest.TelegramId = remapi.NewOptNilInt(int(telegramId))
 	}
 	if externalSquad != uuid.Nil {
 		createUserRequest.ExternalSquadUuid = remapi.NewOptNilUUID(externalSquad)

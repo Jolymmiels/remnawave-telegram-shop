@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 680" fill="none">
+  <rect width="680" height="680" fill="#08111F"/>
+  <path
+    d="M345 58H560L456 213H554L245 598L322 387H146L345 58Z"
+    fill="#1FC7C9"
+    opacity="0.9"
+  />
+  <rect x="44" y="276" width="592" height="112" rx="8" fill="#1FC7C9"/>
+  <text
+    x="340"
+    y="348"
+    fill="#08111F"
+    font-family="Geist, Inter, Arial, sans-serif"
+    font-size="44"
+    font-weight="800"
+    letter-spacing="8"
+    text-anchor="middle"
+    dominant-baseline="middle"
+  >
+    WOWBLVCK VPN
+  </text>
+</svg>

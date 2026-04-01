@@ -1,6 +1,8 @@
 services:
   bot:
-    image: ghcr.io/wowblvck/remnawave-telegram-shop-bot:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     env_file:
       - .env
     depends_on:
@@ -10,15 +12,40 @@ services:
       - ./translations:/translations
     networks:
       - remnawave-telegram-shop-bot
-      - remnawave-network
+      # - remnawave-network
+
+  web-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8090:8090"
+    networks:
+      - remnawave-telegram-shop-bot
+
+  frontend:
+    build:
+      context: ./web/frontend
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "4321:4321"
+    depends_on:
+      - web-api
+    networks:
+      - remnawave-telegram-shop-bot
 
   db:
     image: postgres:17
     container_name: "remnawave-telegram-shop-db"
     hostname: remnawave-telegram-shop-db
     restart: unless-stopped
-    env_file:
-      - .env
     environment:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
@@ -46,5 +73,5 @@ networks:
   remnawave-telegram-shop-bot:
     driver: bridge
     name: remnawave-telegram-shop-bot
-  remnawave-network:
-    external: true
+  # remnawave-network:
+  #   external: true

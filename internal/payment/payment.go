@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	neturl "net/url"
 	"remnawave-tg-shop-bot/internal/cache"
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/cryptopay"
@@ -76,17 +77,21 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return fmt.Errorf("customer %s not found", utils.MaskHalfInt64(purchase.CustomerID))
 	}
 
-	if messageId, b := s.cache.Get(purchase.ID); b {
-		_, err = s.telegramBot.DeleteMessage(ctx, &bot.DeleteMessageParams{
-			ChatID:    customer.TelegramID,
-			MessageID: messageId,
-		})
-		if err != nil {
-			slog.Error("Error deleting message", "error", err)
+	if s.cache != nil {
+		if messageId, b := s.cache.Get(purchase.ID); b {
+			if s.telegramBot != nil && customer.TelegramID != 0 {
+				_, err = s.telegramBot.DeleteMessage(ctx, &bot.DeleteMessageParams{
+					ChatID:    customer.TelegramID,
+					MessageID: messageId,
+				})
+				if err != nil {
+					slog.Error("Error deleting message", "error", err)
+				}
+			}
 		}
 	}
 
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
+	user, err := s.remnawaveClient.CreateOrUpdateCustomer(ctx, customer, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
 	if err != nil {
 		return err
 	}
@@ -97,8 +102,9 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	}
 
 	customerFilesToUpdate := map[string]interface{}{
-		"subscription_link": user.SubscriptionUrl,
-		"expire_at":         user.ExpireAt,
+		"subscription_link":   user.SubscriptionUrl,
+		"expire_at":           user.ExpireAt,
+		"remnawave_user_uuid": user.UUID,
 	}
 
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
@@ -106,15 +112,17 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return err
 	}
 
-	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: customer.TelegramID,
-		Text:   s.translation.GetText(customer.Language, "subscription_activated"),
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: s.createConnectKeyboard(customer),
-		},
-	})
-	if err != nil {
-		return err
+	if s.telegramBot != nil && customer.TelegramID != 0 {
+		_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID: customer.TelegramID,
+			Text:   s.translation.GetText(customer.Language, "subscription_activated"),
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: s.createConnectKeyboard(customer),
+			},
+		})
+		if err != nil {
+			return err
+		}
 	}
 
 	slog.Info("checking conditions for Moynalog receipt", "invoice_type", purchase.InvoiceType, "moynalog_client", s.moynalogClient != nil)
@@ -126,12 +134,14 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 			err := s.sendReceiptToMoynalog(moynalogCtx, purchase)
 			if err != nil {
 				slog.Error("error sending receipt to Moynalog", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
-				_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
-					ChatID: config.GetAdminTelegramId(),
-					Text:   "Ошибка при отправке чека в Мой налог. Проверьте логи.",
-				})
-				if err != nil {
-					slog.Error("error while sending moy nalog error message", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+				if s.telegramBot != nil && config.GetAdminTelegramId() != 0 {
+					_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+						ChatID: config.GetAdminTelegramId(),
+						Text:   "Ошибка при отправке чека в Мой налог. Проверьте логи.",
+					})
+					if err != nil {
+						slog.Error("error while sending moy nalog error message", "error", err, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+					}
 				}
 			} else {
 				slog.Info("successfully sent receipt to Moynalog", "purchase_id", utils.MaskHalfInt64(purchase.ID))
@@ -139,12 +149,15 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		}()
 	} else {
 		if purchase.InvoiceType != database.InvoiceTypeYookasa {
-			slog.Info("not sending receipt to Moynalog - not a Yookasa invoice", "invoice_type", purchase.InvoiceType, "purchase_id", utils.MaskHalfInt64(purchase.ID))
+			slog.Info("not sending receipt to Moynalog - not a YooKassa invoice", "invoice_type", purchase.InvoiceType, "purchase_id", utils.MaskHalfInt64(purchase.ID))
 		} else if s.moynalogClient == nil {
 			slog.Error("not sending receipt to Moynalog - client is nil", "purchase_id", utils.MaskHalfInt64(purchase.ID))
 		}
 	}
 
+	if s.referralRepository == nil || customer.TelegramID == 0 {
+		return nil
+	}
 	ctxReferee := context.Background()
 	referee, err := s.referralRepository.FindByReferee(ctxReferee, customer.TelegramID)
 	if referee == nil {
@@ -160,13 +173,14 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	if err != nil {
 		return err
 	}
-	refereeUser, err := s.remnawaveClient.CreateOrUpdateUser(ctxReferee, refereeCustomer.ID, refereeCustomer.TelegramID, config.TrafficLimit(), config.GetReferralDays(), false)
+	refereeUser, err := s.remnawaveClient.CreateOrUpdateCustomer(ctxReferee, refereeCustomer, config.TrafficLimit(), config.GetReferralDays(), false)
 	if err != nil {
 		return err
 	}
 	refereeUserFilesToUpdate := map[string]interface{}{
-		"subscription_link": refereeUser.GetSubscriptionUrl(),
-		"expire_at":         refereeUser.GetExpireAt(),
+		"subscription_link":   refereeUser.GetSubscriptionUrl(),
+		"expire_at":           refereeUser.GetExpireAt(),
+		"remnawave_user_uuid": refereeUser.UUID,
 	}
 	err = s.customerRepository.UpdateFields(ctxReferee, refereeCustomer.ID, refereeUserFilesToUpdate)
 	if err != nil {
@@ -177,14 +191,16 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return err
 	}
 	slog.Info("Granted referral bonus", "customer_id", utils.MaskHalfInt64(refereeCustomer.ID))
-	_, _ = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
-		ChatID:    refereeCustomer.TelegramID,
-		ParseMode: models.ParseModeHTML,
-		Text:      s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
-		},
-	})
+	if s.telegramBot != nil && refereeCustomer.TelegramID != 0 {
+		_, _ = s.telegramBot.SendMessage(ctxReferee, &bot.SendMessageParams{
+			ChatID:    refereeCustomer.TelegramID,
+			ParseMode: models.ParseModeHTML,
+			Text:      s.translation.GetText(refereeCustomer.Language, "referral_bonus_granted"),
+			ReplyMarkup: models.InlineKeyboardMarkup{
+				InlineKeyboard: s.createConnectKeyboard(refereeCustomer),
+			},
+		})
+	}
 
 	slog.Info("purchase processed", "purchase_id", utils.MaskHalfInt64(purchase.ID), "type", purchase.InvoiceType, "customer_id", utils.MaskHalfInt64(customer.ID))
 
@@ -261,13 +277,15 @@ func (s PaymentService) CancelTributePurchase(ctx context.Context, telegramId in
 	}); err != nil {
 		return err
 	}
-	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    telegramId,
-		ParseMode: models.ParseModeHTML,
-		Text:      s.translation.GetText(customer.Language, "tribute_cancelled"),
-	})
-	if err != nil {
-		slog.Error("Error sending message about tribute cancelled", "error", err, "telegram_id", utils.MaskHalfInt64(telegramId))
+	if s.telegramBot != nil && telegramId != 0 {
+		_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
+			ChatID:    telegramId,
+			ParseMode: models.ParseModeHTML,
+			Text:      s.translation.GetText(customer.Language, "tribute_cancelled"),
+		})
+		if err != nil {
+			slog.Error("Error sending message about tribute cancelled", "error", err, "telegram_id", utils.MaskHalfInt64(telegramId))
+		}
 	}
 	slog.Info("Canceled tribute purchase", "purchase_id", utils.MaskHalfInt64(tributePurchase.ID), "telegram_id", utils.MaskHalfInt64(telegramId))
 	return nil
@@ -331,6 +349,18 @@ func (s PaymentService) createYookasaInvoice(ctx context.Context, amount float64
 		return "", 0, err
 	}
 
+	if returnURLValue := ctx.Value(utils.ContextKeyReturnURL); returnURLValue != nil {
+		if returnURL, ok := returnURLValue.(string); ok && returnURL != "" {
+			parsedURL, parseErr := neturl.Parse(returnURL)
+			if parseErr == nil {
+				query := parsedURL.Query()
+				query.Set("purchaseId", fmt.Sprintf("%d", purchaseId))
+				parsedURL.RawQuery = query.Encode()
+				ctx = context.WithValue(ctx, utils.ContextKeyReturnURL, parsedURL.String())
+			}
+		}
+	}
+
 	invoice, err := s.yookasaClient.CreateInvoice(ctx, int(amount), months, customer.ID, purchaseId)
 	if err != nil {
 		slog.Error("Error creating invoice", "error", err)
@@ -364,6 +394,10 @@ func (s PaymentService) createTelegramInvoice(ctx context.Context, amount float6
 	if err != nil {
 		slog.Error("Error creating purchase", "error", err)
 		return "", 0, nil
+	}
+
+	if s.telegramBot == nil {
+		return "", 0, fmt.Errorf("telegram bot is not configured")
 	}
 
 	invoiceUrl, err := s.telegramBot.CreateInvoiceLink(ctx, &bot.CreateInvoiceLinkParams{
@@ -408,15 +442,16 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 	if customer == nil {
 		return "", fmt.Errorf("customer %d not found", telegramId)
 	}
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, telegramId, config.TrialTrafficLimit(), config.TrialDays(), true)
+	user, err := s.remnawaveClient.CreateOrUpdateCustomer(ctx, customer, config.TrialTrafficLimit(), config.TrialDays(), true)
 	if err != nil {
 		slog.Error("Error creating user", "error", err)
 		return "", err
 	}
 
 	customerFilesToUpdate := map[string]interface{}{
-		"subscription_link": user.GetSubscriptionUrl(),
-		"expire_at":         user.GetExpireAt(),
+		"subscription_link":   user.GetSubscriptionUrl(),
+		"expire_at":           user.GetExpireAt(),
+		"remnawave_user_uuid": user.UUID,
 	}
 
 	err = s.customerRepository.UpdateFields(ctx, customer.ID, customerFilesToUpdate)
@@ -426,6 +461,36 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 
 	return user.GetSubscriptionUrl(), nil
 
+}
+
+func (s PaymentService) ActivateTrialForCustomer(ctx context.Context, customer *database.Customer) (string, error) {
+	if config.TrialDays() == 0 {
+		return "", nil
+	}
+	if customer == nil {
+		return "", fmt.Errorf("customer is nil")
+	}
+	if customer.SubscriptionLink != nil {
+		return "", nil
+	}
+
+	user, err := s.remnawaveClient.CreateOrUpdateCustomer(ctx, customer, config.TrialTrafficLimit(), config.TrialDays(), true)
+	if err != nil {
+		slog.Error("Error creating trial user", "error", err)
+		return "", err
+	}
+
+	customerFieldsToUpdate := map[string]interface{}{
+		"subscription_link":   user.GetSubscriptionUrl(),
+		"expire_at":           user.GetExpireAt(),
+		"remnawave_user_uuid": user.UUID,
+	}
+
+	if err := s.customerRepository.UpdateFields(ctx, customer.ID, customerFieldsToUpdate); err != nil {
+		return "", err
+	}
+
+	return user.GetSubscriptionUrl(), nil
 }
 
 func (s PaymentService) CancelYookassaPayment(purchaseId int64) error {

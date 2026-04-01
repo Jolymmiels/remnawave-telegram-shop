@@ -18,6 +18,7 @@ import (
 	"remnawave-tg-shop-bot/internal/payment"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/sync"
+	"remnawave-tg-shop-bot/internal/telegramlink"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/tribute"
 	"remnawave-tg-shop-bot/internal/yookasa"
@@ -76,6 +77,7 @@ func main() {
 	customerRepository := database.NewCustomerRepository(pool)
 	purchaseRepository := database.NewPurchaseRepository(pool)
 	referralRepository := database.NewReferralRepository(pool)
+	telegramLinkRepository := database.NewTelegramLinkRepository(pool)
 
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
@@ -86,6 +88,7 @@ func main() {
 	}
 
 	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, moynalogClient)
+	telegramLinkService := telegramlink.NewService(customerRepository, telegramLinkRepository)
 
 	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
 	if cronScheduler != nil {
@@ -101,7 +104,7 @@ func main() {
 
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
-	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache)
+	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, telegramLinkService)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {

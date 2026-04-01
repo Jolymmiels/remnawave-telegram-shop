@@ -78,9 +78,16 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 		"username":   ctx.Value(utils.ContextKeyUsername),
 	}
 
+	returnURL := config.BotURL()
+	if value := ctx.Value(utils.ContextKeyReturnURL); value != nil {
+		if casted, ok := value.(string); ok && casted != "" {
+			returnURL = casted
+		}
+	}
+
 	paymentRequest := NewPaymentRequest(
 		rub,
-		config.BotURL(),
+		returnURL,
 		description,
 		receipt,
 		metaData,

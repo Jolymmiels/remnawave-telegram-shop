@@ -54,6 +54,9 @@ type config struct {
 	remnawaveHeaders                                          map[string]string
 	trialTrafficLimitResetStrategy                            string
 	trafficLimitResetStrategy                                 string
+	webPort                                                   int
+	frontendOrigin                                            string
+	webSessionSecret                                          string
 }
 
 var conf config
@@ -289,6 +292,18 @@ func TrafficLimitResetStrategy() string {
 	return conf.trafficLimitResetStrategy
 }
 
+func WebPort() int {
+	return conf.webPort
+}
+
+func FrontendOrigin() string {
+	return conf.frontendOrigin
+}
+
+func WebSessionSecret() string {
+	return conf.webSessionSecret
+}
+
 const bytesInGigabyte = 1073741824
 
 func MoynalogUrl() string {
@@ -349,18 +364,41 @@ func envBool(key string) bool {
 }
 
 func InitConfig() {
+	initConfig(false)
+}
+
+func InitWebConfig() {
+	initConfig(true)
+}
+
+func initConfig(webOnly bool) {
 	if os.Getenv("DISABLE_ENV_FILE") != "true" {
 		if err := godotenv.Load(".env"); err != nil {
 			log.Println("No .env loaded:", err)
 		}
 	}
 	var err error
-	conf.adminTelegramId, err = strconv.ParseInt(os.Getenv("ADMIN_TELEGRAM_ID"), 10, 64)
-	if err != nil {
-		panic("ADMIN_TELEGRAM_ID .env variable not set")
+	adminTelegramID := os.Getenv("ADMIN_TELEGRAM_ID")
+	if adminTelegramID == "" {
+		if webOnly {
+			conf.adminTelegramId = 0
+		} else {
+			panic("ADMIN_TELEGRAM_ID .env variable not set")
+		}
+	} else {
+		conf.adminTelegramId, err = strconv.ParseInt(adminTelegramID, 10, 64)
+		if err != nil {
+			panic("ADMIN_TELEGRAM_ID .env variable not set")
+		}
 	}
 
-	conf.telegramToken = mustEnv("TELEGRAM_TOKEN")
+	if webOnly {
+		conf.telegramToken = os.Getenv("TELEGRAM_TOKEN")
+	} else {
+		conf.telegramToken = mustEnv("TELEGRAM_TOKEN")
+	}
+
+	conf.botURL = envStringDefault("BOT_URL", "")
 
 	conf.isWebAppLinkEnabled = func() bool {
 		isWebAppLinkEnabled := os.Getenv("IS_WEB_APP_LINK") == "true"
@@ -394,6 +432,9 @@ func InitConfig() {
 	conf.trialTrafficLimit = mustEnvInt("TRIAL_TRAFFIC_LIMIT")
 
 	conf.healthCheckPort = envIntDefault("HEALTH_CHECK_PORT", 8080)
+	conf.webPort = envIntDefault("WEB_PORT", 8090)
+	conf.frontendOrigin = envStringDefault("FRONTEND_ORIGIN", "http://localhost:4321")
+	conf.webSessionSecret = envStringDefault("WEB_SESSION_SECRET", "change-me-web-session-secret")
 
 	conf.trialDays = mustEnvInt("TRIAL_DAYS")
 
