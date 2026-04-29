@@ -320,10 +320,10 @@ consider donating. Your support helps drive future updates and improvements.
 
 **Donation Methods:**
 
-- **Bep20 USDT:** `0x4D1ee2445fdC88fA49B9d02FB8ee3633f45Bef48`
+- **Bep20 USDT:** `0x843ff093ec36d45db5e21bca80b5bc315d03a433`
 
-- **SOL Solana:** `HNQhe6SCoU5UDZicFKMbYjQNv9Muh39WaEWbZayQ9Nn8`
+- **SOL Solana:** `8eXDeyZAqnq8nENtooMNSVExWJ1eq6J9nDDmjC9NJza7`
 
-- **TRC20 USDT:** `TBJrguLia8tvydsQ2CotUDTYtCiLDA4nPW`
+- **TRC20 USDT:** `TW7f4B4isWCn1QHdnrNG8CZ66cMffAMgN3`
 
-- **TON USDT:** `UQAdAhVxOr9LS07DDQh0vNzX2575Eu0eOByjImY1yheatXgr`
+- **TON USDT:** `UQALE1A_KMyWAYKuIugEFUMC_H0bTOMmrEyMKBUJ8oyRUCug`
