@@ -17,7 +17,7 @@ type Payload struct {
 	Price            int       `json:"price"`
 	Amount           int       `json:"amount"`
 	Currency         string    `json:"currency"`
-	UserID           int       `json:"user_id"`
+	UserID           string    `json:"trb_user_id"`
 	TelegramUserID   int64     `json:"telegram_user_id"`
 	ChannelID        int       `json:"channel_id"`
 	ChannelName      string    `json:"channel_name"`
