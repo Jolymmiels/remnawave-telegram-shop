@@ -1,9 +1,23 @@
 package utils
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
+
+func FormatSubscriptionDescription(months int) string {
+	var unit string
+	switch months {
+	case 1:
+		unit = "месяц"
+	case 2, 3, 4:
+		unit = "месяца"
+	default:
+		unit = "месяцев"
+	}
+	return fmt.Sprintf("Подписка на %d %s", months, unit)
+}
 
 func MaskHalfInt(input int) string {
 	return MaskHalf(strconv.Itoa(input))

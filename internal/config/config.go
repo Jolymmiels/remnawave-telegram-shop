@@ -42,6 +42,11 @@ type config struct {
 	enableAutoPayment                                         bool
 	healthCheckPort                                           int
 	tributeWebhookUrl, tributeAPIKey, tributePaymentUrl       string
+	yookasaWebhookUrl                                         string
+	plategaMerchantId, plategaSecret, plategaWebhookUrl       string
+	isPlategaSBPEnabled, isPlategaCardsEnabled               bool
+	isPlategaAcquiringEnabled, isPlategaWorldwideEnabled     bool
+	isPlategaCryptoEnabled                                   bool
 	isWebAppLinkEnabled                                       bool
 	daysInMonth                                               int
 	externalSquadUUID                                         uuid.UUID
@@ -80,6 +85,48 @@ func GetTributeAPIKey() string {
 
 func GetTributePaymentUrl() string {
 	return conf.tributePaymentUrl
+}
+
+func GetYookasaWebHookUrl() string {
+	return conf.yookasaWebhookUrl
+}
+
+func PlategaMerchantId() string {
+	return conf.plategaMerchantId
+}
+
+func PlategaSecret() string {
+	return conf.plategaSecret
+}
+
+func GetPlategaWebHookUrl() string {
+	return conf.plategaWebhookUrl
+}
+
+func IsPlategaSBPEnabled() bool {
+	return conf.isPlategaSBPEnabled
+}
+
+func IsPlategaCardsEnabled() bool {
+	return conf.isPlategaCardsEnabled
+}
+
+func IsPlategaAcquiringEnabled() bool {
+	return conf.isPlategaAcquiringEnabled
+}
+
+func IsPlategaWorldwideEnabled() bool {
+	return conf.isPlategaWorldwideEnabled
+}
+
+func IsPlategaCryptoEnabled() bool {
+	return conf.isPlategaCryptoEnabled
+}
+
+func IsPlategaEnabled() bool {
+	return conf.isPlategaSBPEnabled || conf.isPlategaCardsEnabled ||
+		conf.isPlategaAcquiringEnabled || conf.isPlategaWorldwideEnabled ||
+		conf.isPlategaCryptoEnabled
 }
 
 func GetReferralDays() int {
@@ -445,6 +492,18 @@ func InitConfig() {
 		conf.yookasaShopId = mustEnv("YOOKASA_SHOP_ID")
 		conf.yookasaSecretKey = mustEnv("YOOKASA_SECRET_KEY")
 		conf.yookasaEmail = mustEnv("YOOKASA_EMAIL")
+		conf.yookasaWebhookUrl = os.Getenv("YOOKASA_WEBHOOK_URL")
+	}
+
+	if envBool("PLATEGA_ENABLED") {
+		conf.plategaMerchantId = mustEnv("PLATEGA_MERCHANT_ID")
+		conf.plategaSecret = mustEnv("PLATEGA_SECRET")
+		conf.plategaWebhookUrl = mustEnv("PLATEGA_WEBHOOK_URL")
+		conf.isPlategaSBPEnabled = envBool("PLATEGA_SBP_ENABLED")
+		conf.isPlategaCardsEnabled = envBool("PLATEGA_CARDS_ENABLED")
+		conf.isPlategaAcquiringEnabled = envBool("PLATEGA_ACQUIRING_ENABLED")
+		conf.isPlategaWorldwideEnabled = envBool("PLATEGA_WORLDWIDE_ENABLED")
+		conf.isPlategaCryptoEnabled = envBool("PLATEGA_CRYPTO_ENABLED")
 	}
 
 	conf.trafficLimit = mustEnvInt("TRAFFIC_LIMIT")

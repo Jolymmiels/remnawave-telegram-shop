@@ -37,6 +37,26 @@
     "text": "Bank card",
     "emoji_id": "5258165702707125574"
   },
+  "platega_sbp_button": {
+    "text": "SBP",
+    "emoji_id": "5258165702707125574"
+  },
+  "platega_cards_button": {
+    "text": "Russian Card",
+    "emoji_id": "5258165702707125574"
+  },
+  "platega_acquiring_button": {
+    "text": "Acquiring",
+    "emoji_id": "5258165702707125574"
+  },
+  "platega_worldwide_button": {
+    "text": "International Card",
+    "emoji_id": "5258165702707125574"
+  },
+  "platega_crypto_button": {
+    "text": "Crypto (Platega)",
+    "emoji_id": "5402186569006210455"
+  },
   "pay_button": {
     "text": "Pay",
     "emoji_id": "5436386989857320953"

@@ -17,6 +17,7 @@ import (
 	"remnawave-tg-shop-bot/internal/moynalog"
 	"remnawave-tg-shop-bot/internal/notification"
 	"remnawave-tg-shop-bot/internal/payment"
+	"remnawave-tg-shop-bot/internal/platega"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/translation"
@@ -80,6 +81,7 @@ func main() {
 	cryptoPayClient := cryptopay.NewCryptoPayClient(config.CryptoPayUrl(), config.CryptoPayToken())
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
 	yookasaClient := yookasa.NewClient(config.YookasaUrl(), config.YookasaShopId(), config.YookasaSecretKey())
+	plategaClient := platega.NewClient(config.PlategaMerchantId(), config.PlategaSecret())
 	botOpts := []bot.Option{bot.WithWorkers(3)}
 	if proxyStr := config.TelegramProxyURL(); proxyStr != "" {
 		proxyURL, parseErr := url.Parse(proxyStr)
@@ -98,9 +100,9 @@ func main() {
 		panic(err)
 	}
 
-	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, referralRepository, cache, moynalogClient)
+	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, plategaClient, referralRepository, cache, moynalogClient)
 
-	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService, yookasaClient)
+	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService)
 	if cronScheduler != nil {
 		cronScheduler.Start()
 		defer cronScheduler.Stop()
@@ -172,6 +174,14 @@ func main() {
 	if config.GetTributeWebHookUrl() != "" {
 		tributeHandler := tribute.NewClient(paymentService, customerRepository)
 		mux.Handle(config.GetTributeWebHookUrl(), tributeHandler.WebHookHandler())
+	}
+	if config.IsYookasaEnabled() && config.GetYookasaWebHookUrl() != "" {
+		yookasaWebhook := yookasa.NewWebhookHandler(yookasaClient, paymentService, purchaseRepository)
+		mux.Handle(config.GetYookasaWebHookUrl(), yookasaWebhook)
+	}
+	if config.IsPlategaEnabled() && config.GetPlategaWebHookUrl() != "" {
+		plategaWebhook := platega.NewWebhookHandler(purchaseRepository, paymentService, config.PlategaMerchantId(), config.PlategaSecret())
+		mux.Handle(config.GetPlategaWebHookUrl(), plategaWebhook)
 	}
 
 	srv := &http.Server{
@@ -275,91 +285,22 @@ func initDatabase(ctx context.Context, connString string) (*pgxpool.Pool, error)
 func setupInvoiceChecker(
 	purchaseRepository *database.PurchaseRepository,
 	cryptoPayClient *cryptopay.Client,
-	paymentService *payment.PaymentService,
-	yookasaClient *yookasa.Client) *cron.Cron {
-	if !config.IsYookasaEnabled() && !config.IsCryptoPayEnabled() {
+	paymentService *payment.PaymentService) *cron.Cron {
+	if !config.IsCryptoPayEnabled() {
 		return nil
 	}
 	c := cron.New(cron.WithSeconds())
 
-	if config.IsCryptoPayEnabled() {
-		_, err := c.AddFunc("*/5 * * * * *", func() {
-			ctx := context.Background()
-			checkCryptoPayInvoice(ctx, purchaseRepository, cryptoPayClient, paymentService)
-		})
+	_, err := c.AddFunc("*/5 * * * * *", func() {
+		ctx := context.Background()
+		checkCryptoPayInvoice(ctx, purchaseRepository, cryptoPayClient, paymentService)
+	})
 
-		if err != nil {
-			panic(err)
-		}
-	}
-
-	if config.IsYookasaEnabled() {
-		_, err := c.AddFunc("*/5 * * * * *", func() {
-			ctx := context.Background()
-			checkYookasaInvoice(ctx, purchaseRepository, yookasaClient, paymentService)
-		})
-
-		if err != nil {
-			panic(err)
-		}
+	if err != nil {
+		panic(err)
 	}
 
 	return c
-}
-
-func checkYookasaInvoice(
-	ctx context.Context,
-	purchaseRepository *database.PurchaseRepository,
-	yookasaClient *yookasa.Client,
-	paymentService *payment.PaymentService,
-) {
-	pendingPurchases, err := purchaseRepository.FindByInvoiceTypeAndStatus(
-		ctx,
-		database.InvoiceTypeYookasa,
-		database.PurchaseStatusPending,
-	)
-	if err != nil {
-		log.Printf("Error finding pending purchases: %v", err)
-		return
-	}
-	if len(*pendingPurchases) == 0 {
-		return
-	}
-
-	for _, purchase := range *pendingPurchases {
-
-		invoice, err := yookasaClient.GetPayment(ctx, *purchase.YookasaID)
-
-		if err != nil {
-			slog.Error("Error getting invoice", "invoiceId", purchase.YookasaID, "error", err)
-			continue
-		}
-
-		if invoice.IsCancelled() {
-			err := paymentService.CancelYookassaPayment(purchase.ID)
-			if err != nil {
-				slog.Error("Error canceling invoice", "invoiceId", invoice.ID, "purchaseId", purchase.ID, "error", err)
-			}
-			continue
-		}
-
-		if !invoice.Paid {
-			continue
-		}
-
-		purchaseId, err := strconv.Atoi(invoice.Metadata["purchaseId"])
-		if err != nil {
-			slog.Error("Error parsing purchaseId", "invoiceId", invoice.ID, "error", err)
-		}
-		ctxWithValue := context.WithValue(ctx, remnawave.CtxKeyUsername, invoice.Metadata["username"])
-		err = paymentService.ProcessPurchaseById(ctxWithValue, int64(purchaseId))
-		if err != nil {
-			slog.Error("Error processing invoice", "invoiceId", invoice.ID, "purchaseId", purchaseId, "error", err)
-		} else {
-			slog.Info("Invoice processed", "invoiceId", invoice.ID, "purchaseId", purchaseId)
-		}
-
-	}
 }
 
 func checkCryptoPayInvoice(

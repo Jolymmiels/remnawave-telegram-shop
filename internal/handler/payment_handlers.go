@@ -87,6 +87,36 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 		})
 	}
 
+	if config.IsPlategaSBPEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			h.translation.GetButton(langCode, "platega_sbp_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlategaSBP, amount)),
+		})
+	}
+
+	if config.IsPlategaCardsEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			h.translation.GetButton(langCode, "platega_cards_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlategaCards, amount)),
+		})
+	}
+
+	if config.IsPlategaAcquiringEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			h.translation.GetButton(langCode, "platega_acquiring_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlategaAcquiring, amount)),
+		})
+	}
+
+	if config.IsPlategaWorldwideEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			h.translation.GetButton(langCode, "platega_worldwide_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlategaWorldwide, amount)),
+		})
+	}
+
+	if config.IsPlategaCryptoEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			h.translation.GetButton(langCode, "platega_crypto_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlategaCrypto, amount)),
+		})
+	}
+
 	if config.IsTelegramStarsEnabled() {
 		shouldShowStarsButton := true
 

@@ -10,6 +10,8 @@ import (
 	"log"
 	"net/http"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/remnawave"
+	"remnawave-tg-shop-bot/utils"
 	"strconv"
 	"time"
 
@@ -44,17 +46,7 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 		Currency: "RUB",
 	}
 
-	var monthString string
-	switch month {
-	case 1:
-		monthString = "месяц"
-	case 3, 4:
-		monthString = "месяца"
-	default:
-		monthString = "месяцев"
-	}
-
-	description := fmt.Sprintf("Подписка на %d %s", month, monthString)
+	description := utils.FormatSubscriptionDescription(month)
 	receipt := &Receipt{
 		Customer: &Customer{
 			Email: config.YookasaEmail(),
@@ -74,7 +66,7 @@ func (c *Client) CreateInvoice(ctx context.Context, amount int, month int, custo
 	metaData := map[string]any{
 		"customerId": customerId,
 		"purchaseId": purchaseId,
-		"username":   ctx.Value("username"),
+		"username":   remnawave.UsernameFromCtx(ctx),
 	}
 
 	paymentRequest := NewPaymentRequest(
