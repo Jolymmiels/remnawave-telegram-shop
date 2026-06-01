@@ -10,7 +10,7 @@ A Telegram bot for selling subscriptions with integration to Remnawave (https://
 purchase and manage subscriptions through Telegram with multiple payment system options.
 
 - [remnawave-api-go](https://github.com/Jolymmiles/remnawave-api-go)
-- [Documentation](https://remnawave-telegram-shop-bot-doc.vercel.app/)
+- [Documentation]([https://remnawave-telegram-shop-bot-doc.vercel.app/](https://docs.rwp.rw/ru/))
 
 ## Admin commands
 
