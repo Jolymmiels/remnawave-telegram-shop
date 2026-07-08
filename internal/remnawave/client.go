@@ -3,6 +3,8 @@ package remnawave
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -144,8 +146,7 @@ func (r *Client) doJSON(ctx context.Context, method, path string, body, result a
 // ---------------------------------------------------------------------------
 
 func (r *Client) Ping(ctx context.Context) error {
-	path := fmt.Sprintf("/api/users?size=%d&start=%d", 1, 0)
-	return r.doJSON(ctx, http.MethodGet, path, nil, nil)
+	return r.doJSON(ctx, http.MethodGet, "/api/system/health", nil, nil)
 }
 
 // ---------------------------------------------------------------------------
@@ -165,7 +166,7 @@ func (r *Client) GetUsers(ctx context.Context) ([]User, error) {
 
 		users = append(users, page.Response.Users...)
 
-		if len(page.Response.Users) < pageSize {
+		if len(page.Response.Users) < pageSize || len(users) >= page.Response.Total {
 			break
 		}
 	}
@@ -351,12 +352,11 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		strategy = config.TrialTrafficLimitResetStrategy()
 	}
 
-	tid := int(telegramId)
 	createReq := &CreateUserRequest{
 		Username:             username,
 		ActiveInternalSquads: squadIds,
 		Status:               "ACTIVE",
-		TelegramID:           &tid,
+		TelegramID:           &telegramId,
 		ExpireAt:             expireAt,
 		TrafficLimitStrategy: normalizeStrategy(strategy),
 		TrafficLimitBytes:    &trafficLimit,
@@ -389,8 +389,14 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 // Utility functions
 // ---------------------------------------------------------------------------
 
+// Spec CreateUserRequestDto.username: pattern ^[a-zA-Z0-9_-]+$, 3..36 chars.
 func generateUsername(customerId int64, telegramId int64) string {
-	return fmt.Sprintf("%d_%d", customerId, telegramId)
+	u := fmt.Sprintf("%d_%d", customerId, telegramId)
+	if len(u) <= 36 {
+		return u
+	}
+	h := sha256.Sum256([]byte(u))
+	return "u_" + hex.EncodeToString(h[:16])
 }
 
 func getNewExpire(daysToAdd int, currentExpire time.Time) time.Time {
@@ -411,7 +417,7 @@ func getNewExpire(daysToAdd int, currentExpire time.Time) time.Time {
 func normalizeStrategy(s string) string {
 	upper := strings.ToUpper(s)
 	switch upper {
-	case "DAY", "WEEK", "NO_RESET", "MONTH":
+	case "NO_RESET", "DAY", "WEEK", "MONTH", "MONTH_ROLLING":
 		return upper
 	default:
 		return "MONTH"

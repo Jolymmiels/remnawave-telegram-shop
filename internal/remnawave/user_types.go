@@ -57,7 +57,7 @@ type CreateUserRequest struct {
 	ActiveInternalSquads []uuid.UUID `json:"activeInternalSquads,omitempty"`
 	ExternalSquadUuid    *uuid.UUID  `json:"externalSquadUuid,omitempty"`
 	Tag                  *string     `json:"tag,omitempty"`
-	TelegramID           *int        `json:"telegramId,omitempty"`
+	TelegramID           *int64      `json:"telegramId,omitempty"`
 	Description          *string     `json:"description,omitempty"`
 }
 
