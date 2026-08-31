@@ -44,6 +44,7 @@ purchase and manage subscriptions through Telegram with multiple payment system 
 | 2.2.*         | 3.2.5 |
 | 2.3.*         | 3.5.* |
 | 2.8.*         | 4.1.* |
+| 3.4.*         | 5.0.* |
 
 ## API
 
