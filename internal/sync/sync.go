@@ -47,10 +47,12 @@ func (s SyncService) Sync() {
 
 		telegramIDs = append(telegramIDs, tid)
 
+		remnaID := user.ID
 		mappedUsers = append(mappedUsers, database.Customer{
 			TelegramID:       tid,
 			ExpireAt:         &user.ExpireAt,
 			SubscriptionLink: &user.SubscriptionUrl,
+			RemnawaveID:      &remnaID,
 		})
 	}
 

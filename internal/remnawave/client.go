@@ -178,13 +178,47 @@ func (r *Client) GetUsers(ctx context.Context) ([]User, error) {
 // Users — get by Telegram ID
 // ---------------------------------------------------------------------------
 
+// getUsersByTelegramID fetches panel users by Telegram ID.
+// The legacy /api/users/by-telegram-id endpoint was removed in Remnawave v3;
+// the supported way is the telegramId filter of GET /api/users/stream.
 func (r *Client) getUsersByTelegramID(ctx context.Context, telegramID int64) ([]User, error) {
-	var resp apiResponse[[]User]
-	err := r.doJSON(ctx, http.MethodGet, "/api/users/by-telegram-id/"+strconv.FormatInt(telegramID, 10), nil, &resp)
-	if err != nil {
-		return nil, err
+	var users []User
+	cursor := ""
+	for page := 0; page < 100; page++ { // 100 pages is a safety bound
+		path := fmt.Sprintf("/api/users/stream?size=250&telegramId=%d", telegramID)
+		if cursor != "" {
+			path += "&cursor=" + cursor
+		}
+		var resp apiResponse[getUsersStreamResponse]
+		if err := r.doJSON(ctx, http.MethodGet, path, nil, &resp); err != nil {
+			return nil, err
+		}
+		users = append(users, resp.Response.Users...)
+		if !resp.Response.HasMore {
+			break
+		}
+		cursor = streamCursor(resp.Response.NextCursor)
+		if cursor == "" {
+			break
+		}
 	}
-	return resp.Response, nil
+	return users, nil
+}
+
+// streamCursor extracts the pagination cursor from the raw nextCursor value,
+// which arrives either as a JSON number or as a JSON string.
+func streamCursor(raw json.RawMessage) string {
+	s := strings.TrimSpace(string(raw))
+	if s == "" || s == "null" {
+		return ""
+	}
+	if unquoted, err := strconv.Unquote(s); err == nil {
+		s = unquoted
+	}
+	if s == "" || s == "null" {
+		return ""
+	}
+	return s
 }
 
 // ---------------------------------------------------------------------------
@@ -291,7 +325,7 @@ func (r *Client) updateUser(ctx context.Context, existingUser *User, trafficLimi
 	squadIds := filterSquadsBySelection(squads, selectedSquads)
 
 	userUpdate := &UpdateUserRequest{
-		UUID:                 &existingUser.UUID,
+		ID:                   &existingUser.ID,
 		ExpireAt:             &newExpire,
 		Status:               "ACTIVE",
 		TrafficLimitBytes:    &trafficLimit,
@@ -311,7 +345,7 @@ func (r *Client) updateUser(ctx context.Context, existingUser *User, trafficLimi
 
 	username := UsernameFromCtx(ctx)
 	if username != "" {
-		userUpdate.Description = &username
+		userUpdate.Description = []string{username}
 	}
 
 	var resp apiResponse[User]
@@ -356,7 +390,7 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		Username:             username,
 		ActiveInternalSquads: squadIds,
 		Status:               "ACTIVE",
-		TelegramID:           &telegramId,
+		TelegramID:           []int64{telegramId},
 		ExpireAt:             expireAt,
 		TrafficLimitStrategy: normalizeStrategy(strategy),
 		TrafficLimitBytes:    &trafficLimit,

@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- Migrated Remnawave API client to v3.4.1:
+  - User lookup by Telegram ID now uses the `telegramId` filter of `GET /api/users/stream` (the legacy `/api/users/by-telegram-id` endpoint was removed)
+  - User updates are sent by numeric `id` instead of `uuid` (`PATCH /api/users` requires exactly one of `id`/`username` since v3)
+  - `telegramId` in create/update bodies and `description` in the update body are arrays per the v3.4.1 schema
+
+### Added
+- New `customer.remnawave_id` column (migration 000006): user sync now stores the panel numeric user ID for every synced customer
+
 ## [3.4.1] - 2025-11-08
 
 ### Added

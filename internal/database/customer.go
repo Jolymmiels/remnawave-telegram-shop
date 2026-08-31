@@ -27,6 +27,8 @@ type Customer struct {
 	CreatedAt        time.Time  `db:"created_at"`
 	SubscriptionLink *string    `db:"subscription_link"`
 	Language         string     `db:"language"`
+	// RemnawaveID is the numeric user ID from the Remnawave panel (v3+).
+	RemnawaveID *int64 `db:"remnawave_id"`
 }
 
 func (cr *CustomerRepository) FindByExpirationRange(ctx context.Context, startDate, endDate time.Time) (*[]Customer, error) {
@@ -252,10 +254,10 @@ func (cr *CustomerRepository) CreateBatch(ctx context.Context, customers []Custo
 		return nil
 	}
 	builder := sq.Insert("customer").
-		Columns("telegram_id", "expire_at", "language", "subscription_link").
+		Columns("telegram_id", "expire_at", "language", "subscription_link", "remnawave_id").
 		PlaceholderFormat(sq.Dollar)
 	for _, cust := range customers {
-		builder = builder.Values(cust.TelegramID, cust.ExpireAt, cust.Language, cust.SubscriptionLink)
+		builder = builder.Values(cust.TelegramID, cust.ExpireAt, cust.Language, cust.SubscriptionLink, cust.RemnawaveID)
 	}
 	sqlStr, args, err := builder.ToSql()
 	if err != nil {
@@ -285,16 +287,16 @@ func (cr *CustomerRepository) UpdateBatch(ctx context.Context, customers []Custo
 	if len(customers) == 0 {
 		return nil
 	}
-	query := "UPDATE customer SET expire_at = c.expire_at, subscription_link = c.subscription_link FROM (VALUES "
+	query := "UPDATE customer SET expire_at = c.expire_at, subscription_link = c.subscription_link, remnawave_id = c.remnawave_id FROM (VALUES "
 	var args []interface{}
 	for i, cust := range customers {
 		if i > 0 {
 			query += ", "
 		}
-		query += fmt.Sprintf("($%d::bigint, $%d::timestamp, $%d::text)", i*3+1, i*3+2, i*3+3)
-		args = append(args, cust.TelegramID, cust.ExpireAt, cust.SubscriptionLink)
+		query += fmt.Sprintf("($%d::bigint, $%d::timestamp, $%d::text, $%d::bigint)", i*4+1, i*4+2, i*4+3, i*4+4)
+		args = append(args, cust.TelegramID, cust.ExpireAt, cust.SubscriptionLink, cust.RemnawaveID)
 	}
-	query += ") AS c(telegram_id, expire_at, subscription_link) WHERE customer.telegram_id = c.telegram_id"
+	query += ") AS c(telegram_id, expire_at, subscription_link, remnawave_id) WHERE customer.telegram_id = c.telegram_id"
 
 	tx, err := cr.pool.Begin(ctx)
 	if err != nil {
