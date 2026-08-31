@@ -178,9 +178,7 @@ func (r *Client) GetUsers(ctx context.Context) ([]User, error) {
 // Users — get by Telegram ID
 // ---------------------------------------------------------------------------
 
-// getUsersByTelegramID fetches panel users by Telegram ID.
-// The legacy /api/users/by-telegram-id endpoint was removed in Remnawave v3;
-// the supported way is the telegramId filter of GET /api/users/stream.
+// getUsersByTelegramID fetches panel users by Telegram ID via /api/users/stream.
 func (r *Client) getUsersByTelegramID(ctx context.Context, telegramID int64) ([]User, error) {
 	var users []User
 	cursor := ""
@@ -205,8 +203,7 @@ func (r *Client) getUsersByTelegramID(ctx context.Context, telegramID int64) ([]
 	return users, nil
 }
 
-// streamCursor extracts the pagination cursor from the raw nextCursor value,
-// which arrives either as a JSON number or as a JSON string.
+// streamCursor parses a raw nextCursor (JSON string or number) into a query value.
 func streamCursor(raw json.RawMessage) string {
 	s := strings.TrimSpace(string(raw))
 	if s == "" || s == "null" {

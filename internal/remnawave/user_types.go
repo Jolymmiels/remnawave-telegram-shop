@@ -7,9 +7,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// User represents a Remnawave user (API v3.4.1, UserResponseDto).
-// Since v3 the panel identifies users by numeric ID (the legacy UUID
-// field no longer exists); unused response fields are not decoded.
+// User represents a Remnawave user (API v3.4.1: numeric id, no uuid).
 type User struct {
 	ID                int64     `json:"id"`
 	Username          string    `json:"username"`
@@ -30,10 +28,8 @@ type getAllUsersResponse struct {
 
 // getUsersStreamResponse is the raw API response for GET /api/users/stream.
 type getUsersStreamResponse struct {
-	Users []User `json:"users"`
-	// NextCursor is the cursor for the next page. The v3.4.1 schema declares
-	// it as a JSON string or null, so it is decoded raw and parsed on demand.
-	NextCursor json.RawMessage `json:"nextCursor"`
+	Users      []User          `json:"users"`
+	NextCursor json.RawMessage `json:"nextCursor"` // JSON string or number, parsed in streamCursor
 	HasMore    bool            `json:"hasMore"`
 }
 
@@ -59,10 +55,9 @@ type internalSquadsResponse struct {
 	InternalSquads []internalSquadItem `json:"internalSquads"`
 }
 
-// CreateUserRequest is the request body for POST /api/users (CreateUserBodyDto).
-// Per @remnawave/backend-contract@3.4.1: telegramId and description are
-// scalar values (number / string). The published openapi.json shows them as
-// arrays — that is a spec-generation artifact, do not "fix" this back.
+// CreateUserRequest is the request body for POST /api/users.
+// telegramId/description are scalars; the published openapi.json
+// wrongly shows them as arrays — do not "fix" this back.
 type CreateUserRequest struct {
 	Username             string      `json:"username"`
 	ExpireAt             time.Time   `json:"expireAt"`
@@ -76,10 +71,7 @@ type CreateUserRequest struct {
 	Description          *string     `json:"description,omitempty"`
 }
 
-// UpdateUserRequest is the request body for PATCH /api/users (UpdateUserBodyDto).
-// v3.4.1 requires exactly one of ID or Username to identify the user;
-// the legacy "uuid" field is no longer accepted. This client identifies
-// users by ID only, so no Username field is exposed.
+// UpdateUserRequest is the request body for PATCH /api/users; the user is identified by ID.
 type UpdateUserRequest struct {
 	ID                   *int64      `json:"id,omitempty"`
 	Status               string      `json:"status,omitempty"`
