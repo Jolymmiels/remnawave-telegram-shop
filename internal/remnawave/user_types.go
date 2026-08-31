@@ -60,6 +60,9 @@ type internalSquadsResponse struct {
 }
 
 // CreateUserRequest is the request body for POST /api/users (CreateUserBodyDto).
+// Per @remnawave/backend-contract@3.4.1: telegramId and description are
+// scalar values (number / string). The published openapi.json shows them as
+// arrays — that is a spec-generation artifact, do not "fix" this back.
 type CreateUserRequest struct {
 	Username             string      `json:"username"`
 	ExpireAt             time.Time   `json:"expireAt"`
@@ -69,17 +72,16 @@ type CreateUserRequest struct {
 	ActiveInternalSquads []uuid.UUID `json:"activeInternalSquads,omitempty"`
 	ExternalSquadUuid    *uuid.UUID  `json:"externalSquadUuid,omitempty"`
 	Tag                  *string     `json:"tag,omitempty"`
-	// TelegramID is an array of numbers since v3.4.1.
-	TelegramID  []int64 `json:"telegramId,omitempty"`
-	Description *string `json:"description,omitempty"`
+	TelegramID           *int64      `json:"telegramId,omitempty"`
+	Description          *string     `json:"description,omitempty"`
 }
 
 // UpdateUserRequest is the request body for PATCH /api/users (UpdateUserBodyDto).
 // v3.4.1 requires exactly one of ID or Username to identify the user;
-// the legacy "uuid" field is no longer accepted.
+// the legacy "uuid" field is no longer accepted. This client identifies
+// users by ID only, so no Username field is exposed.
 type UpdateUserRequest struct {
 	ID                   *int64      `json:"id,omitempty"`
-	Username             string      `json:"username,omitempty"`
 	Status               string      `json:"status,omitempty"`
 	ExpireAt             *time.Time  `json:"expireAt,omitempty"`
 	TrafficLimitBytes    *int        `json:"trafficLimitBytes,omitempty"`
@@ -87,7 +89,5 @@ type UpdateUserRequest struct {
 	ActiveInternalSquads []uuid.UUID `json:"activeInternalSquads,omitempty"`
 	ExternalSquadUuid    *uuid.UUID  `json:"externalSquadUuid,omitempty"`
 	Tag                  *string     `json:"tag,omitempty"`
-	// TelegramID and Description are arrays since v3.4.1.
-	TelegramID  []int64  `json:"telegramId,omitempty"`
-	Description []string `json:"description,omitempty"`
+	Description          *string     `json:"description,omitempty"`
 }

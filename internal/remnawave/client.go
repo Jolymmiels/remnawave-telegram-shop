@@ -345,7 +345,7 @@ func (r *Client) updateUser(ctx context.Context, existingUser *User, trafficLimi
 
 	username := UsernameFromCtx(ctx)
 	if username != "" {
-		userUpdate.Description = []string{username}
+		userUpdate.Description = &username
 	}
 
 	var resp apiResponse[User]
@@ -390,7 +390,7 @@ func (r *Client) createUser(ctx context.Context, customerId int64, telegramId in
 		Username:             username,
 		ActiveInternalSquads: squadIds,
 		Status:               "ACTIVE",
-		TelegramID:           []int64{telegramId},
+		TelegramID:           &telegramId,
 		ExpireAt:             expireAt,
 		TrafficLimitStrategy: normalizeStrategy(strategy),
 		TrafficLimitBytes:    &trafficLimit,
