@@ -1,14 +1,15 @@
 package remnawave
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 )
 
-// User represents a Remnawave user.
+// User represents a Remnawave user (API v3.4.1: numeric id, no uuid).
 type User struct {
-	UUID              uuid.UUID `json:"uuid"`
+	ID                int64     `json:"id"`
 	Username          string    `json:"username"`
 	SubscriptionUrl   string    `json:"subscriptionUrl"`
 	ExpireAt          time.Time `json:"expireAt"`
@@ -23,6 +24,13 @@ type getAllUsersResponse struct {
 		Users []User `json:"users"`
 		Total int    `json:"total"`
 	} `json:"response"`
+}
+
+// getUsersStreamResponse is the raw API response for GET /api/users/stream.
+type getUsersStreamResponse struct {
+	Users      []User          `json:"users"`
+	NextCursor json.RawMessage `json:"nextCursor"` // JSON string or number, parsed in streamCursor
+	HasMore    bool            `json:"hasMore"`
 }
 
 // apiResponse is a generic wrapper for { "response": T } API responses.
@@ -48,6 +56,8 @@ type internalSquadsResponse struct {
 }
 
 // CreateUserRequest is the request body for POST /api/users.
+// telegramId/description are scalars; the published openapi.json
+// wrongly shows them as arrays — do not "fix" this back.
 type CreateUserRequest struct {
 	Username             string      `json:"username"`
 	ExpireAt             time.Time   `json:"expireAt"`
@@ -61,9 +71,9 @@ type CreateUserRequest struct {
 	Description          *string     `json:"description,omitempty"`
 }
 
-// UpdateUserRequest is the request body for PATCH /api/users.
+// UpdateUserRequest is the request body for PATCH /api/users; the user is identified by ID.
 type UpdateUserRequest struct {
-	UUID                 *uuid.UUID  `json:"uuid,omitempty"`
+	ID                   *int64      `json:"id,omitempty"`
 	Status               string      `json:"status,omitempty"`
 	ExpireAt             *time.Time  `json:"expireAt,omitempty"`
 	TrafficLimitBytes    *int        `json:"trafficLimitBytes,omitempty"`
