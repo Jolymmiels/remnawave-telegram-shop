@@ -40,8 +40,9 @@ type apiResponse[T any] struct {
 
 // apiErrorResponse is the standard error response from the Remnawave API.
 type apiErrorResponse struct {
-	Message   string `json:"message"`
-	ErrorCode string `json:"errorCode"`
+	Message   string          `json:"message"`
+	ErrorCode string          `json:"errorCode"`
+	Errors    json.RawMessage `json:"errors"`
 }
 
 // internalSquadItem is a single squad in the internal squads response.

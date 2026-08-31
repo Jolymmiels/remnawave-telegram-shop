@@ -120,7 +120,14 @@ func (r *Client) doRequest(ctx context.Context, method, path string, body any) (
 	if resp.StatusCode >= 400 {
 		var apiErr apiErrorResponse
 		if json.Unmarshal(respBody, &apiErr) == nil && apiErr.Message != "" {
-			return respBody, resp.StatusCode, fmt.Errorf("API error %d: %s (code: %s)", resp.StatusCode, apiErr.Message, apiErr.ErrorCode)
+			message := fmt.Sprintf("API error %d: %s", resp.StatusCode, apiErr.Message)
+			if apiErr.ErrorCode != "" {
+				message += fmt.Sprintf(" (code: %s)", apiErr.ErrorCode)
+			}
+			if details := strings.TrimSpace(string(apiErr.Errors)); details != "" && details != "null" && details != "[]" {
+				message += fmt.Sprintf(" (details: %s)", details)
+			}
+			return respBody, resp.StatusCode, errors.New(message)
 		}
 		return respBody, resp.StatusCode, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respBody))
 	}

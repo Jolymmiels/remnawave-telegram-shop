@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.0.1] - 2026-08-31
+
+### Fixed
+- Preserve Remnawave validation details in API errors instead of logging an empty error code, making invalid create/update fields diagnosable.
+- Prefer the bot-managed panel user when multiple users share a Telegram ID during `/sync`, preventing an unrelated subscription from being selected.
+- Warn about duplicate Telegram IDs during synchronization while keeping Telegram IDs masked in logs.
+
+### Tests
+- Added regression coverage for Remnawave validation error parsing and duplicate-user selection during synchronization.
+
 ## [5.0.0] - 2026-08-31
 
 ### Changed

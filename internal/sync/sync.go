@@ -3,8 +3,12 @@ package sync
 import (
 	"context"
 	"log/slog"
+	"strconv"
+	"strings"
+
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/remnawave"
+	"remnawave-tg-shop-bot/utils"
 )
 
 type SyncService struct {
@@ -22,7 +26,8 @@ func (s SyncService) Sync() {
 	slog.Info("Starting sync")
 	ctx := context.Background()
 	var telegramIDs []int64
-	telegramIDsSet := make(map[int64]int64)
+	mappedUserIndexes := make(map[int64]int)
+	usersForSync := make(map[int64]remnawave.User)
 	var mappedUsers []database.Customer
 	users, err := s.client.GetUsers(ctx)
 	if err != nil {
@@ -39,12 +44,18 @@ func (s SyncService) Sync() {
 			continue
 		}
 		tid := *user.TelegramID
-		if _, exists := telegramIDsSet[tid]; exists {
+		if index, exists := mappedUserIndexes[tid]; exists {
+			current := usersForSync[tid]
+			preferred := preferManagedUser(current, user, tid)
+			usersForSync[tid] = preferred
+			mappedUsers[index].ExpireAt = &preferred.ExpireAt
+			mappedUsers[index].SubscriptionLink = &preferred.SubscriptionUrl
+			slog.Warn("Multiple panel users have the same Telegram ID; selected one subscription", "telegramId", utils.MaskHalfInt64(tid), "selectedUserId", preferred.ID)
 			continue
 		}
 
-		telegramIDsSet[tid] = tid
-
+		mappedUserIndexes[tid] = len(mappedUsers)
+		usersForSync[tid] = user
 		telegramIDs = append(telegramIDs, tid)
 
 		mappedUsers = append(mappedUsers, database.Customer{
@@ -100,4 +111,12 @@ func (s SyncService) Sync() {
 		}
 	}
 	slog.Info("Synchronization completed")
+}
+
+func preferManagedUser(current, candidate remnawave.User, telegramID int64) remnawave.User {
+	suffix := "_" + strconv.FormatInt(telegramID, 10)
+	if !strings.HasSuffix(current.Username, suffix) && strings.HasSuffix(candidate.Username, suffix) {
+		return candidate
+	}
+	return current
 }
