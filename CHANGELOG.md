@@ -13,9 +13,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - User updates are sent by numeric `id` instead of `uuid` (`PATCH /api/users` requires exactly one of `id`/`username` since v3)
   - `telegramId`/`description` in create and update bodies remain scalar values per the real v3.4.1 contract (the published openapi.json incorrectly declares them as arrays)
 
-### Added
-- New `customer.remnawave_id` column (migration 000006): user sync now stores the panel numeric user ID for every synced customer
-
 ## [3.4.1] - 2025-11-08
 
 ### Added
