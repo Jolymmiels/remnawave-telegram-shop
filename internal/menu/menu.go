@@ -198,6 +198,14 @@ func (s *Service) replacePin(ctx context.Context, b *bot.Bot, chatID int64, mess
 	if _, err := b.PinChatMessage(ctx, &bot.PinChatMessageParams{
 		ChatID: chatID, MessageID: messageID, DisableNotification: true,
 	}); err != nil {
+		// A confirmed permission denial cannot have created a pin. Do not
+		// accumulate cleanup work while the bot lacks rights; uncertain
+		// errors (timeouts, server errors, rate limits) must remain tracked.
+		if pinPermissionDenied(err) {
+			if cleanupErr := s.store.ForgetPin(ctx, s.botID, chatID, messageID); cleanupErr != nil {
+				slog.Warn("Failed to forget denied menu pin", "error", cleanupErr)
+			}
+		}
 		return err
 	}
 	var cleanupErrors []error
@@ -215,6 +223,18 @@ func (s *Service) replacePin(ctx context.Context, b *bot.Bot, chatID int64, mess
 		}
 	}
 	return errors.Join(cleanupErrors...)
+}
+
+func pinPermissionDenied(err error) bool {
+	if errors.Is(err, bot.ErrorForbidden) {
+		return true
+	}
+	if !errors.Is(err, bot.ErrorBadRequest) {
+		return false
+	}
+	text := strings.ToLower(err.Error())
+	return strings.Contains(text, "not enough rights") || strings.Contains(text, "chat_admin_required") ||
+		strings.Contains(text, "need administrator rights")
 }
 
 func missingPin(err error) bool {
