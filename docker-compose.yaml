@@ -8,6 +8,7 @@ services:
         condition: service_healthy
     volumes:
       - ./translations:/translations
+      - ./assets:/assets:ro
 
   db:
     image: postgres:17

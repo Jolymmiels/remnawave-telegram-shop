@@ -3,6 +3,7 @@ package handler
 import (
 	"context"
 	"fmt"
+	"remnawave-tg-shop-bot/internal/menu"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -30,7 +31,7 @@ func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update
 	}
 	text := fmt.Sprintf(h.translation.GetText(langCode, "referral_text"), count)
 	callbackMessage := update.CallbackQuery.Message.Message
-	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, err = menu.Edit(ctx, b, callbackMessage, &bot.EditMessageTextParams{
 		ChatID:    callbackMessage.Chat.ID,
 		MessageID: callbackMessage.ID,
 		Text:      text,

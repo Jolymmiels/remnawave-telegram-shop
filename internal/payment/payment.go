@@ -80,16 +80,6 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 		return fmt.Errorf("customer %s not found", utils.MaskHalfInt64(purchase.CustomerID))
 	}
 
-	if messageId, b := s.cache.Get(purchase.ID); b {
-		_, err = s.telegramBot.DeleteMessage(ctx, &bot.DeleteMessageParams{
-			ChatID:    customer.TelegramID,
-			MessageID: messageId,
-		})
-		if err != nil {
-			slog.Error("Error deleting message", "error", err)
-		}
-	}
-
 	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
 	if err != nil {
 		return err
@@ -109,6 +99,8 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	if err != nil {
 		return err
 	}
+
+	s.refreshPurchaseMenu(ctx, purchase.ID, customer)
 
 	_, err = s.telegramBot.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: customer.TelegramID,

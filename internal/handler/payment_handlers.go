@@ -13,6 +13,7 @@ import (
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/menu"
 	"remnawave-tg-shop-bot/internal/remnawave"
 )
 
@@ -51,7 +52,7 @@ func (h Handler) BuyCallbackHandler(ctx context.Context, b *bot.Bot, update *mod
 		h.translation.GetButton(langCode, "back_button").InlineCallback(CallbackStart),
 	})
 
-	_, err := b.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, err := menu.Edit(ctx, b, callback, &bot.EditMessageTextParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
 		ParseMode: models.ParseModeHTML,

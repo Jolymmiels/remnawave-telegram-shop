@@ -13,6 +13,7 @@ import (
 )
 
 type config struct {
+	menuPhotoPath                                             string
 	telegramToken                                             string
 	price1, price3, price6, price12                           int
 	starsPrice1, starsPrice3, starsPrice6, starsPrice12       int
@@ -61,6 +62,10 @@ type config struct {
 }
 
 var conf config
+
+func MenuPhotoPath() string {
+	return conf.menuPhotoPath
+}
 
 func RemnawaveTag() string {
 	return conf.remnawaveTag
@@ -407,6 +412,7 @@ func InitConfig() {
 	}
 
 	conf.telegramToken = mustEnv("TELEGRAM_TOKEN")
+	conf.menuPhotoPath = strings.TrimSpace(os.Getenv("MENU_PHOTO_PATH"))
 
 	conf.isWebAppLinkEnabled = func() bool {
 		isWebAppLinkEnabled := os.Getenv("IS_WEB_APP_LINK") == "true"

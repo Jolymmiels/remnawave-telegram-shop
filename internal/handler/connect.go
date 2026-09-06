@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/menu"
 	"strings"
 	"time"
 
@@ -40,18 +41,8 @@ func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *
 	}
 	markup = append(markup, []models.InlineKeyboardButton{h.translation.GetButton(langCode, "back_button").InlineCallback(CallbackStart)})
 
-	isDisabled := true
-	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      buildConnectText(customer, langCode),
-		ParseMode: models.ParseModeHTML,
-		LinkPreviewOptions: &models.LinkPreviewOptions{
-			IsDisabled: &isDisabled,
-		},
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: markup,
-		},
-	})
+	_, err = h.menu.Send(ctx, b, update.Message.Chat.ID, buildConnectText(customer, langCode),
+		models.InlineKeyboardMarkup{InlineKeyboard: markup})
 
 	if err != nil {
 		slog.Error("Error sending connect message", "error", err)
@@ -85,7 +76,7 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	markup = append(markup, []models.InlineKeyboardButton{h.translation.GetButton(langCode, "back_button").InlineCallback(CallbackStart)})
 
 	isDisabled := true
-	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, err = menu.Edit(ctx, b, callback, &bot.EditMessageTextParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
 		ParseMode: models.ParseModeHTML,
