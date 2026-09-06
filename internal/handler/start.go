@@ -12,6 +12,7 @@ import (
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
+	"remnawave-tg-shop-bot/internal/menu"
 	"remnawave-tg-shop-bot/utils"
 )
 
@@ -92,14 +93,8 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 		return
 	}
 
-	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		ParseMode: models.ParseModeHTML,
-		ReplyMarkup: models.InlineKeyboardMarkup{
-			InlineKeyboard: inlineKeyboard,
-		},
-		Text: h.translation.GetText(langCode, "greeting"),
-	})
+	_, err = h.menu.SendStart(ctx, b, update.Message.Chat.ID, h.translation.GetText(langCode, "greeting"),
+		models.InlineKeyboardMarkup{InlineKeyboard: inlineKeyboard})
 	if err != nil {
 		slog.Error("Error sending /start message", "error", err)
 	}
@@ -120,7 +115,7 @@ func (h Handler) StartCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 
 	inlineKeyboard := h.buildStartKeyboard(existingCustomer, langCode)
 
-	_, err = b.EditMessageText(ctxWithTime, &bot.EditMessageTextParams{
+	_, err = menu.Edit(ctxWithTime, b, callback.Message.Message, &bot.EditMessageTextParams{
 		ChatID:    callback.Message.Message.Chat.ID,
 		MessageID: callback.Message.Message.ID,
 		ParseMode: models.ParseModeHTML,

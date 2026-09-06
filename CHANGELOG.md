@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-09-06
+
+### Added
+- Optional local menu photo configured with `MENU_PHOTO_PATH`, cached by content and bot identity in PostgreSQL and reused across restarts.
+- Persistent tracking of start-message pins: each `/start` pins the new menu before unpinning previous bot menus, with retryable cleanup.
+
+### Fixed
+- Inline section navigation now edits photo captions without removing the image or changing the message ID. Legacy text menus remain supported.
+- Payment completion preserves the menu and its pin instead of deleting the message.
+
+### Tests
+- Added photo cache, restart/replacement, concurrent request, Telegram error, pin lifecycle, caption navigation and payment-menu regressions.
+
 ## [5.0.1] - 2026-08-31
 
 ### Fixed

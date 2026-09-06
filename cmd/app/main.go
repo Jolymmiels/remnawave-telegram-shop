@@ -14,6 +14,7 @@ import (
 	"remnawave-tg-shop-bot/internal/cryptopay"
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/handler"
+	"remnawave-tg-shop-bot/internal/menu"
 	"remnawave-tg-shop-bot/internal/moynalog"
 	"remnawave-tg-shop-bot/internal/notification"
 	"remnawave-tg-shop-bot/internal/payment"
@@ -116,7 +117,11 @@ func main() {
 
 	syncService := sync.NewSyncService(remnawaveClient, customerRepository)
 
-	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache)
+	menuService, err := menu.New(ctx, database.NewMenuRepository(pool), b.ID(), config.MenuPhotoPath())
+	if err != nil {
+		panic(fmt.Errorf("initialize menu: %w", err))
+	}
+	h := handler.NewHandler(syncService, paymentService, tm, customerRepository, purchaseRepository, cryptoPayClient, yookasaClient, referralRepository, cache, menuService)
 
 	me, err := b.GetMe(ctx)
 	if err != nil {

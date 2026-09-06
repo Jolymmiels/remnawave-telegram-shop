@@ -8,6 +8,7 @@ import (
 	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
+	"remnawave-tg-shop-bot/internal/menu"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/utils"
 )
@@ -30,7 +31,7 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	}
 	callback := update.CallbackQuery.Message.Message
 	langCode := update.CallbackQuery.From.LanguageCode
-	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, err = menu.Edit(ctx, b, callback, &bot.EditMessageTextParams{
 		ChatID:    callback.Chat.ID,
 		MessageID: callback.ID,
 		Text:      h.translation.GetText(langCode, "trial_text"),
@@ -69,7 +70,7 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 		return
 	}
 	langCode := update.CallbackQuery.From.LanguageCode
-	_, err = b.EditMessageText(ctx, &bot.EditMessageTextParams{
+	_, err = menu.Edit(ctx, b, callback, &bot.EditMessageTextParams{
 		ChatID:      callback.Chat.ID,
 		MessageID:   callback.ID,
 		Text:        h.translation.GetText(langCode, "trial_activated"),
