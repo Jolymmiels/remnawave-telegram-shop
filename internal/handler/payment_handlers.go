@@ -94,12 +94,6 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 		})
 	}
 
-	if config.IsPlategaCardsEnabled() {
-		keyboard = append(keyboard, []models.InlineKeyboardButton{
-			h.translation.GetButton(langCode, "platega_cards_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlategaCards, amount)),
-		})
-	}
-
 	if config.IsPlategaAcquiringEnabled() {
 		keyboard = append(keyboard, []models.InlineKeyboardButton{
 			h.translation.GetButton(langCode, "platega_acquiring_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypePlategaAcquiring, amount)),

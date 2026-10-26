@@ -53,7 +53,6 @@ func (p *Provider) CreateInvoice(
 
 var invoiceTypeToMethod = map[database.InvoiceType]PaymentMethod{
 	database.InvoiceTypePlategaSBP:       PaymentMethodSBPQR,
-	database.InvoiceTypePlategaCards:     PaymentMethodCardsRUB,
 	database.InvoiceTypePlategaAcquiring: PaymentMethodCardAcquiring,
 	database.InvoiceTypePlategaWorldwide: PaymentMethodInternationalAcquiring,
 	database.InvoiceTypePlategaCrypto:    PaymentMethodCrypto,

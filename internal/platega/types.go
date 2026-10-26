@@ -4,7 +4,7 @@ type PaymentMethod int
 
 const (
 	PaymentMethodSBPQR                  PaymentMethod = 2
-	PaymentMethodCardsRUB               PaymentMethod = 10
+	PaymentMethodCardsRUB               PaymentMethod = 10 // retired by Platega; cards go through PaymentMethodCardAcquiring
 	PaymentMethodCardAcquiring          PaymentMethod = 11
 	PaymentMethodInternationalAcquiring PaymentMethod = 12
 	PaymentMethodCrypto                 PaymentMethod = 13
