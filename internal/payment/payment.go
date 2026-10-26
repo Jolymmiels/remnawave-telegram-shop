@@ -13,8 +13,10 @@ import (
 	"remnawave-tg-shop-bot/internal/platega"
 	"remnawave-tg-shop-bot/internal/remnawave"
 	"remnawave-tg-shop-bot/internal/translation"
+	"remnawave-tg-shop-bot/internal/wata"
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"remnawave-tg-shop-bot/utils"
+	"strconv"
 	"time"
 
 	"github.com/go-telegram/bot"
@@ -30,6 +32,7 @@ type PaymentService struct {
 	cryptoPayClient    *cryptopay.Client
 	yookasaClient      *yookasa.Client
 	plategaClient      *platega.Client
+	wataClient         *wata.Client
 	referralRepository *database.ReferralRepository
 	cache              *cache.Cache
 	moynalogClient     *moynalog.Client
@@ -44,6 +47,7 @@ func NewPaymentService(
 	cryptoPayClient *cryptopay.Client,
 	yookasaClient *yookasa.Client,
 	plategaClient *platega.Client,
+	wataClient *wata.Client,
 	referralRepository *database.ReferralRepository,
 	cache *cache.Cache,
 	moynalogClient *moynalog.Client,
@@ -57,6 +61,7 @@ func NewPaymentService(
 		cryptoPayClient:    cryptoPayClient,
 		yookasaClient:      yookasaClient,
 		plategaClient:      plategaClient,
+		wataClient:         wataClient,
 		referralRepository: referralRepository,
 		cache:              cache,
 		moynalogClient:     moynalogClient,
@@ -210,6 +215,8 @@ func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, mont
 		database.InvoiceTypePlategaWorldwide,
 		database.InvoiceTypePlategaCrypto:
 		return s.createPlategaInvoice(ctx, amount, months, customer, invoiceType)
+	case database.InvoiceTypeWata:
+		return s.createWataInvoice(ctx, amount, months, customer)
 	default:
 		return "", 0, fmt.Errorf("unknown invoice type: %s", invoiceType)
 	}
@@ -259,6 +266,50 @@ func (s PaymentService) createPlategaInvoice(ctx context.Context, amount float64
 	}
 
 	return redirectURL, purchaseId, nil
+}
+
+func (s PaymentService) createWataInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
+	if s.wataClient == nil || !s.wataClient.IsConfigured() {
+		return "", 0, fmt.Errorf("wata client not configured")
+	}
+
+	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
+		InvoiceType: database.InvoiceTypeWata,
+		Status:      database.PurchaseStatusNew,
+		Amount:      amount,
+		Currency:    "RUB",
+		CustomerID:  customer.ID,
+		Month:       months,
+	})
+	if err != nil {
+		slog.Error("Error creating purchase", "error", err)
+		return "", 0, err
+	}
+
+	link, err := s.wataClient.CreateLink(ctx, &wata.CreateLinkRequest{
+		Amount:             amount,
+		Currency:           "RUB",
+		Description:        utils.FormatSubscriptionDescription(months),
+		OrderID:            strconv.FormatInt(purchaseId, 10),
+		SuccessRedirectURL: config.BotURL(),
+		FailRedirectURL:    config.BotURL(),
+	})
+	if err != nil {
+		slog.Error("Error creating wata payment link", "error", err)
+		return "", 0, err
+	}
+
+	updates := map[string]interface{}{
+		"wata_id":  link.ID,
+		"wata_url": link.URL,
+		"status":   database.PurchaseStatusPending,
+	}
+	if err := s.purchaseRepository.UpdateFields(ctx, purchaseId, updates); err != nil {
+		slog.Error("Error updating purchase", "error", err)
+		return "", 0, err
+	}
+
+	return link.URL, purchaseId, nil
 }
 
 var ErrCustomerNotFound = errors.New("customer not found")

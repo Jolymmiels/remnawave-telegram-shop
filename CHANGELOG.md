@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- WATA payment gateway (`WATA_ENABLED`, `WATA_ACCESS_TOKEN`, `WATA_BASE_URL`, `WATA_WEBHOOK_URL`): the "Card / SBP (WATA)" button creates a one-time WATA payment link for the purchase. Payments are confirmed by the WATA webhook, whose `X-Signature` RSA signature is verified against the WATA public key before anything is processed. Declined attempts leave the link open for a retry, and refunds are not treated as payments.
+- Database migration `000007_add_wata` adds `wata_id`/`wata_url` to purchases, with the same `wata` invoice type and column layout as rwp-shop for a later import.
+
 ### Fixed
 - Platega card payments no longer fail with `Wrong input parameters` (`paymentMethod: CardRu`): Platega retired payment method 10, so the "Russian Card" button and `PLATEGA_CARDS_ENABLED` are removed. Enable `PLATEGA_ACQUIRING_ENABLED` (method 11) for card payments; the bot logs a warning while the old flag is still set. Existing `plt_cards` purchases keep working in history and paid-purchase checks.
 

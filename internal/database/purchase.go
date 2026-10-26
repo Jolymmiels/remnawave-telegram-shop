@@ -24,6 +24,7 @@ const (
 	InvoiceTypePlategaAcquiring   InvoiceType = "plt_acq"
 	InvoiceTypePlategaWorldwide   InvoiceType = "plt_ww"
 	InvoiceTypePlategaCrypto      InvoiceType = "plt_crypto"
+	InvoiceTypeWata               InvoiceType = "wata"
 )
 
 type PurchaseStatus string
@@ -52,6 +53,8 @@ type Purchase struct {
 	YookasaID         *uuid.UUID     `db:"yookasa_id"`
 	PlategaID         *string        `db:"platega_id"`
 	PlategaURL        *string        `db:"platega_url"`
+	WataID            *string        `db:"wata_id"`
+	WataURL           *string        `db:"wata_url"`
 }
 
 type PurchaseRepository struct {
@@ -66,8 +69,8 @@ func NewPurchaseRepository(pool *pgxpool.Pool) *PurchaseRepository {
 
 func (cr *PurchaseRepository) Create(ctx context.Context, purchase *Purchase) (int64, error) {
 	buildInsert := sq.Insert("purchase").
-		Columns("amount", "customer_id", "month", "currency", "expire_at", "status", "invoice_type", "crypto_invoice_id", "crypto_invoice_url", "yookasa_url", "yookasa_id", "platega_id", "platega_url").
-		Values(purchase.Amount, purchase.CustomerID, purchase.Month, purchase.Currency, purchase.ExpireAt, purchase.Status, purchase.InvoiceType, purchase.CryptoInvoiceID, purchase.CryptoInvoiceLink, purchase.YookasaURL, purchase.YookasaID, purchase.PlategaID, purchase.PlategaURL).
+		Columns("amount", "customer_id", "month", "currency", "expire_at", "status", "invoice_type", "crypto_invoice_id", "crypto_invoice_url", "yookasa_url", "yookasa_id", "platega_id", "platega_url", "wata_id", "wata_url").
+		Values(purchase.Amount, purchase.CustomerID, purchase.Month, purchase.Currency, purchase.ExpireAt, purchase.Status, purchase.InvoiceType, purchase.CryptoInvoiceID, purchase.CryptoInvoiceLink, purchase.YookasaURL, purchase.YookasaID, purchase.PlategaID, purchase.PlategaURL, purchase.WataID, purchase.WataURL).
 		Suffix("RETURNING id").
 		PlaceholderFormat(sq.Dollar)
 
@@ -125,6 +128,8 @@ func (cr *PurchaseRepository) FindByInvoiceTypeAndStatus(ctx context.Context, in
 			&purchase.YookasaID,
 			&purchase.PlategaID,
 			&purchase.PlategaURL,
+			&purchase.WataID,
+			&purchase.WataURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan purchase: %w", err)
@@ -168,6 +173,8 @@ func (cr *PurchaseRepository) FindById(ctx context.Context, id int64) (*Purchase
 		&purchase.YookasaID,
 		&purchase.PlategaID,
 		&purchase.PlategaURL,
+		&purchase.WataID,
+		&purchase.WataURL,
 	)
 
 	if err != nil {
@@ -263,7 +270,7 @@ func (pr *PurchaseRepository) FindLatestActiveTributesByCustomerIDs(
 			&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
 			&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
 			&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
-			&p.PlategaID, &p.PlategaURL,
+			&p.PlategaID, &p.PlategaURL, &p.WataID, &p.WataURL,
 		); err != nil {
 			return nil, fmt.Errorf("scan purchase: %w", err)
 		}
@@ -303,7 +310,7 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
 		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
 		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
-		&p.PlategaID, &p.PlategaURL,
+		&p.PlategaID, &p.PlategaURL, &p.WataID, &p.WataURL,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -330,6 +337,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 				sq.Eq{"invoice_type": InvoiceTypePlategaAcquiring},
 				sq.Eq{"invoice_type": InvoiceTypePlategaWorldwide},
 				sq.Eq{"invoice_type": InvoiceTypePlategaCrypto},
+				sq.Eq{"invoice_type": InvoiceTypeWata},
 			},
 		}).
 		OrderBy("paid_at DESC").
@@ -346,7 +354,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
 		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
 		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
-		&p.PlategaID, &p.PlategaURL,
+		&p.PlategaID, &p.PlategaURL, &p.WataID, &p.WataURL,
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {

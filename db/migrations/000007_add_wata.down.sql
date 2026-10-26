@@ -1,0 +1,2 @@
+ALTER TABLE purchase DROP COLUMN IF EXISTS wata_url;
+ALTER TABLE purchase DROP COLUMN IF EXISTS wata_id;
