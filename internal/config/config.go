@@ -45,9 +45,8 @@ type config struct {
 	tributeWebhookUrl, tributeAPIKey, tributePaymentUrl       string
 	yookasaWebhookUrl                                         string
 	plategaMerchantId, plategaSecret, plategaWebhookUrl       string
-	isPlategaSBPEnabled, isPlategaCardsEnabled               bool
-	isPlategaAcquiringEnabled, isPlategaWorldwideEnabled     bool
-	isPlategaCryptoEnabled                                   bool
+	isPlategaSBPEnabled, isPlategaAcquiringEnabled           bool
+	isPlategaWorldwideEnabled, isPlategaCryptoEnabled        bool
 	isWebAppLinkEnabled                                       bool
 	daysInMonth                                               int
 	externalSquadUUID                                         uuid.UUID
@@ -112,10 +111,6 @@ func IsPlategaSBPEnabled() bool {
 	return conf.isPlategaSBPEnabled
 }
 
-func IsPlategaCardsEnabled() bool {
-	return conf.isPlategaCardsEnabled
-}
-
 func IsPlategaAcquiringEnabled() bool {
 	return conf.isPlategaAcquiringEnabled
 }
@@ -129,9 +124,8 @@ func IsPlategaCryptoEnabled() bool {
 }
 
 func IsPlategaEnabled() bool {
-	return conf.isPlategaSBPEnabled || conf.isPlategaCardsEnabled ||
-		conf.isPlategaAcquiringEnabled || conf.isPlategaWorldwideEnabled ||
-		conf.isPlategaCryptoEnabled
+	return conf.isPlategaSBPEnabled || conf.isPlategaAcquiringEnabled ||
+		conf.isPlategaWorldwideEnabled || conf.isPlategaCryptoEnabled
 }
 
 func GetReferralDays() int {
@@ -506,7 +500,9 @@ func InitConfig() {
 		conf.plategaSecret = mustEnv("PLATEGA_SECRET")
 		conf.plategaWebhookUrl = mustEnv("PLATEGA_WEBHOOK_URL")
 		conf.isPlategaSBPEnabled = envBool("PLATEGA_SBP_ENABLED")
-		conf.isPlategaCardsEnabled = envBool("PLATEGA_CARDS_ENABLED")
+		if envBool("PLATEGA_CARDS_ENABLED") {
+			slog.Warn("PLATEGA_CARDS_ENABLED is ignored: Platega retired payment method 10, use PLATEGA_ACQUIRING_ENABLED for card payments")
+		}
 		conf.isPlategaAcquiringEnabled = envBool("PLATEGA_ACQUIRING_ENABLED")
 		conf.isPlategaWorldwideEnabled = envBool("PLATEGA_WORLDWIDE_ENABLED")
 		conf.isPlategaCryptoEnabled = envBool("PLATEGA_CRYPTO_ENABLED")

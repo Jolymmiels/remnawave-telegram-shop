@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Platega card payments no longer fail with `Wrong input parameters` (`paymentMethod: CardRu`): Platega retired payment method 10, so the "Russian Card" button and `PLATEGA_CARDS_ENABLED` are removed. Enable `PLATEGA_ACQUIRING_ENABLED` (method 11) for card payments; the bot logs a warning while the old flag is still set. Existing `plt_cards` purchases keep working in history and paid-purchase checks.
+
+### Tests
+- Added a regression test that every routable Platega invoice type sends a `paymentMethod` from the documented `PaymentMethodInt` enum.
+
 ## [5.1.0] - 2026-09-06
 
 ### Added
