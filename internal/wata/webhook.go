@@ -22,6 +22,10 @@ import (
 	"remnawave-tg-shop-bot/internal/database"
 )
 
+// maxWebhookBodyBytes caps the unauthenticated request body; WATA
+// notifications are a few hundred bytes.
+const maxWebhookBodyBytes = 1 << 20
+
 // keyRefreshInterval limits how often a bad signature can trigger a public key
 // re-fetch, so forged webhooks cannot make the bot hammer the WATA API.
 const keyRefreshInterval = time.Minute
@@ -58,7 +62,7 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 
-	body, err := io.ReadAll(r.Body)
+	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxWebhookBodyBytes))
 	if err != nil {
 		slog.Error("wata webhook: read body error", "error", err)
 		http.Error(w, "invalid body", http.StatusBadRequest)

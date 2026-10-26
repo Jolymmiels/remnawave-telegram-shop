@@ -158,6 +158,20 @@ func TestWebhookRejectsUnsignedOrForgedRequests(t *testing.T) {
 	}
 }
 
+func TestWebhookRejectsOversizedBodyBeforeVerification(t *testing.T) {
+	ks := newKeyServer(t)
+	processor := &fakeProcessor{}
+	handler := NewWebhookHandler(NewClient(ks.server.URL, ""), fakePurchases{42: pendingWataPurchase()}, processor)
+
+	body := bytes.Repeat([]byte(" "), maxWebhookBodyBytes+1)
+	if code := serve(handler, body, sign(t, ks.key.Load(), body)); code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for an oversized body, got %d", code)
+	}
+	if ks.fetches.Load() != 0 || len(processor.processed) != 0 {
+		t.Fatalf("oversized body reached verification: %d key fetches, processed %v", ks.fetches.Load(), processor.processed)
+	}
+}
+
 func TestWebhookDoesNotProcessIneligibleEvents(t *testing.T) {
 	cases := map[string]struct {
 		purchase *database.Purchase
