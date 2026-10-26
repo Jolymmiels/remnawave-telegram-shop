@@ -47,6 +47,8 @@ type config struct {
 	plategaMerchantId, plategaSecret, plategaWebhookUrl       string
 	isPlategaSBPEnabled, isPlategaAcquiringEnabled           bool
 	isPlategaWorldwideEnabled, isPlategaCryptoEnabled        bool
+	isWataEnabled                                             bool
+	wataBaseURL, wataAccessToken, wataWebhookUrl              string
 	isWebAppLinkEnabled                                       bool
 	daysInMonth                                               int
 	externalSquadUUID                                         uuid.UUID
@@ -126,6 +128,22 @@ func IsPlategaCryptoEnabled() bool {
 func IsPlategaEnabled() bool {
 	return conf.isPlategaSBPEnabled || conf.isPlategaAcquiringEnabled ||
 		conf.isPlategaWorldwideEnabled || conf.isPlategaCryptoEnabled
+}
+
+func IsWataEnabled() bool {
+	return conf.isWataEnabled
+}
+
+func WataBaseURL() string {
+	return conf.wataBaseURL
+}
+
+func WataAccessToken() string {
+	return conf.wataAccessToken
+}
+
+func GetWataWebHookUrl() string {
+	return conf.wataWebhookUrl
 }
 
 func GetReferralDays() int {
@@ -506,6 +524,13 @@ func InitConfig() {
 		conf.isPlategaAcquiringEnabled = envBool("PLATEGA_ACQUIRING_ENABLED")
 		conf.isPlategaWorldwideEnabled = envBool("PLATEGA_WORLDWIDE_ENABLED")
 		conf.isPlategaCryptoEnabled = envBool("PLATEGA_CRYPTO_ENABLED")
+	}
+
+	conf.isWataEnabled = envBool("WATA_ENABLED")
+	if conf.isWataEnabled {
+		conf.wataBaseURL = envStringDefault("WATA_BASE_URL", "https://api.wata.pro/api/h2h")
+		conf.wataAccessToken = mustEnv("WATA_ACCESS_TOKEN")
+		conf.wataWebhookUrl = mustEnv("WATA_WEBHOOK_URL")
 	}
 
 	conf.trafficLimit = mustEnvInt("TRAFFIC_LIMIT")

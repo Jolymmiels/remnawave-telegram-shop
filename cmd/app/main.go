@@ -23,6 +23,7 @@ import (
 	"remnawave-tg-shop-bot/internal/sync"
 	"remnawave-tg-shop-bot/internal/translation"
 	"remnawave-tg-shop-bot/internal/tribute"
+	"remnawave-tg-shop-bot/internal/wata"
 	"remnawave-tg-shop-bot/internal/yookasa"
 	"strconv"
 	"strings"
@@ -83,6 +84,7 @@ func main() {
 	remnawaveClient := remnawave.NewClient(config.RemnawaveUrl(), config.RemnawaveToken(), config.RemnawaveMode())
 	yookasaClient := yookasa.NewClient(config.YookasaUrl(), config.YookasaShopId(), config.YookasaSecretKey())
 	plategaClient := platega.NewClient(config.PlategaMerchantId(), config.PlategaSecret())
+	wataClient := wata.NewClient(config.WataBaseURL(), config.WataAccessToken())
 	botOpts := []bot.Option{bot.WithWorkers(3)}
 	if proxyStr := config.TelegramProxyURL(); proxyStr != "" {
 		proxyURL, parseErr := url.Parse(proxyStr)
@@ -101,7 +103,7 @@ func main() {
 		panic(err)
 	}
 
-	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, plategaClient, referralRepository, cache, moynalogClient)
+	paymentService := payment.NewPaymentService(tm, purchaseRepository, remnawaveClient, customerRepository, b, cryptoPayClient, yookasaClient, plategaClient, wataClient, referralRepository, cache, moynalogClient)
 
 	cronScheduler := setupInvoiceChecker(purchaseRepository, cryptoPayClient, paymentService)
 	if cronScheduler != nil {
@@ -187,6 +189,10 @@ func main() {
 	if config.IsPlategaEnabled() && config.GetPlategaWebHookUrl() != "" {
 		plategaWebhook := platega.NewWebhookHandler(purchaseRepository, paymentService, config.PlategaMerchantId(), config.PlategaSecret())
 		mux.Handle(config.GetPlategaWebHookUrl(), plategaWebhook)
+	}
+	if config.IsWataEnabled() {
+		wataWebhook := wata.NewWebhookHandler(wataClient, purchaseRepository, paymentService)
+		mux.Handle(config.GetWataWebHookUrl(), wataWebhook)
 	}
 
 	srv := &http.Server{

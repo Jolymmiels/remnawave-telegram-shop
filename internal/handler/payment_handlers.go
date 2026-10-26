@@ -112,6 +112,12 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 		})
 	}
 
+	if config.IsWataEnabled() {
+		keyboard = append(keyboard, []models.InlineKeyboardButton{
+			h.translation.GetButton(langCode, "wata_button").InlineCallback(fmt.Sprintf("%s?month=%s&invoiceType=%s&amount=%s", CallbackPayment, month, database.InvoiceTypeWata, amount)),
+		})
+	}
+
 	if config.IsTelegramStarsEnabled() {
 		shouldShowStarsButton := true
 
