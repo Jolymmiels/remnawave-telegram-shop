@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.2.0] - 2026-10-26
 
 ### Added
 - WATA payment gateway (`WATA_ENABLED`, `WATA_ACCESS_TOKEN`, `WATA_BASE_URL`, `WATA_WEBHOOK_URL`): the "Card / SBP (WATA)" button creates a one-time WATA payment link for the purchase. Payments are confirmed by the WATA webhook, whose `X-Signature` RSA signature is verified against the WATA public key before anything is processed. Declined attempts leave the link open for a retry, and refunds are not treated as payments.
