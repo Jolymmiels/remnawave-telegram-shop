@@ -1,9 +1,9 @@
-FROM --platform=$BUILDPLATFORM golang:1.25.3-alpine AS modules
+FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine AS modules
 WORKDIR /modules
 COPY go.mod go.sum ./
 RUN go mod download
 
-FROM --platform=$BUILDPLATFORM golang:1.25.3-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.26.10-alpine AS builder
 WORKDIR /app
 
 COPY --from=modules /go/pkg /go/pkg

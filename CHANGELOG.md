@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - WATA payment gateway (`WATA_ENABLED`, `WATA_ACCESS_TOKEN`, `WATA_BASE_URL`, `WATA_WEBHOOK_URL`): the "Card / SBP (WATA)" button creates a one-time WATA payment link for the purchase. Payments are confirmed by the WATA webhook, whose `X-Signature` RSA signature is verified against the WATA public key before anything is processed. Declined attempts leave the link open for a retry, and refunds are not treated as payments.
 - Database migration `000007_add_wata` adds `wata_id`/`wata_url` to purchases, with the same `wata` invoice type and column layout as rwp-shop for a later import.
 
+### Changed
+- Updated all Go dependencies to their latest releases: `go-telegram/bot` 1.27.0, `golang-migrate/migrate` 4.20.1, `lib/pq` 1.12.3 and `golang.org/x/text` 0.43.0. The PostgreSQL driver moves from the end-of-life `pgx` v4 to `pgx` v5.11.0.
+- Go 1.26 is now required, because the latest `golang.org/x` modules need it. The Docker builder image is `golang:1.26.10-alpine`.
+
 ### Fixed
 - Platega card payments no longer fail with `Wrong input parameters` (`paymentMethod: CardRu`): Platega retired payment method 10, so the "Russian Card" button and `PLATEGA_CARDS_ENABLED` are removed. Enable `PLATEGA_ACQUIRING_ENABLED` (method 11) for card payments; the bot logs a warning while the old flag is still set. Existing `plt_cards` purchases keep working in history and paid-purchase checks.
 
