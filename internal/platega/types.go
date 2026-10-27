@@ -1,32 +1,5 @@
 package platega
 
-type PaymentMethod int
-
-const (
-	PaymentMethodSBPQR                  PaymentMethod = 2
-	PaymentMethodCardsRUB               PaymentMethod = 10 // retired by Platega; cards go through PaymentMethodCardAcquiring
-	PaymentMethodCardAcquiring          PaymentMethod = 11
-	PaymentMethodInternationalAcquiring PaymentMethod = 12
-	PaymentMethodCrypto                 PaymentMethod = 13
-)
-
-func (m PaymentMethod) String() string {
-	switch m {
-	case PaymentMethodSBPQR:
-		return "SBPQR"
-	case PaymentMethodCardsRUB:
-		return "CardsRUB"
-	case PaymentMethodCardAcquiring:
-		return "CardAcquiring"
-	case PaymentMethodInternationalAcquiring:
-		return "InternationalAcquiring"
-	case PaymentMethodCrypto:
-		return "Crypto"
-	default:
-		return "Unknown"
-	}
-}
-
 type PaymentStatus string
 
 const (
@@ -50,7 +23,6 @@ type PaymentDetails struct {
 }
 
 type CreateTransactionRequest struct {
-	PaymentMethod  PaymentMethod  `json:"paymentMethod"`
 	PaymentDetails PaymentDetails `json:"paymentDetails"`
 	Description    string         `json:"description"`
 	Return         string         `json:"return"`
@@ -59,15 +31,11 @@ type CreateTransactionRequest struct {
 }
 
 type CreateTransactionResponse struct {
-	PaymentMethod  string        `json:"paymentMethod"`
-	TransactionId  string        `json:"transactionId"`
-	Redirect       string        `json:"redirect"`
-	Return         string        `json:"return"`
-	PaymentDetails any           `json:"paymentDetails"`
-	Status         PaymentStatus `json:"status"`
-	ExpiresIn      string        `json:"expiresIn"`
-	MerchantId     string        `json:"merchantId"`
-	UsdtRate       float64       `json:"usdtRate,omitempty"`
+	TransactionId string        `json:"transactionId"`
+	Status        PaymentStatus `json:"status"`
+	URL           string        `json:"url"`
+	ExpiresIn     string        `json:"expiresIn"`
+	Rate          float64       `json:"rate"`
 }
 
 type TransactionStatusResponse struct {

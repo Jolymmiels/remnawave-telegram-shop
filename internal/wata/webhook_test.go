@@ -189,7 +189,7 @@ func TestWebhookDoesNotProcessIneligibleEvents(t *testing.T) {
 		}(), func(map[string]any) {}},
 		"other provider purchase": {func() *database.Purchase {
 			p := pendingWataPurchase()
-			p.InvoiceType = database.InvoiceTypePlategaSBP
+			p.InvoiceType = database.InvoiceTypePlatega
 			return p
 		}(), func(map[string]any) {}},
 		"unknown order":   {pendingWataPurchase(), func(p map[string]any) { p["orderId"] = "43" }},

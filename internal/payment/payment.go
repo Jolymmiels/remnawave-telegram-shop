@@ -209,12 +209,8 @@ func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, mont
 		return s.createTelegramInvoice(ctx, amount, months, customer)
 	case database.InvoiceTypeTribute:
 		return s.createTributeInvoice(ctx, amount, months, customer)
-	case database.InvoiceTypePlategaSBP,
-		database.InvoiceTypePlategaCards,
-		database.InvoiceTypePlategaAcquiring,
-		database.InvoiceTypePlategaWorldwide,
-		database.InvoiceTypePlategaCrypto:
-		return s.createPlategaInvoice(ctx, amount, months, customer, invoiceType)
+	case database.InvoiceTypePlatega:
+		return s.createPlategaInvoice(ctx, amount, months, customer)
 	case database.InvoiceTypeWata:
 		return s.createWataInvoice(ctx, amount, months, customer)
 	default:
@@ -222,18 +218,15 @@ func (s PaymentService) CreatePurchase(ctx context.Context, amount float64, mont
 	}
 }
 
-func (s PaymentService) createPlategaInvoice(ctx context.Context, amount float64, months int, customer *database.Customer, invoiceType database.InvoiceType) (url string, purchaseId int64, err error) {
+func (s PaymentService) createPlategaInvoice(ctx context.Context, amount float64, months int, customer *database.Customer) (url string, purchaseId int64, err error) {
 	if s.plategaClient == nil {
 		return "", 0, fmt.Errorf("platega client not configured")
 	}
 
-	provider, err := platega.ProviderFor(s.plategaClient, invoiceType)
-	if err != nil {
-		return "", 0, err
-	}
+	provider := platega.NewProvider(s.plategaClient)
 
 	purchaseId, err = s.purchaseRepository.Create(ctx, &database.Purchase{
-		InvoiceType: invoiceType,
+		InvoiceType: database.InvoiceTypePlatega,
 		Status:      database.PurchaseStatusNew,
 		Amount:      amount,
 		Currency:    "RUB",
@@ -251,7 +244,7 @@ func (s PaymentService) createPlategaInvoice(ctx context.Context, amount float64
 		config.BotURL(),
 	)
 	if err != nil {
-		slog.Error("Error creating platega invoice", "error", err, "invoice_type", invoiceType)
+		slog.Error("Error creating platega invoice", "error", err)
 		return "", 0, err
 	}
 

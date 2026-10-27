@@ -8,13 +8,15 @@ import (
 )
 
 type Provider struct {
-	client        *Client
-	invoiceType   database.InvoiceType
-	paymentMethod PaymentMethod
+	client *Client
+}
+
+func NewProvider(client *Client) *Provider {
+	return &Provider{client: client}
 }
 
 func (p *Provider) InvoiceType() database.InvoiceType {
-	return p.invoiceType
+	return database.InvoiceTypePlatega
 }
 
 func (p *Provider) IsConfigured() bool {
@@ -34,7 +36,6 @@ func (p *Provider) CreateInvoice(
 	}
 
 	resp, err := p.client.CreateTransaction(ctx, &CreateTransactionRequest{
-		PaymentMethod: p.paymentMethod,
 		PaymentDetails: PaymentDetails{
 			Amount:   amount,
 			Currency: currency,
@@ -48,24 +49,5 @@ func (p *Provider) CreateInvoice(
 		return "", "", fmt.Errorf("create platega transaction: %w", err)
 	}
 
-	return resp.Redirect, resp.TransactionId, nil
-}
-
-var invoiceTypeToMethod = map[database.InvoiceType]PaymentMethod{
-	database.InvoiceTypePlategaSBP:       PaymentMethodSBPQR,
-	database.InvoiceTypePlategaAcquiring: PaymentMethodCardAcquiring,
-	database.InvoiceTypePlategaWorldwide: PaymentMethodInternationalAcquiring,
-	database.InvoiceTypePlategaCrypto:    PaymentMethodCrypto,
-}
-
-func ProviderFor(client *Client, invoiceType database.InvoiceType) (*Provider, error) {
-	method, ok := invoiceTypeToMethod[invoiceType]
-	if !ok {
-		return nil, fmt.Errorf("unsupported platega invoice type: %s", invoiceType)
-	}
-	return &Provider{
-		client:        client,
-		invoiceType:   invoiceType,
-		paymentMethod: method,
-	}, nil
+	return resp.URL, resp.TransactionId, nil
 }
