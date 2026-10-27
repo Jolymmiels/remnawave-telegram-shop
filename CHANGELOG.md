@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.3.0] - 2026-10-27
 
 ### Changed
 - Platega now has a single "Platega" button instead of one button per method. The bot creates the payment through `POST /v2/transaction/process` without `paymentMethod`, and the payer picks SBP, card or another method enabled for the shop on the Platega page. `PLATEGA_ENABLED=true` is enough; `PLATEGA_SBP_ENABLED`, `PLATEGA_ACQUIRING_ENABLED`, `PLATEGA_WORLDWIDE_ENABLED` and `PLATEGA_CRYPTO_ENABLED` are no longer read. Existing `plt_*` purchases keep working in history, paid-purchase checks and webhooks.
