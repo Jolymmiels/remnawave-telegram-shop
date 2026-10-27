@@ -19,7 +19,8 @@ const (
 	InvoiceTypeYookasa            InvoiceType = "yookasa"
 	InvoiceTypeTelegram           InvoiceType = "telegram"
 	InvoiceTypeTribute            InvoiceType = "tribute"
-	InvoiceTypePlategaSBP         InvoiceType = "plt_sbp"
+	InvoiceTypePlatega            InvoiceType = "platega"
+	InvoiceTypePlategaSBP         InvoiceType = "plt_sbp" // per-method types predate the single Platega link; kept for history
 	InvoiceTypePlategaCards       InvoiceType = "plt_cards"
 	InvoiceTypePlategaAcquiring   InvoiceType = "plt_acq"
 	InvoiceTypePlategaWorldwide   InvoiceType = "plt_ww"
@@ -332,6 +333,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 			sq.Or{
 				sq.Eq{"invoice_type": InvoiceTypeCrypto},
 				sq.Eq{"invoice_type": InvoiceTypeYookasa},
+				sq.Eq{"invoice_type": InvoiceTypePlatega},
 				sq.Eq{"invoice_type": InvoiceTypePlategaSBP},
 				sq.Eq{"invoice_type": InvoiceTypePlategaCards},
 				sq.Eq{"invoice_type": InvoiceTypePlategaAcquiring},

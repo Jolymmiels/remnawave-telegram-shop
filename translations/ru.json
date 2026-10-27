@@ -37,21 +37,9 @@
     "text": "Картой банка",
     "emoji_id": "5258165702707125574"
   },
-  "platega_sbp_button": {
-    "text": "СБП",
+  "platega_button": {
+    "text": "Platega",
     "emoji_id": "5258165702707125574"
-  },
-  "platega_acquiring_button": {
-    "text": "Эквайринг",
-    "emoji_id": "5258165702707125574"
-  },
-  "platega_worldwide_button": {
-    "text": "Зарубежная карта",
-    "emoji_id": "5258165702707125574"
-  },
-  "platega_crypto_button": {
-    "text": "Криптовалюта (Platega)",
-    "emoji_id": "5402186569006210455"
   },
   "wata_button": {
     "text": "Карта / СБП (WATA)",

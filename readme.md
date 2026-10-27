@@ -26,7 +26,7 @@ Telegram bot for selling and managing [Remnawave](https://remna.st/) subscriptio
 - [Crypto Pay](https://help.crypt.bot/crypto-pay-api)
 - Telegram Stars
 - Tribute
-- [Platega](https://platega.io): SBP, card acquiring, international cards, and cryptocurrency
+- [Platega](https://platega.io): one payment page with every method enabled for the shop (SBP, cards, cryptocurrency)
 - [WATA](https://wata.pro): payment form with bank cards and SBP
 
 ### Administration and interface

@@ -45,8 +45,7 @@ type config struct {
 	tributeWebhookUrl, tributeAPIKey, tributePaymentUrl       string
 	yookasaWebhookUrl                                         string
 	plategaMerchantId, plategaSecret, plategaWebhookUrl       string
-	isPlategaSBPEnabled, isPlategaAcquiringEnabled           bool
-	isPlategaWorldwideEnabled, isPlategaCryptoEnabled        bool
+	isPlategaEnabled                                          bool
 	isWataEnabled                                             bool
 	wataBaseURL, wataAccessToken, wataWebhookUrl              string
 	isWebAppLinkEnabled                                       bool
@@ -109,25 +108,8 @@ func GetPlategaWebHookUrl() string {
 	return conf.plategaWebhookUrl
 }
 
-func IsPlategaSBPEnabled() bool {
-	return conf.isPlategaSBPEnabled
-}
-
-func IsPlategaAcquiringEnabled() bool {
-	return conf.isPlategaAcquiringEnabled
-}
-
-func IsPlategaWorldwideEnabled() bool {
-	return conf.isPlategaWorldwideEnabled
-}
-
-func IsPlategaCryptoEnabled() bool {
-	return conf.isPlategaCryptoEnabled
-}
-
 func IsPlategaEnabled() bool {
-	return conf.isPlategaSBPEnabled || conf.isPlategaAcquiringEnabled ||
-		conf.isPlategaWorldwideEnabled || conf.isPlategaCryptoEnabled
+	return conf.isPlategaEnabled
 }
 
 func IsWataEnabled() bool {
@@ -513,17 +495,11 @@ func InitConfig() {
 		conf.yookasaWebhookUrl = os.Getenv("YOOKASA_WEBHOOK_URL")
 	}
 
-	if envBool("PLATEGA_ENABLED") {
+	conf.isPlategaEnabled = envBool("PLATEGA_ENABLED")
+	if conf.isPlategaEnabled {
 		conf.plategaMerchantId = mustEnv("PLATEGA_MERCHANT_ID")
 		conf.plategaSecret = mustEnv("PLATEGA_SECRET")
 		conf.plategaWebhookUrl = mustEnv("PLATEGA_WEBHOOK_URL")
-		conf.isPlategaSBPEnabled = envBool("PLATEGA_SBP_ENABLED")
-		if envBool("PLATEGA_CARDS_ENABLED") {
-			slog.Warn("PLATEGA_CARDS_ENABLED is ignored: Platega retired payment method 10, use PLATEGA_ACQUIRING_ENABLED for card payments")
-		}
-		conf.isPlategaAcquiringEnabled = envBool("PLATEGA_ACQUIRING_ENABLED")
-		conf.isPlategaWorldwideEnabled = envBool("PLATEGA_WORLDWIDE_ENABLED")
-		conf.isPlategaCryptoEnabled = envBool("PLATEGA_CRYPTO_ENABLED")
 	}
 
 	conf.isWataEnabled = envBool("WATA_ENABLED")
