@@ -138,7 +138,7 @@ func (cr *PurchaseRepository) FindById(ctx context.Context, id int64) (*Purchase
 	purchase, err := scanPurchase(cr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, fmt.Errorf("purchase %d: %w", id, ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to query purchase: %w", err)
 	}
@@ -180,8 +180,6 @@ func (p *PurchaseRepository) UpdateFields(ctx context.Context, id int64, updates
 	return nil
 }
 
-var ErrPurchaseNotFound = errors.New("purchase not found")
-
 // Settle is the only way a purchase becomes paid. It holds the purchase row
 // lock from the status check through apply to the status update, so
 // concurrent or repeated deliveries of one payment run apply at most once.
@@ -208,7 +206,7 @@ func (pr *PurchaseRepository) Settle(
 	}
 	purchase, err = scanPurchase(tx.QueryRow(ctx, sql, args...))
 	if errors.Is(err, pgx.ErrNoRows) {
-		return nil, false, fmt.Errorf("%w: %d", ErrPurchaseNotFound, id)
+		return nil, false, fmt.Errorf("purchase %d: %w", id, ErrNotFound)
 	}
 	if err != nil {
 		return nil, false, fmt.Errorf("lock purchase: %w", err)
@@ -323,7 +321,7 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 	p, err := scanPurchase(pr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, fmt.Errorf("last %s purchase of customer %d: %w", invoiceType, customerID, ErrNotFound)
 		}
 		return nil, fmt.Errorf("query purchase: %w", err)
 	}
@@ -361,7 +359,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 	p, err := scanPurchase(pr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, fmt.Errorf("paid purchase of customer %d: %w", customerID, ErrNotFound)
 		}
 		return nil, fmt.Errorf("query purchase: %w", err)
 	}

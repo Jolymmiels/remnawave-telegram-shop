@@ -106,12 +106,12 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	purchase, err := h.purchases.FindById(ctx, purchaseID)
-	if err != nil {
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
 		slog.Error("wata webhook: find purchase failed", "purchase_id", purchaseID, "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	if purchase == nil || purchase.InvoiceType != database.InvoiceTypeWata {
+	if err != nil || purchase.InvoiceType != database.InvoiceTypeWata {
 		slog.Warn("wata webhook: wata purchase not found", "purchase_id", purchaseID, "transaction_id", payload.TransactionID)
 		w.WriteHeader(http.StatusOK)
 		return

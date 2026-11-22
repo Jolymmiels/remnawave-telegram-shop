@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 
 	"log/slog"
 
@@ -28,12 +29,12 @@ func (h Handler) CreateCustomerIfNotExistMiddleware(next bot.HandlerFunc) bot.Ha
 			return
 		}
 		existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, telegramId)
-		if err != nil {
+		if err != nil && !errors.Is(err, database.ErrNotFound) {
 			slog.Error("error finding customer by telegram id", "error", err)
 			return
 		}
 
-		if existingCustomer == nil {
+		if errors.Is(err, database.ErrNotFound) {
 			existingCustomer, err = h.customerRepository.Create(ctx, &database.Customer{
 				TelegramID: telegramId,
 				Language:   langCode,

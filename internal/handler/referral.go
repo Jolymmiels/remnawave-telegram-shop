@@ -5,19 +5,16 @@ import (
 	"fmt"
 	"remnawave-tg-shop-bot/internal/menu"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 )
 
 func (h Handler) ReferralCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	customer, err := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	if err != nil {
 		slog.Error("error finding customer", "error", err)
-		return
-	}
-	if customer == nil {
-		slog.Error("customer not found", "telegramId", update.CallbackQuery.From.ID)
 		return
 	}
 	langCode := update.CallbackQuery.From.LanguageCode

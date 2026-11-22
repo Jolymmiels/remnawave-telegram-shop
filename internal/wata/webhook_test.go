@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -27,7 +28,10 @@ const wataPublicKey = "-----BEGIN PUBLIC KEY-----\nMIIBIjANBgkqhkiG9w0BAQEFAAOCA
 type fakePurchases map[int64]*database.Purchase
 
 func (f fakePurchases) FindById(_ context.Context, id int64) (*database.Purchase, error) {
-	return f[id], nil
+	if p, ok := f[id]; ok {
+		return p, nil
+	}
+	return nil, fmt.Errorf("purchase %d: %w", id, database.ErrNotFound)
 }
 
 type fakeProcessor struct {

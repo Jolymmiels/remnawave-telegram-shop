@@ -3,6 +3,7 @@ package platega
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -85,17 +86,16 @@ func (h *WebhookHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	purchase, err := h.purchaseRepo.FindById(ctx, purchaseID)
+	if errors.Is(err, database.ErrNotFound) {
+		slog.Warn("platega webhook: purchase not found", "purchase_id", purchaseID)
+		w.WriteHeader(http.StatusOK)
+		return
+	}
 	if err != nil {
 		slog.Error("platega webhook: find purchase failed", "purchase_id", purchaseID, "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 		return
 	}
-	if purchase == nil {
-		slog.Warn("platega webhook: purchase not found", "purchase_id", purchaseID)
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
 	if purchase.Status == database.PurchaseStatusPaid || purchase.Status == database.PurchaseStatusCancel {
 		slog.Info("platega webhook: purchase already finalized", "purchase_id", purchaseID, "status", purchase.Status)
 		w.WriteHeader(http.StatusOK)
