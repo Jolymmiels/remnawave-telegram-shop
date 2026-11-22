@@ -73,15 +73,9 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 	if err != nil {
 		return err
 	}
-	if pending == nil {
-		return fmt.Errorf("%w: %d", database.ErrPurchaseNotFound, purchaseId)
-	}
 	customer, err := s.customerRepository.FindById(ctx, pending.CustomerID)
 	if err != nil {
 		return err
-	}
-	if customer == nil {
-		return fmt.Errorf("customer %s not found", utils.MaskHalfInt64(pending.CustomerID))
 	}
 
 	var user *remnawave.User
@@ -142,14 +136,14 @@ func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int6
 
 	ctxReferee := context.Background()
 	referee, err := s.referralRepository.FindByReferee(ctxReferee, customer.TelegramID)
-	if referee == nil {
-		return nil
-	}
-	if referee.BonusGranted {
+	if errors.Is(err, database.ErrNotFound) {
 		return nil
 	}
 	if err != nil {
 		return err
+	}
+	if referee.BonusGranted {
+		return nil
 	}
 	refereeCustomer, err := s.customerRepository.FindByTelegramId(ctxReferee, referee.ReferrerID)
 	if err != nil {
@@ -308,23 +302,15 @@ func (s PaymentService) createWataInvoice(ctx context.Context, amount float64, m
 	return link.URL, purchaseId, nil
 }
 
-var ErrCustomerNotFound = errors.New("customer not found")
-
 func (s PaymentService) CancelTributePurchase(ctx context.Context, telegramId int64) error {
 	slog.Info("Canceling tribute purchase", "telegram_id", utils.MaskHalfInt64(telegramId))
 	customer, err := s.customerRepository.FindByTelegramId(ctx, telegramId)
 	if err != nil {
 		return err
 	}
-	if customer == nil {
-		return ErrCustomerNotFound
-	}
 	tributePurchase, err := s.purchaseRepository.FindByCustomerIDAndInvoiceTypeLast(ctx, customer.ID, database.InvoiceTypeTribute)
 	if err != nil {
 		return err
-	}
-	if tributePurchase == nil {
-		return errors.New("tribute purchase not found")
 	}
 	expireAt, err := s.remnawaveClient.DecreaseSubscription(ctx, telegramId, config.TrafficLimit(), -tributePurchase.Month*config.DaysInMonth())
 	if err != nil {
@@ -482,9 +468,6 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 		slog.Error("Error finding customer", "error", err)
 		return "", err
 	}
-	if customer == nil {
-		return "", fmt.Errorf("customer %d not found", telegramId)
-	}
 	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, telegramId, config.TrialTrafficLimit(), config.TrialDays(), true)
 	if err != nil {
 		slog.Error("Error creating user", "error", err)
@@ -508,19 +491,11 @@ func (s PaymentService) ActivateTrial(ctx context.Context, telegramId int64) (st
 func (s PaymentService) CancelYookassaPayment(purchaseId int64) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	purchase, err := s.purchaseRepository.FindById(ctx, purchaseId)
-	if err != nil {
-		return err
-	}
-	if purchase == nil {
-		return fmt.Errorf("purchase with crypto invoice id %s not found", utils.MaskHalfInt64(purchaseId))
-	}
-
 	purchaseFieldsToUpdate := map[string]interface{}{
 		"status": database.PurchaseStatusCancel,
 	}
 
-	err = s.purchaseRepository.UpdateFields(ctx, purchaseId, purchaseFieldsToUpdate)
+	err := s.purchaseRepository.UpdateFields(ctx, purchaseId, purchaseFieldsToUpdate)
 	if err != nil {
 		return err
 	}

@@ -4,10 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
+
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"time"
 )
 
 type Referral struct {
@@ -112,7 +113,7 @@ func (r *ReferralRepository) FindByReferee(ctx context.Context, refereeID int64)
 	err = r.pool.QueryRow(ctx, sql, args...).Scan(&ref.ID, &ref.ReferrerID, &ref.RefereeID, &ref.UsedAt, &ref.BonusGranted)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, fmt.Errorf("referral for referee %d: %w", refereeID, ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to query referral by referee: %w", err)
 	}

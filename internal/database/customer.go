@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	sq "github.com/Masterminds/squirrel"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
 	"log/slog"
 	"remnawave-tg-shop-bot/utils"
 	"time"
+
+	sq "github.com/Masterminds/squirrel"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type CustomerRepository struct {
@@ -99,7 +100,7 @@ func (cr *CustomerRepository) FindById(ctx context.Context, id int64) (*Customer
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, fmt.Errorf("customer %d: %w", id, ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to query customer: %w", err)
 	}
@@ -129,7 +130,7 @@ func (cr *CustomerRepository) FindByTelegramId(ctx context.Context, telegramId i
 	)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, nil
+			return nil, fmt.Errorf("customer with telegram id %d: %w", telegramId, ErrNotFound)
 		}
 		return nil, fmt.Errorf("failed to query customer: %w", err)
 	}

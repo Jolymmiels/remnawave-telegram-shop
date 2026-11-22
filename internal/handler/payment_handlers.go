@@ -2,14 +2,16 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
@@ -108,15 +110,10 @@ func (h Handler) SellCallbackHandler(ctx context.Context, b *bot.Bot, update *mo
 			if err != nil {
 				slog.Error("Error finding customer for stars check", "error", err)
 				shouldShowStarsButton = false
-			} else if customer != nil {
-				paidPurchase, err := h.purchaseRepository.FindSuccessfulPaidPurchaseByCustomer(ctx, customer.ID)
-				if err != nil {
+			} else if _, err := h.purchaseRepository.FindSuccessfulPaidPurchaseByCustomer(ctx, customer.ID); err != nil {
+				if !errors.Is(err, database.ErrNotFound) {
 					slog.Error("Error checking paid purchase", "error", err)
-					shouldShowStarsButton = false
-				} else if paidPurchase == nil {
-					shouldShowStarsButton = false
 				}
-			} else {
 				shouldShowStarsButton = false
 			}
 		}
@@ -174,10 +171,6 @@ func (h Handler) PaymentCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", "error", err)
-		return
-	}
-	if customer == nil {
-		slog.Error("customer not exist", "chatID", callback.Chat.ID, "error", err)
 		return
 	}
 

@@ -83,8 +83,8 @@ func (c *Client) WebHookHandler() http.Handler {
 			}
 		case CancelledSubscription:
 			err := c.cancelSubscriptionHandler(ctx, wh)
-			if errors.Is(err, payment.ErrCustomerNotFound) {
-				slog.Warn("webhook: customer not found", "telegram_id", wh.Payload.TelegramUserID)
+			if errors.Is(err, database.ErrNotFound) {
+				slog.Warn("webhook: nothing to cancel", "error", err, "telegram_id", wh.Payload.TelegramUserID)
 				w.WriteHeader(http.StatusOK)
 				return
 			}
@@ -110,9 +110,6 @@ func (c *Client) newSubscriptionHandler(ctx context.Context, wh SubscriptionWebh
 	customer, err := c.customerRepository.FindByTelegramId(ctx, wh.Payload.TelegramUserID)
 	if err != nil {
 		return fmt.Errorf("failed to find customer: %w", err)
-	}
-	if customer == nil {
-		return fmt.Errorf("customer not found for telegram_id: %d", wh.Payload.TelegramUserID)
 	}
 
 	_, purchaseId, err := c.paymentService.CreatePurchase(ctx, float64(wh.Payload.Amount), months, customer, database.InvoiceTypeTribute)

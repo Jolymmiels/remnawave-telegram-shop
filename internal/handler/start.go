@@ -2,13 +2,15 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"strconv"
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/database"
@@ -21,12 +23,12 @@ func (h Handler) StartCommandHandler(ctx context.Context, b *bot.Bot, update *mo
 	defer cancel()
 	langCode := update.Message.From.LanguageCode
 	existingCustomer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
-	if err != nil {
+	if err != nil && !errors.Is(err, database.ErrNotFound) {
 		slog.Error("error finding customer by telegram id", "error", err)
 		return
 	}
 
-	if existingCustomer == nil {
+	if errors.Is(err, database.ErrNotFound) {
 		existingCustomer, err = h.customerRepository.Create(ctxWithTime, &database.Customer{
 			TelegramID: update.Message.Chat.ID,
 			Language:   langCode,

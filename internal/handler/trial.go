@@ -3,14 +3,14 @@ package handler
 import (
 	"context"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/config"
 	"remnawave-tg-shop-bot/internal/menu"
 	"remnawave-tg-shop-bot/internal/remnawave"
-	"remnawave-tg-shop-bot/utils"
 )
 
 func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
@@ -20,10 +20,6 @@ func (h Handler) TrialCallbackHandler(ctx context.Context, b *bot.Bot, update *m
 	c, err := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	if err != nil {
 		slog.Error("Error finding customer", "error", err)
-		return
-	}
-	if c == nil {
-		slog.Error("customer not exist", "telegramId", utils.MaskHalfInt64(update.CallbackQuery.From.ID), "error", err)
 		return
 	}
 	if c.SubscriptionLink != nil {
@@ -53,10 +49,6 @@ func (h Handler) ActivateTrialCallbackHandler(ctx context.Context, b *bot.Bot, u
 	c, err := h.customerRepository.FindByTelegramId(ctx, update.CallbackQuery.From.ID)
 	if err != nil {
 		slog.Error("Error finding customer", "error", err)
-		return
-	}
-	if c == nil {
-		slog.Error("customer not exist", "telegramId", utils.MaskHalfInt64(update.CallbackQuery.From.ID), "error", err)
 		return
 	}
 	if c.SubscriptionLink != nil {

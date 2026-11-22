@@ -5,15 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
+	"path/filepath"
+	"remnawave-tg-shop-bot/internal/config"
+
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	_ "github.com/lib/pq"
-	"log/slog"
-	"os"
-	"path/filepath"
-	"remnawave-tg-shop-bot/internal/config"
 )
 
 type MigrationConfig struct {
@@ -146,3 +147,6 @@ func GetMigrationVersion(migrationsPath string) (uint, bool, error) {
 
 	return version, dirty, nil
 }
+
+// ErrNotFound is how every lookup reports a missing row.
+var ErrNotFound = errors.New("not found")

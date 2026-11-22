@@ -8,23 +8,19 @@ import (
 	"strings"
 	"time"
 
+	"log/slog"
+
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
-	"log/slog"
 
 	"remnawave-tg-shop-bot/internal/database"
 	"remnawave-tg-shop-bot/internal/translation"
-	"remnawave-tg-shop-bot/utils"
 )
 
 func (h Handler) ConnectCommandHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	customer, err := h.customerRepository.FindByTelegramId(ctx, update.Message.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", "error", err)
-		return
-	}
-	if customer == nil {
-		slog.Error("customer not exist", "telegramId", utils.MaskHalfInt64(update.Message.Chat.ID), "error", err)
 		return
 	}
 
@@ -55,10 +51,6 @@ func (h Handler) ConnectCallbackHandler(ctx context.Context, b *bot.Bot, update 
 	customer, err := h.customerRepository.FindByTelegramId(ctx, callback.Chat.ID)
 	if err != nil {
 		slog.Error("Error finding customer", "error", err)
-		return
-	}
-	if customer == nil {
-		slog.Error("customer not exist", "telegramId", utils.MaskHalfInt64(callback.Chat.ID), "error", err)
 		return
 	}
 
