@@ -15,17 +15,17 @@ import (
 type InvoiceType string
 
 const (
-	InvoiceTypeCrypto             InvoiceType = "crypto"
-	InvoiceTypeYookasa            InvoiceType = "yookasa"
-	InvoiceTypeTelegram           InvoiceType = "telegram"
-	InvoiceTypeTribute            InvoiceType = "tribute"
-	InvoiceTypePlatega            InvoiceType = "platega"
-	InvoiceTypePlategaSBP         InvoiceType = "plt_sbp" // per-method types predate the single Platega link; kept for history
-	InvoiceTypePlategaCards       InvoiceType = "plt_cards"
-	InvoiceTypePlategaAcquiring   InvoiceType = "plt_acq"
-	InvoiceTypePlategaWorldwide   InvoiceType = "plt_ww"
-	InvoiceTypePlategaCrypto      InvoiceType = "plt_crypto"
-	InvoiceTypeWata               InvoiceType = "wata"
+	InvoiceTypeCrypto           InvoiceType = "crypto"
+	InvoiceTypeYookasa          InvoiceType = "yookasa"
+	InvoiceTypeTelegram         InvoiceType = "telegram"
+	InvoiceTypeTribute          InvoiceType = "tribute"
+	InvoiceTypePlatega          InvoiceType = "platega"
+	InvoiceTypePlategaSBP       InvoiceType = "plt_sbp" // per-method types predate the single Platega link; kept for history
+	InvoiceTypePlategaCards     InvoiceType = "plt_cards"
+	InvoiceTypePlategaAcquiring InvoiceType = "plt_acq"
+	InvoiceTypePlategaWorldwide InvoiceType = "plt_ww"
+	InvoiceTypePlategaCrypto    InvoiceType = "plt_crypto"
+	InvoiceTypeWata             InvoiceType = "wata"
 )
 
 type PurchaseStatus string
@@ -111,31 +111,11 @@ func (cr *PurchaseRepository) FindByInvoiceTypeAndStatus(ctx context.Context, in
 
 	purchases := []Purchase{}
 	for rows.Next() {
-		purchase := Purchase{}
-		err = rows.Scan(
-			&purchase.ID,
-			&purchase.Amount,
-			&purchase.CustomerID,
-			&purchase.CreatedAt,
-			&purchase.Month,
-			&purchase.PaidAt,
-			&purchase.Currency,
-			&purchase.ExpireAt,
-			&purchase.Status,
-			&purchase.InvoiceType,
-			&purchase.CryptoInvoiceID,
-			&purchase.CryptoInvoiceLink,
-			&purchase.YookasaURL,
-			&purchase.YookasaID,
-			&purchase.PlategaID,
-			&purchase.PlategaURL,
-			&purchase.WataID,
-			&purchase.WataURL,
-		)
+		purchase, err := scanPurchase(rows)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan purchase: %w", err)
 		}
-		purchases = append(purchases, purchase)
+		purchases = append(purchases, *purchase)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -155,29 +135,7 @@ func (cr *PurchaseRepository) FindById(ctx context.Context, id int64) (*Purchase
 	if err != nil {
 		return nil, err
 	}
-	purchase := &Purchase{}
-
-	err = cr.pool.QueryRow(ctx, sql, args...).Scan(
-		&purchase.ID,
-		&purchase.Amount,
-		&purchase.CustomerID,
-		&purchase.CreatedAt,
-		&purchase.Month,
-		&purchase.PaidAt,
-		&purchase.Currency,
-		&purchase.ExpireAt,
-		&purchase.Status,
-		&purchase.InvoiceType,
-		&purchase.CryptoInvoiceID,
-		&purchase.CryptoInvoiceLink,
-		&purchase.YookasaURL,
-		&purchase.YookasaID,
-		&purchase.PlategaID,
-		&purchase.PlategaURL,
-		&purchase.WataID,
-		&purchase.WataURL,
-	)
-
+	purchase, err := scanPurchase(cr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -191,6 +149,9 @@ func (cr *PurchaseRepository) FindById(ctx context.Context, id int64) (*Purchase
 func (p *PurchaseRepository) UpdateFields(ctx context.Context, id int64, updates map[string]interface{}) error {
 	if len(updates) == 0 {
 		return nil
+	}
+	if status, ok := updates["status"]; ok && fmt.Sprint(status) == string(PurchaseStatusPaid) {
+		return errors.New("UpdateFields cannot mark a purchase paid; settle it with PurchaseRepository.Settle")
 	}
 
 	buildUpdate := sq.Update("purchase").
@@ -219,15 +180,75 @@ func (p *PurchaseRepository) UpdateFields(ctx context.Context, id int64, updates
 	return nil
 }
 
-func (pr *PurchaseRepository) MarkAsPaid(ctx context.Context, purchaseID int64) error {
-	currentTime := time.Now()
+var ErrPurchaseNotFound = errors.New("purchase not found")
 
-	updates := map[string]interface{}{
-		"status":  PurchaseStatusPaid,
-		"paid_at": currentTime,
+// Settle is the only way a purchase becomes paid. It holds the purchase row
+// lock from the status check through apply to the status update, so
+// concurrent or repeated deliveries of one payment run apply at most once.
+// settled is false when the purchase was already paid or cancelled.
+// apply must not query the pool: deliveries waiting on the lock hold
+// connections, and a second acquisition can stall until the context ends.
+func (pr *PurchaseRepository) Settle(
+	ctx context.Context,
+	id int64,
+	apply func(ctx context.Context, purchase *Purchase) error,
+) (purchase *Purchase, settled bool, err error) {
+	tx, err := pr.pool.Begin(ctx)
+	if err != nil {
+		return nil, false, fmt.Errorf("begin settle: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	sql, args, err := sq.Select("*").
+		From("purchase").
+		Where(sq.Eq{"id": id}).
+		Suffix("FOR UPDATE").
+		PlaceholderFormat(sq.Dollar).
+		ToSql()
+	if err != nil {
+		return nil, false, err
+	}
+	purchase, err = scanPurchase(tx.QueryRow(ctx, sql, args...))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, fmt.Errorf("%w: %d", ErrPurchaseNotFound, id)
+	}
+	if err != nil {
+		return nil, false, fmt.Errorf("lock purchase: %w", err)
 	}
 
-	return pr.UpdateFields(ctx, purchaseID, updates)
+	if purchase.Status == PurchaseStatusPaid || purchase.Status == PurchaseStatusCancel {
+		return purchase, false, tx.Commit(ctx)
+	}
+
+	if err := apply(ctx, purchase); err != nil {
+		return nil, false, err
+	}
+
+	paidAt := time.Now()
+	if _, err := tx.Exec(ctx, "UPDATE purchase SET status = $1, paid_at = $2 WHERE id = $3", PurchaseStatusPaid, paidAt, id); err != nil {
+		return nil, false, fmt.Errorf("mark purchase paid: %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, false, fmt.Errorf("commit settle: %w", err)
+	}
+
+	purchase.Status = PurchaseStatusPaid
+	purchase.PaidAt = &paidAt
+	return purchase, true, nil
+}
+
+func scanPurchase(row pgx.Row) (*Purchase, error) {
+	p := &Purchase{}
+	err := row.Scan(
+		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
+		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
+		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
+		&p.PlategaID, &p.PlategaURL, &p.WataID, &p.WataURL,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 func buildLatestActiveTributesQuery(customerIDs []int64) sq.SelectBuilder {
@@ -266,16 +287,11 @@ func (pr *PurchaseRepository) FindLatestActiveTributesByCustomerIDs(
 
 	var purchases []Purchase
 	for rows.Next() {
-		var p Purchase
-		if err := rows.Scan(
-			&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
-			&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
-			&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
-			&p.PlategaID, &p.PlategaURL, &p.WataID, &p.WataURL,
-		); err != nil {
+		p, err := scanPurchase(rows)
+		if err != nil {
 			return nil, fmt.Errorf("scan purchase: %w", err)
 		}
-		purchases = append(purchases, p)
+		purchases = append(purchases, *p)
 	}
 
 	if err = rows.Err(); err != nil {
@@ -306,13 +322,7 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 		return nil, fmt.Errorf("build query: %w", err)
 	}
 
-	p := &Purchase{}
-	err = pr.pool.QueryRow(ctx, sql, args...).Scan(
-		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
-		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
-		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
-		&p.PlategaID, &p.PlategaURL, &p.WataID, &p.WataURL,
-	)
+	p, err := scanPurchase(pr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
@@ -322,7 +332,6 @@ func (pr *PurchaseRepository) FindByCustomerIDAndInvoiceTypeLast(
 
 	return p, nil
 }
-
 
 func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.Context, customerID int64) (*Purchase, error) {
 	query := sq.Select("*").
@@ -351,13 +360,7 @@ func (pr *PurchaseRepository) FindSuccessfulPaidPurchaseByCustomer(ctx context.C
 		return nil, fmt.Errorf("build query: %w", err)
 	}
 
-	p := &Purchase{}
-	err = pr.pool.QueryRow(ctx, sql, args...).Scan(
-		&p.ID, &p.Amount, &p.CustomerID, &p.CreatedAt, &p.Month,
-		&p.PaidAt, &p.Currency, &p.ExpireAt, &p.Status, &p.InvoiceType,
-		&p.CryptoInvoiceID, &p.CryptoInvoiceLink, &p.YookasaURL, &p.YookasaID,
-		&p.PlategaID, &p.PlategaURL, &p.WataID, &p.WataURL,
-	)
+	p, err := scanPurchase(pr.pool.QueryRow(ctx, sql, args...))
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, nil
