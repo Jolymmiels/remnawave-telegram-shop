@@ -20,7 +20,9 @@ import (
 )
 
 // Pool creates a fresh database on the server at TEST_DATABASE_URL, applies
-// db/migrations and drops the database when the test ends. Without
+// db/migrations and drops the database when the test ends. The pool holds
+// two connections so that code needing a second connection while it holds a
+// row lock stalls in tests instead of under a production burst. Without
 // TEST_DATABASE_URL the test is skipped locally and fails in CI.
 func Pool(t testing.TB) *pgxpool.Pool {
 	t.Helper()
@@ -76,7 +78,12 @@ func Pool(t testing.TB) *pgxpool.Pool {
 		t.Fatalf("close migrations: %v %v", srcErr, dbErr)
 	}
 
-	pool, err := pgxpool.New(ctx, dbURL)
+	poolConfig, err := pgxpool.ParseConfig(dbURL)
+	if err != nil {
+		t.Fatalf("parse test pool config: %v", err)
+	}
+	poolConfig.MaxConns = 2
+	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)
 	if err != nil {
 		t.Fatalf("open test pool: %v", err)
 	}
