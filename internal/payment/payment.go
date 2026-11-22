@@ -69,30 +69,26 @@ func NewPaymentService(
 }
 
 func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int64) error {
-	purchase, err := s.purchaseRepository.FindById(ctx, purchaseId)
+	var customer *database.Customer
+	var user *remnawave.User
+	purchase, settled, err := s.purchaseRepository.Settle(ctx, purchaseId, func(ctx context.Context, purchase *database.Purchase) error {
+		var err error
+		customer, err = s.customerRepository.FindById(ctx, purchase.CustomerID)
+		if err != nil {
+			return err
+		}
+		if customer == nil {
+			return fmt.Errorf("customer %s not found", utils.MaskHalfInt64(purchase.CustomerID))
+		}
+		user, err = s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
+		return err
+	})
 	if err != nil {
 		return err
 	}
-	if purchase == nil {
-		return fmt.Errorf("purchase with crypto invoice id %s not found", utils.MaskHalfInt64(purchaseId))
-	}
-
-	customer, err := s.customerRepository.FindById(ctx, purchase.CustomerID)
-	if err != nil {
-		return err
-	}
-	if customer == nil {
-		return fmt.Errorf("customer %s not found", utils.MaskHalfInt64(purchase.CustomerID))
-	}
-
-	user, err := s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
-	if err != nil {
-		return err
-	}
-
-	err = s.purchaseRepository.MarkAsPaid(ctx, purchase.ID)
-	if err != nil {
-		return err
+	if !settled {
+		slog.Info("purchase already settled", "purchase_id", utils.MaskHalfInt64(purchase.ID), "status", purchase.Status)
+		return nil
 	}
 
 	customerFilesToUpdate := map[string]interface{}{
