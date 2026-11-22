@@ -69,14 +69,18 @@ func NewPaymentService(
 }
 
 func (s PaymentService) ProcessPurchaseById(ctx context.Context, purchaseId int64) error {
-	var customer *database.Customer
+	pending, err := s.purchaseRepository.FindById(ctx, purchaseId)
+	if err != nil {
+		return err
+	}
+	customer, err := s.customerRepository.FindById(ctx, pending.CustomerID)
+	if err != nil {
+		return err
+	}
+
 	var user *remnawave.User
 	purchase, settled, err := s.purchaseRepository.Settle(ctx, purchaseId, func(ctx context.Context, purchase *database.Purchase) error {
 		var err error
-		customer, err = s.customerRepository.FindById(ctx, purchase.CustomerID)
-		if err != nil {
-			return err
-		}
 		user, err = s.remnawaveClient.CreateOrUpdateUser(ctx, customer.ID, customer.TelegramID, config.TrafficLimit(), purchase.Month*config.DaysInMonth(), false)
 		return err
 	})

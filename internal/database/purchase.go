@@ -150,7 +150,7 @@ func (p *PurchaseRepository) UpdateFields(ctx context.Context, id int64, updates
 	if len(updates) == 0 {
 		return nil
 	}
-	if updates["status"] == PurchaseStatusPaid {
+	if status, ok := updates["status"]; ok && fmt.Sprint(status) == string(PurchaseStatusPaid) {
 		return errors.New("UpdateFields cannot mark a purchase paid; settle it with PurchaseRepository.Settle")
 	}
 
@@ -184,6 +184,8 @@ func (p *PurchaseRepository) UpdateFields(ctx context.Context, id int64, updates
 // lock from the status check through apply to the status update, so
 // concurrent or repeated deliveries of one payment run apply at most once.
 // settled is false when the purchase was already paid or cancelled.
+// apply must not query the pool: deliveries waiting on the lock hold
+// connections, and a second acquisition can stall until the context ends.
 func (pr *PurchaseRepository) Settle(
 	ctx context.Context,
 	id int64,
